@@ -1,0 +1,2 @@
+question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,difficultyLevel,bloomsLevel,competencyIds,tags,year,source
+"What is the normal heart rate?","60-100 bpm","40-60 bpm","100-120 bpm","120-140 bpm","","A","Physiology","Cardiovascular System","Easy","Remember","comp123,comp456","cardiology,vitals","2024","NEET PG"

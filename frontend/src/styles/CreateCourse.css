@@ -1,0 +1,374 @@
+/* CreateCourse - Laboratory Console Theme */
+@import './shared-dashboard.css';
+
+.create-course-container {
+  min-height: 100vh;
+  background: var(--color-base);
+  padding: var(--space-xl);
+}
+
+.create-course-header {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.btn-back {
+  background: var(--color-surface-raised);
+  border: 1px solid rgba(244, 241, 235, 0.1);
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  margin-bottom: var(--space-lg);
+  transition: all 150ms ease-out;
+}
+
+.btn-back:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-primary);
+}
+
+.create-course-header h1 {
+  margin: 0 0 var(--space-sm) 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.create-course-header p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-tertiary);
+}
+
+.create-course-form {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.form-section {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-xl);
+}
+
+.form-section h3 {
+  margin: 0 0 var(--space-lg) 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(244, 241, 235, 0.08);
+}
+
+.section-header h3 {
+  margin: 0;
+}
+
+.form-group {
+  margin-bottom: var(--space-xl);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--color-surface-sunken);
+  border: 1px solid rgba(244, 241, 235, 0.1);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  transition: border-color 150ms ease-out, background-color 150ms ease-out;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.form-group small {
+  display: block;
+  margin-top: var(--space-sm);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+.info-box {
+  background: rgba(196, 115, 53, 0.08);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.info-box p {
+  margin: 0 0 var(--space-sm) 0;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.info-box ul {
+  margin: 0;
+  padding-left: var(--space-lg);
+  color: var(--color-text-secondary);
+}
+
+.info-box li {
+  margin-bottom: var(--space-xs);
+  font-size: 0.8125rem;
+}
+
+.empty-flow {
+  text-align: center;
+  padding: var(--space-2xl) var(--space-xl);
+  color: var(--color-text-tertiary);
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-lg);
+  border: 2px dashed rgba(244, 241, 235, 0.1);
+}
+
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-surface-raised);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  transition: all 120ms ease-out;
+}
+
+.flow-step:hover {
+  background: var(--color-surface-sunken);
+}
+
+.flow-step .step-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.flow-step .step-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.flow-step .step-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.flow-step .step-subtitle {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+.flow-step .step-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Form row layout */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-lg);
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary {
+  padding: var(--space-md) var(--space-xl);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-accent) 0%, rgba(196, 115, 53, 0.8) 100%);
+  border: none;
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(196, 115, 53, 0.3);
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid rgba(244, 241, 235, 0.15);
+  color: var(--color-text-secondary);
+}
+
+.btn-secondary:hover {
+  background: rgba(244, 241, 235, 0.05);
+  border-color: rgba(244, 241, 235, 0.25);
+  color: var(--color-text-primary);
+}
+
+.btn-danger {
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(204, 102, 102, 0.1);
+  border: 1px solid rgba(204, 102, 102, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--color-error);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  cursor: pointer;
+  transition: all 120ms ease-out;
+}
+
+.btn-danger:hover {
+  background: rgba(204, 102, 102, 0.2);
+}
+
+/* Unit and MCQ cards */
+.unit-card,
+.mcq-item {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  transition: all 120ms ease-out;
+}
+
+.unit-card:hover,
+.mcq-item:hover {
+  background: var(--color-surface-raised);
+  border-color: rgba(244, 241, 235, 0.12);
+}
+
+.unit-card .unit-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.unit-card .unit-type {
+  font-size: 0.75rem;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Checkbox styling */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
+}
+
+.checkbox-item label {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Select options styling */
+.form-group select option {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+/* Loading and error states */
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-tertiary);
+  text-align: center;
+}
+
+.error-state {
+  color: var(--color-error);
+}
+
+/* Actions footer */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  padding-top: var(--space-xl);
+  border-top: 1px solid rgba(244, 241, 235, 0.08);
+  margin-top: var(--space-xl);
+}

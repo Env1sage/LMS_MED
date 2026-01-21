@@ -1,0 +1,103 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+*.test.js.snap
+
+# Production builds
+backend/dist/
+frontend/build/
+frontend/.next/
+frontend/out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+/tmp/*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
+
+# IDE - IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+.directory
+
+# Temporary files
+*.swp
+*.swo
+*~
+*.tmp
+.tmp/
+tmp/
+temp/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+
+# Backup files
+*.bak
+*.backup
+*_BACKUP/
+prisma_BACKUP/
+
+# Prisma
+backend/prisma/migrations/*.sql~
+.prisma/
+
+# Build info
+.next/
+.cache/
+.parcel-cache/
+
+# Miscellaneous
+*.pem
+.vercel
+.turbo
+
+# Test flags
+restart.flag
+
+# Documentation (keep in repo but ignore generated ones)
+# Keeping all .md files for now
+
+# Temp extraction files (MCI PDFs)
+/tmp/vol*.txt
+/tmp/*.json
+/tmp/*.py

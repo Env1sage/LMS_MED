@@ -1,0 +1,351 @@
+/* McqManagement - Laboratory Console Theme */
+@import './shared-dashboard.css';
+
+.mcq-management {
+  min-height: 100vh;
+  background: var(--color-base);
+  padding: var(--space-xl);
+}
+
+.mcq-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-xl);
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+}
+
+.mcq-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-xl);
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 250px;
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.1);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  transition: border-color 150ms ease-out;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.filter-select {
+  padding: var(--space-md);
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.1);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  min-width: 180px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.mcq-list {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.mcq-card {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  transition: all 150ms ease-out;
+}
+
+.mcq-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(244, 241, 235, 0.12);
+}
+
+.mcq-header-row {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.subject-badge {
+  background: rgba(196, 115, 53, 0.1);
+  color: var(--color-accent);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.verified-badge {
+  background: rgba(74, 157, 124, 0.1);
+  color: var(--color-success);
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.difficulty-badge {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.difficulty-badge.easy {
+  background: rgba(74, 157, 124, 0.1);
+  color: var(--color-success);
+}
+
+.difficulty-badge.medium {
+  background: rgba(212, 168, 75, 0.1);
+  color: var(--color-warning);
+}
+
+.difficulty-badge.hard {
+  background: rgba(204, 102, 102, 0.1);
+  color: var(--color-error);
+}
+
+.mcq-question {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+}
+
+.mcq-options {
+  display: grid;
+  gap: var(--space-sm);
+  margin: var(--space-lg) 0;
+}
+
+.option {
+  padding: var(--space-md);
+  background: var(--color-surface-sunken);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  transition: all 120ms ease-out;
+}
+
+.option.correct {
+  background: rgba(74, 157, 124, 0.1);
+  border-color: var(--color-success);
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.mcq-meta {
+  display: flex;
+  gap: var(--space-lg);
+  margin: var(--space-md) 0;
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  flex-wrap: wrap;
+}
+
+.mcq-meta span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.mcq-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid rgba(244, 241, 235, 0.06);
+  flex-wrap: wrap;
+}
+
+/* MCQ Form */
+.mcq-form {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.mcq-form h3 {
+  margin: 0 0 var(--space-xl) 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.form-group {
+  margin-bottom: var(--space-lg);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: var(--space-md);
+  background: var(--color-surface-sunken);
+  border: 1px solid rgba(244, 241, 235, 0.1);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  transition: border-color 150ms ease-out;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* Options grid in form */
+.options-grid {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.option-input-group {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.option-input-group input[type="text"] {
+  flex: 1;
+}
+
+.option-input-group input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-success);
+}
+
+/* Add MCQ button */
+.btn-add-mcq {
+  padding: var(--space-md) var(--space-xl);
+  background: linear-gradient(135deg, var(--color-accent) 0%, rgba(196, 115, 53, 0.8) 100%);
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: white;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+
+.btn-add-mcq:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(196, 115, 53, 0.3);
+}
+
+/* Action buttons */
+.btn-edit,
+.btn-delete,
+.btn-verify {
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease-out;
+}
+
+.btn-edit {
+  background: rgba(91, 143, 168, 0.1);
+  border: 1px solid rgba(91, 143, 168, 0.3);
+  color: var(--color-info);
+}
+
+.btn-edit:hover {
+  background: rgba(91, 143, 168, 0.2);
+}
+
+.btn-delete {
+  background: rgba(204, 102, 102, 0.1);
+  border: 1px solid rgba(204, 102, 102, 0.3);
+  color: var(--color-error);
+}
+
+.btn-delete:hover {
+  background: rgba(204, 102, 102, 0.2);
+}
+
+.btn-verify {
+  background: rgba(74, 157, 124, 0.1);
+  border: 1px solid rgba(74, 157, 124, 0.3);
+  color: var(--color-success);
+}
+
+.btn-verify:hover {
+  background: rgba(74, 157, 124, 0.2);
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: var(--space-2xl);
+  color: var(--color-text-tertiary);
+}
+
+.empty-state .icon {
+  font-size: 3rem;
+  margin-bottom: var(--space-md);
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 0.9375rem;
+}

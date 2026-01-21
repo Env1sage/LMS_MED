@@ -1,0 +1,301 @@
+/* CourseAnalytics - Laboratory Console Theme */
+@import './shared-dashboard.css';
+
+.analytics-container {
+  min-height: 100vh;
+  background: var(--color-base);
+  padding: var(--space-xl);
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: var(--space-xl);
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+}
+
+.analytics-header h1 {
+  margin: 0 0 var(--space-xs) 0;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.course-title {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-tertiary);
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.stat-card {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  transition: all 150ms ease-out;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(244, 241, 235, 0.12);
+}
+
+.stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  background: rgba(196, 115, 53, 0.1);
+  color: var(--color-accent);
+}
+
+.stat-icon.blue {
+  background: rgba(91, 143, 168, 0.1);
+  color: var(--color-info);
+}
+
+.stat-icon.green {
+  background: rgba(74, 157, 124, 0.1);
+  color: var(--color-success);
+}
+
+.stat-icon.yellow {
+  background: rgba(212, 168, 75, 0.1);
+  color: var(--color-warning);
+}
+
+.stat-info {
+  flex: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-xs);
+}
+
+.stat-value {
+  font-family: var(--font-ui);
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* Analytics Section */
+.analytics-section {
+  background: var(--color-surface);
+  border: 1px solid rgba(244, 241, 235, 0.06);
+  padding: var(--space-xl);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.analytics-section h2 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-top: 0;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(244, 241, 235, 0.08);
+}
+
+/* Completion Rate */
+.completion-rate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-xl);
+}
+
+.completion-circle {
+  margin-bottom: var(--space-lg);
+}
+
+.completion-text {
+  text-align: center;
+  color: var(--color-text-tertiary);
+  font-size: 0.9375rem;
+  max-width: 500px;
+}
+
+/* Filters */
+.filters-row {
+  display: flex;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+  flex-wrap: wrap;
+}
+
+.search-input,
+.filter-select {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-surface-sunken);
+  border: 1px solid rgba(244, 241, 235, 0.1);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  transition: border-color 150ms ease-out;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.filter-select {
+  min-width: 180px;
+}
+
+.search-input:focus,
+.filter-select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* Students Table */
+.students-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.students-table th {
+  text-align: left;
+  padding: var(--space-md);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(244, 241, 235, 0.08);
+}
+
+.students-table td {
+  padding: var(--space-md);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid rgba(244, 241, 235, 0.04);
+}
+
+.students-table tr:hover td {
+  background: var(--color-surface-raised);
+}
+
+/* Progress Bar */
+.progress-bar {
+  height: 6px;
+  background: var(--color-surface-sunken);
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 300ms ease-out;
+}
+
+.progress-fill.excellent {
+  background: var(--color-success);
+}
+
+.progress-fill.good {
+  background: var(--color-accent);
+}
+
+.progress-fill.average {
+  background: var(--color-warning);
+}
+
+.progress-fill.poor {
+  background: var(--color-error);
+}
+
+/* Chart placeholder */
+.chart-container {
+  height: 300px;
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+}
+
+/* Export button */
+.btn-export {
+  padding: var(--space-sm) var(--space-lg);
+  background: transparent;
+  border: 1px solid rgba(244, 241, 235, 0.15);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 120ms ease-out;
+}
+
+.btn-export:hover {
+  background: rgba(244, 241, 235, 0.05);
+  border-color: rgba(244, 241, 235, 0.25);
+  color: var(--color-text-primary);
+}
+
+/* Time range selector */
+.time-range {
+  display: flex;
+  gap: var(--space-xs);
+  background: var(--color-surface-sunken);
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
+}
+
+.time-range button {
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all 120ms ease-out;
+}
+
+.time-range button:hover {
+  color: var(--color-text-primary);
+}
+
+.time-range button.active {
+  background: var(--color-surface);
+  color: var(--color-accent);
+}
