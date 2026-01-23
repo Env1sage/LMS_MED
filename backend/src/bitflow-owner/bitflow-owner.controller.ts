@@ -242,4 +242,70 @@ export class BitflowOwnerController {
   async getAuditLogs(@Query() dto: GetAuditLogsDto): Promise<AuditLogsResponseDto> {
     return this.bitflowOwnerService.getAuditLogs(dto);
   }
+
+  // ========================================================================
+  // CONTENT MANAGEMENT - VIEW ALL PLATFORM CONTENT
+  // ========================================================================
+
+  @Get('content')
+  async getAllContent(
+    @Query('type') type?: string,
+    @Query('publisherId') publisherId?: string,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.bitflowOwnerService.getAllContent({
+      type,
+      publisherId,
+      status,
+      search,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
+
+  @Get('content/stats')
+  async getContentStats() {
+    return this.bitflowOwnerService.getContentStats();
+  }
+
+  @Get('content/:id')
+  async getContentById(@Param('id') id: string) {
+    return this.bitflowOwnerService.getContentById(id);
+  }
+
+  @Patch('content/:id/status')
+  async updateContentStatus(
+    @Param('id') id: string,
+    @Body() body: { status: string; reason?: string },
+    @CurrentUser('userId') userId: string,
+  ) {
+    return this.bitflowOwnerService.updateContentStatus(id, body.status, body.reason, userId);
+  }
+
+  @Get('mcqs')
+  async getAllMcqs(
+    @Query('publisherId') publisherId?: string,
+    @Query('status') status?: string,
+    @Query('subject') subject?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.bitflowOwnerService.getAllMcqs({
+      publisherId,
+      status,
+      subject,
+      search,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
+
+  @Get('mcqs/:id')
+  async getMcqById(@Param('id') id: string) {
+    return this.bitflowOwnerService.getMcqById(id);
+  }
 }

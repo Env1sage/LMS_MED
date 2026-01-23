@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsInt, Min, IsBoolean, IsOptional, IsArray, IsUrl } from 'class-validator';
-import { DeliveryType, DifficultyLevel, LearningUnitStatus } from '@prisma/client';
+import { DeliveryType, DifficultyLevel, ContentStatus } from '@prisma/client';
 
 export class UpdateLearningUnitDto {
   @IsString()
@@ -61,6 +61,15 @@ export class UpdateLearningUnitDto {
   @IsOptional()
   timeLimit?: number;
 
+  // Phase 3: Content Protection fields
+  @IsBoolean()
+  @IsOptional()
+  viewOnly?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  downloadAllowed?: boolean;
+
   @IsUrl()
   @IsOptional()
   thumbnailUrl?: string;
@@ -70,7 +79,7 @@ export class UpdateLearningUnitDto {
   @IsOptional()
   tags?: string[];
 
-  @IsEnum(LearningUnitStatus)
+  @IsEnum(ContentStatus)
   @IsOptional()
-  status?: LearningUnitStatus;
+  status?: ContentStatus;
 }

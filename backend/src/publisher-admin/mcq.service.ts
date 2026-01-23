@@ -331,6 +331,44 @@ export class McqService {
           for (let i = 0; i < results.length; i++) {
             const row = results[i];
             try {
+              // Parse competency codes/IDs and resolve to IDs
+              let competencyIds: string[] = [];
+              const competencyInput = row.competencyCodes || row.competencyIds || row.competency_codes || row.competency_ids;
+              
+              if (competencyInput) {
+                const inputCodes = competencyInput
+                  .split(',')
+                  .map((code: string) => code.trim())
+                  .filter(Boolean);
+                
+                if (inputCodes.length > 0) {
+                  // Check if inputs look like UUIDs or codes
+                  const isUUID = inputCodes[0].includes('-') && inputCodes[0].length > 30;
+                  
+                  if (isUUID) {
+                    // Direct UUIDs provided
+                    competencyIds = inputCodes;
+                  } else {
+                    // Codes provided - resolve to IDs
+                    const competencies = await this.prisma.competencies.findMany({
+                      where: { 
+                        code: { in: inputCodes },
+                        status: 'ACTIVE',
+                      },
+                      select: { id: true, code: true },
+                    });
+                    
+                    if (competencies.length !== inputCodes.length) {
+                      const foundCodes = competencies.map((c: { id: string; code: string }) => c.code);
+                      const notFound = inputCodes.filter((code: string) => !foundCodes.includes(code));
+                      throw new Error(`Competency codes not found: ${notFound.join(', ')}`);
+                    }
+                    
+                    competencyIds = competencies.map((c: { id: string; code: string }) => c.id);
+                  }
+                }
+              }
+
               // Map CSV columns to MCQ fields
               const mcqData: CreateMcqDto = {
                 question: row.question || row.Question,
@@ -347,7 +385,7 @@ export class McqService {
                 topic: row.topic || row.Topic,
                 difficultyLevel: row.difficultyLevel || row.difficulty || 'INTERMEDIATE',
                 bloomsLevel: row.bloomsLevel || row.blooms_level || 'UNDERSTAND',
-                competencyIds: row.competencyIds ? row.competencyIds.split(',').map((id: string) => id.trim()) : [],
+                competencyIds: competencyIds,
                 tags: row.tags ? row.tags.split(',').map((tag: string) => tag.trim()) : [],
                 year: row.year ? parseInt(row.year) : undefined,
                 source: row.source || row.Source,

@@ -31,8 +31,31 @@ const BitflowOwnerDashboard: React.FC = () => {
   // Modals
   const [showPublisherModal, setShowPublisherModal] = useState(false);
   const [showCollegeModal, setShowCollegeModal] = useState(false);
-  const [newPublisher, setNewPublisher] = useState({ name: '', code: '' });
-  const [newCollege, setNewCollege] = useState({ name: '', code: '' });
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    type: 'publisher' | 'college';
+    name: string;
+    accounts?: { email: string; role: string }[];
+    defaultPassword?: string;
+  } | null>(null);
+  const [newPublisher, setNewPublisher] = useState({
+    name: '',
+    code: '',
+    legalName: '',
+    contactPerson: '',
+    contactEmail: '',
+    contractStartDate: '',
+    contractEndDate: '',
+  });
+  const [newCollege, setNewCollege] = useState({
+    name: '',
+    code: '',
+    emailDomain: '',
+    adminContactEmail: '',
+    address: '',
+    city: '',
+    state: '',
+  });
 
   useEffect(() => {
     loadData();
@@ -81,9 +104,30 @@ const BitflowOwnerDashboard: React.FC = () => {
   const handleCreatePublisher = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await bitflowOwnerService.createPublisher(newPublisher.name, newPublisher.code);
+      const result = await bitflowOwnerService.createPublisher(newPublisher);
       setShowPublisherModal(false);
-      setNewPublisher({ name: '', code: '' });
+      
+      // Show credentials modal
+      const adminEmail = newPublisher.contactEmail || `admin@${newPublisher.code.toLowerCase()}.publisher.com`;
+      setCreatedCredentials({
+        type: 'publisher',
+        name: result.name,
+        accounts: [
+          { email: adminEmail, role: 'Publisher Admin' },
+        ],
+        defaultPassword: 'Contact Bitflow Admin for initial password',
+      });
+      setShowCredentialsModal(true);
+      
+      setNewPublisher({
+        name: '',
+        code: '',
+        legalName: '',
+        contactPerson: '',
+        contactEmail: '',
+        contractStartDate: '',
+        contractEndDate: '',
+      });
       loadData();
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to create publisher');
@@ -93,9 +137,32 @@ const BitflowOwnerDashboard: React.FC = () => {
   const handleCreateCollege = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await bitflowOwnerService.createCollege(newCollege.name, newCollege.code);
+      const result: any = await bitflowOwnerService.createCollege(newCollege);
       setShowCollegeModal(false);
-      setNewCollege({ name: '', code: '' });
+      
+      // Show credentials modal with auto-created accounts
+      if (result.createdAccounts) {
+        setCreatedCredentials({
+          type: 'college',
+          name: result.name,
+          accounts: [
+            { email: result.createdAccounts.itAdmin.email, role: 'IT Admin (College Admin)' },
+            { email: result.createdAccounts.dean.email, role: 'Dean' },
+          ],
+          defaultPassword: result.createdAccounts.defaultPassword,
+        });
+        setShowCredentialsModal(true);
+      }
+      
+      setNewCollege({
+        name: '',
+        code: '',
+        emailDomain: '',
+        adminContactEmail: '',
+        address: '',
+        city: '',
+        state: '',
+      });
       loadData();
     } catch (error: any) {
       alert(error.response?.data?.message || 'Failed to create college');
@@ -147,26 +214,29 @@ const BitflowOwnerDashboard: React.FC = () => {
         
         <nav className="sidebar-nav">
           <button className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')}>
-            Overview
+            📊 Overview
           </button>
           <button className={activeTab === 'publishers' ? 'active' : ''} onClick={() => setActiveTab('publishers')}>
-            Publishers
+            🏢 Publishers
           </button>
           <button className={activeTab === 'colleges' ? 'active' : ''} onClick={() => setActiveTab('colleges')}>
-            Colleges
+            🏫 Colleges
           </button>
           <button className={activeTab === 'security' ? 'active' : ''} onClick={() => setActiveTab('security')}>
-            Security &amp; Features
+            🔒 Security &amp; Features
           </button>
           <button className={activeTab === 'analytics' ? 'active' : ''} onClick={() => setActiveTab('analytics')}>
-            Analytics
+            📈 Analytics
           </button>
           <button className={activeTab === 'audit' ? 'active' : ''} onClick={() => setActiveTab('audit')}>
-            Audit Logs
+            📜 Audit Logs
           </button>
           <div className="nav-divider" />
+          <button onClick={() => navigate('/content')} className="nav-special">
+            📚 Content Library
+          </button>
           <button onClick={() => navigate('/competencies')} className="nav-special">
-            Competency Framework
+            📋 Competency Framework
           </button>
         </nav>
 
@@ -192,54 +262,98 @@ const BitflowOwnerDashboard: React.FC = () => {
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div className="overview-grid">
-                <div className="stat-card">
+                <div 
+                  className="stat-card stat-card--clickable"
+                  onClick={() => setActiveTab('publishers')}
+                  title="Click to view all publishers"
+                >
                   <h3>Publishers</h3>
                   <div className="stat-value">{dashboardOverview?.totalPublishers || publishers.length}</div>
                   <small>{dashboardOverview?.activePublishers || publishers.filter(p => p.status === 'ACTIVE').length} active</small>
                   {dashboardOverview?.expiredContractPublishers ? (
                     <small className="text-danger">{dashboardOverview.expiredContractPublishers} expired contracts</small>
                   ) : null}
+                  <span className="card-link">View All →</span>
                 </div>
-                <div className="stat-card">
+                <div 
+                  className="stat-card stat-card--clickable"
+                  onClick={() => setActiveTab('colleges')}
+                  title="Click to view all colleges"
+                >
                   <h3>Colleges</h3>
                   <div className="stat-value">{dashboardOverview?.totalColleges || colleges.length}</div>
                   <small>{dashboardOverview?.activeColleges || colleges.filter(c => c.status === 'ACTIVE').length} active</small>
+                  <span className="card-link">View All →</span>
                 </div>
-                <div className="stat-card">
+                <div 
+                  className="stat-card stat-card--clickable"
+                  onClick={() => setActiveTab('analytics')}
+                  title="Click to view analytics"
+                >
                   <h3>Total Users</h3>
                   <div className="stat-value">{dashboardOverview?.totalUsers || colleges.reduce((sum, c) => sum + (c.userCount || 0), 0)}</div>
                   <small>{dashboardOverview?.facultyCount || 0} faculty, {dashboardOverview?.studentCount || 0} students</small>
+                  <span className="card-link">View Analytics →</span>
                 </div>
-                <div className="stat-card">
+                <div 
+                  className="stat-card stat-card--clickable"
+                  onClick={() => setActiveTab('analytics')}
+                  title="Click to view analytics"
+                >
                   <h3>Active Users</h3>
                   <div className="stat-value">{dashboardOverview?.dailyActiveUsers || 0}</div>
                   <small>Today ({dashboardOverview?.monthlyActiveUsers || 0} this month)</small>
+                  <span className="card-link">View Analytics →</span>
                 </div>
                 
                 {dashboardOverview?.contentByType && (
                   <>
-                    <div className="stat-card stat-card--books">
-                      <h3>Books</h3>
+                    <div 
+                      className="stat-card stat-card--books stat-card--clickable"
+                      onClick={() => setActiveTab('publishers')}
+                      title="Click to view publishers (content source)"
+                    >
+                      <h3>📚 Books</h3>
                       <div className="stat-value">{dashboardOverview.contentByType.books}</div>
+                      <span className="card-link">View Publishers →</span>
                     </div>
-                    <div className="stat-card stat-card--videos">
-                      <h3>Videos</h3>
+                    <div 
+                      className="stat-card stat-card--videos stat-card--clickable"
+                      onClick={() => setActiveTab('publishers')}
+                      title="Click to view publishers (content source)"
+                    >
+                      <h3>🎥 Videos</h3>
                       <div className="stat-value">{dashboardOverview.contentByType.videos}</div>
+                      <span className="card-link">View Publishers →</span>
                     </div>
-                    <div className="stat-card stat-card--notes">
-                      <h3>Notes</h3>
+                    <div 
+                      className="stat-card stat-card--notes stat-card--clickable"
+                      onClick={() => setActiveTab('publishers')}
+                      title="Click to view publishers (content source)"
+                    >
+                      <h3>📝 Notes</h3>
                       <div className="stat-value">{dashboardOverview.contentByType.notes}</div>
+                      <span className="card-link">View Publishers →</span>
                     </div>
-                    <div className="stat-card stat-card--mcqs">
-                      <h3>MCQs</h3>
+                    <div 
+                      className="stat-card stat-card--mcqs stat-card--clickable"
+                      onClick={() => setActiveTab('publishers')}
+                      title="Click to view publishers (content source)"
+                    >
+                      <h3>✅ MCQs</h3>
                       <div className="stat-value">{dashboardOverview.contentByType.mcqs}</div>
+                      <span className="card-link">View Publishers →</span>
                     </div>
                   </>
                 )}
 
                 {dashboardOverview?.peakUsageHours && dashboardOverview.peakUsageHours.length > 0 && (
-                  <div className="stat-card stat-card--wide">
-                    <h3>Peak Usage Hours</h3>
+                  <div 
+                    className="stat-card stat-card--wide stat-card--clickable"
+                    onClick={() => setActiveTab('analytics')}
+                    title="Click to view full analytics"
+                  >
+                    <h3>⏰ Peak Usage Hours</h3>
                     <div className="peak-hours-list">
                       {dashboardOverview.peakUsageHours.slice(0, 5).map((peak, idx) => (
                         <span key={idx} className={`peak-badge ${idx === 0 ? 'peak-badge--top' : ''}`}>
@@ -247,8 +361,34 @@ const BitflowOwnerDashboard: React.FC = () => {
                         </span>
                       ))}
                     </div>
+                    <span className="card-link">View Full Analytics →</span>
                   </div>
                 )}
+
+                {/* Quick Actions Section */}
+                <div className="stat-card stat-card--wide stat-card--actions">
+                  <h3>🚀 Quick Actions</h3>
+                  <div className="quick-actions-grid">
+                    <button className="quick-action-btn" onClick={() => { setActiveTab('publishers'); setShowPublisherModal(true); }}>
+                      ➕ Add Publisher
+                    </button>
+                    <button className="quick-action-btn" onClick={() => { setActiveTab('colleges'); setShowCollegeModal(true); }}>
+                      🏫 Add College
+                    </button>
+                    <button className="quick-action-btn" onClick={() => navigate('/content')}>
+                      📚 Content Library
+                    </button>
+                    <button className="quick-action-btn" onClick={() => navigate('/competencies')}>
+                      📋 Competency Framework
+                    </button>
+                    <button className="quick-action-btn" onClick={() => setActiveTab('security')}>
+                      🔒 Security Settings
+                    </button>
+                    <button className="quick-action-btn" onClick={() => setActiveTab('audit')}>
+                      📜 View Audit Logs
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -383,10 +523,10 @@ const BitflowOwnerDashboard: React.FC = () => {
                   <div className="setting-card">
                     <h3>Security Settings</h3>
                     <div className="info-list">
-                      <div><span>Session Timeout</span> <strong>{securityPolicy.sessionTimeoutMinutes} min</strong></div>
-                      <div><span>Token Expiry</span> <strong>{securityPolicy.tokenExpiryMinutes} min</strong></div>
-                      <div><span>Max Sessions</span> <strong>{securityPolicy.maxConcurrentSessions}</strong></div>
-                      <div><span>Watermark</span> <strong className={securityPolicy.watermarkEnabled ? 'text-success' : 'text-danger'}>{securityPolicy.watermarkEnabled ? 'Enabled' : 'Disabled'}</strong></div>
+                      <div><strong>Session Timeout:</strong> {securityPolicy.sessionTimeoutMinutes} min</div>
+                      <div><strong>Token Expiry:</strong> {securityPolicy.tokenExpiryMinutes} min</div>
+                      <div><strong>Max Sessions:</strong> {securityPolicy.maxConcurrentSessions}</div>
+                      <div><strong>Watermark:</strong> {securityPolicy.watermarkEnabled ? '✓ Enabled' : '✗ Disabled'}</div>
                     </div>
                   </div>
                 </div>
@@ -467,33 +607,82 @@ const BitflowOwnerDashboard: React.FC = () => {
       {/* Publisher Modal */}
       {showPublisherModal && (
         <div className="modal-overlay" onClick={() => setShowPublisherModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
             <h2>Add New Publisher</h2>
             <form onSubmit={handleCreatePublisher}>
-              <div className="form-group">
-                <label>Publisher Name</label>
-                <input 
-                  type="text" 
-                  value={newPublisher.name}
-                  onChange={e => setNewPublisher({...newPublisher, name: e.target.value})}
-                  placeholder="e.g., Elsevier"
-                  required
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Publisher Name *</label>
+                  <input 
+                    type="text" 
+                    value={newPublisher.name}
+                    onChange={e => setNewPublisher({...newPublisher, name: e.target.value})}
+                    placeholder="e.g., Elsevier"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Code (uppercase) *</label>
+                  <input 
+                    type="text" 
+                    value={newPublisher.code}
+                    onChange={e => setNewPublisher({...newPublisher, code: e.target.value.toUpperCase()})}
+                    placeholder="e.g., ELSEVIER"
+                    pattern="[A-Z0-9_]+"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Legal Name</label>
+                  <input 
+                    type="text" 
+                    value={newPublisher.legalName}
+                    onChange={e => setNewPublisher({...newPublisher, legalName: e.target.value})}
+                    placeholder="e.g., Elsevier B.V."
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Contact Person</label>
+                  <input 
+                    type="text" 
+                    value={newPublisher.contactPerson}
+                    onChange={e => setNewPublisher({...newPublisher, contactPerson: e.target.value})}
+                    placeholder="e.g., John Doe"
+                  />
+                </div>
               </div>
               <div className="form-group">
-                <label>Code (uppercase, underscores)</label>
+                <label>Contact Email</label>
                 <input 
-                  type="text" 
-                  value={newPublisher.code}
-                  onChange={e => setNewPublisher({...newPublisher, code: e.target.value.toUpperCase()})}
-                  placeholder="e.g., ELSEVIER"
-                  pattern="[A-Z0-9_]+"
-                  required
+                  type="email" 
+                  value={newPublisher.contactEmail}
+                  onChange={e => setNewPublisher({...newPublisher, contactEmail: e.target.value})}
+                  placeholder="e.g., contact@elsevier.com"
                 />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Contract Start Date</label>
+                  <input 
+                    type="date" 
+                    value={newPublisher.contractStartDate}
+                    onChange={e => setNewPublisher({...newPublisher, contractStartDate: e.target.value})}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Contract End Date</label>
+                  <input 
+                    type="date" 
+                    value={newPublisher.contractEndDate}
+                    onChange={e => setNewPublisher({...newPublisher, contractEndDate: e.target.value})}
+                  />
+                </div>
               </div>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowPublisherModal(false)}>Cancel</button>
-                <button type="submit" className="primary-btn">Create</button>
+                <button type="submit" className="primary-btn">+ Create</button>
               </div>
             </form>
           </div>
@@ -503,35 +692,257 @@ const BitflowOwnerDashboard: React.FC = () => {
       {/* College Modal */}
       {showCollegeModal && (
         <div className="modal-overlay" onClick={() => setShowCollegeModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
             <h2>Add New College</h2>
             <form onSubmit={handleCreateCollege}>
-              <div className="form-group">
-                <label>College Name</label>
-                <input 
-                  type="text" 
-                  value={newCollege.name}
-                  onChange={e => setNewCollege({...newCollege, name: e.target.value})}
-                  placeholder="e.g., GMC Mumbai"
-                  required
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>College Name *</label>
+                  <input 
+                    type="text" 
+                    value={newCollege.name}
+                    onChange={e => setNewCollege({...newCollege, name: e.target.value})}
+                    placeholder="e.g., GMC Mumbai"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Code (uppercase) *</label>
+                  <input 
+                    type="text" 
+                    value={newCollege.code}
+                    onChange={e => setNewCollege({...newCollege, code: e.target.value.toUpperCase()})}
+                    placeholder="e.g., GMC_MUMBAI"
+                    pattern="[A-Z0-9_]+"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Email Domain</label>
+                  <input 
+                    type="text" 
+                    value={newCollege.emailDomain}
+                    onChange={e => setNewCollege({...newCollege, emailDomain: e.target.value})}
+                    placeholder="e.g., gmc.edu.in"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Admin Contact Email</label>
+                  <input 
+                    type="email" 
+                    value={newCollege.adminContactEmail}
+                    onChange={e => setNewCollege({...newCollege, adminContactEmail: e.target.value})}
+                    placeholder="e.g., admin@gmc.edu.in"
+                  />
+                </div>
               </div>
               <div className="form-group">
-                <label>Code (uppercase, underscores)</label>
+                <label>Address</label>
                 <input 
                   type="text" 
-                  value={newCollege.code}
-                  onChange={e => setNewCollege({...newCollege, code: e.target.value.toUpperCase()})}
-                  placeholder="e.g., GMC_MUMBAI"
-                  pattern="[A-Z0-9_]+"
-                  required
+                  value={newCollege.address}
+                  onChange={e => setNewCollege({...newCollege, address: e.target.value})}
+                  placeholder="e.g., 123 Medical College Road"
                 />
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>City</label>
+                  <input 
+                    type="text" 
+                    value={newCollege.city}
+                    onChange={e => setNewCollege({...newCollege, city: e.target.value})}
+                    placeholder="e.g., Mumbai"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>State</label>
+                  <input 
+                    type="text" 
+                    value={newCollege.state}
+                    onChange={e => setNewCollege({...newCollege, state: e.target.value})}
+                    placeholder="e.g., Maharashtra"
+                  />
+                </div>
               </div>
               <div className="modal-actions">
                 <button type="button" onClick={() => setShowCollegeModal(false)}>Cancel</button>
-                <button type="submit" className="primary-btn">Create</button>
+                <button type="submit" className="primary-btn">+ Create</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Credentials Modal - Shows after creating publisher/college */}
+      {showCredentialsModal && createdCredentials && (
+        <div className="modal-overlay">
+          <div className="modal-content modal-large">
+            <div className="modal-header">
+              <h2>✅ {createdCredentials.type === 'college' ? 'College' : 'Publisher'} Created Successfully!</h2>
+              <button 
+                className="close-btn"
+                onClick={() => {
+                  setShowCredentialsModal(false);
+                  setCreatedCredentials(null);
+                  loadData();
+                }}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="credentials-info" style={{ padding: '20px' }}>
+              <h3 style={{ marginBottom: '15px', color: '#2c3e50' }}>
+                {createdCredentials.name}
+              </h3>
+              
+              <div style={{ 
+                background: '#e8f5e9', 
+                border: '1px solid #4caf50', 
+                borderRadius: '8px', 
+                padding: '20px',
+                marginBottom: '20px'
+              }}>
+                <h4 style={{ color: '#2e7d32', marginBottom: '15px' }}>
+                  🔐 Login Credentials
+                </h4>
+                
+                {createdCredentials.accounts?.map((account, index) => (
+                  <div key={index} style={{ 
+                    marginBottom: '15px', 
+                    padding: '10px', 
+                    background: '#fff', 
+                    borderRadius: '4px',
+                    border: '1px solid #c8e6c9'
+                  }}>
+                    <p style={{ margin: '5px 0' }}>
+                      <strong>Role:</strong> {account.role}
+                    </p>
+                    <p style={{ margin: '5px 0' }}>
+                      <strong>Email:</strong>{' '}
+                      <code style={{ 
+                        background: '#f5f5f5', 
+                        padding: '2px 8px', 
+                        borderRadius: '4px',
+                        fontFamily: 'monospace'
+                      }}>
+                        {account.email}
+                      </code>
+                    </p>
+                  </div>
+                ))}
+                
+                <div style={{ 
+                  marginTop: '15px', 
+                  padding: '10px', 
+                  background: '#fff3e0', 
+                  borderRadius: '4px',
+                  border: '1px solid #ffb74d'
+                }}>
+                  <p style={{ margin: '5px 0', color: '#e65100' }}>
+                    <strong>Default Password:</strong>{' '}
+                    <code style={{ 
+                      background: '#fff8e1', 
+                      padding: '2px 8px', 
+                      borderRadius: '4px',
+                      fontFamily: 'monospace',
+                      fontWeight: 'bold'
+                    }}>
+                      {createdCredentials.defaultPassword}
+                    </code>
+                  </p>
+                </div>
+              </div>
+              
+              <div style={{ 
+                background: '#fff3e0', 
+                padding: '15px', 
+                borderRadius: '8px',
+                border: '1px solid #ffb74d'
+              }}>
+                <p style={{ margin: 0, color: '#e65100' }}>
+                  <strong>⚠️ Important:</strong> Please share these credentials securely with the {createdCredentials.type} administrator. 
+                  Users should change their password upon first login.
+                </p>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '20px' }}>
+                <button
+                  onClick={() => {
+                    setShowCredentialsModal(false);
+                    setCreatedCredentials(null);
+                    loadData();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#4caf50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  Got it, Close
+                </button>
+                {createdCredentials.accounts?.map((account, idx) => {
+                  // Compose Gmail URL
+                  const subject = encodeURIComponent(
+                    `Your LMS Account Credentials (${createdCredentials.type === 'college' ? 'College' : 'Publisher'})`
+                  );
+                  const body = encodeURIComponent(
+                    `Dear ${account.role},\n\n` +
+                    `Your account for the Medical LMS has been created.\n` +
+                    `Login Email: ${account.email}\n` +
+                    `Temporary Password: ${createdCredentials.defaultPassword}\n\n` +
+                    `Please login at http://localhost:3000 and change your password immediately.\n\n` +
+                    `Regards,\nBitflow Admin`
+                  );
+                  const mailto = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(account.email)}&su=${subject}&body=${body}`;
+                  return (
+                    <a
+                      key={idx}
+                      href={mailto}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        width: '100%',
+                        display: 'block',
+                        textDecoration: 'none',
+                        marginTop: idx === 0 ? 0 : 8
+                      }}
+                    >
+                      <button
+                        type="button"
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          background: '#4285f4',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '15px',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48" style={{ marginRight: 6 }}><path fill="#4285f4" d="M44 10v28H4V10l20 14Z"/><path fill="#34a853" d="M44 10v28H24V24Z"/><path fill="#fbbc04" d="M4 10v28h20V24Z"/><path fill="#ea4335" d="M44 10H4l20 14Z"/></svg>
+                        Send Credentials via Gmail ({account.role})
+                      </button>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

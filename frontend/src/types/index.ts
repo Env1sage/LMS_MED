@@ -63,11 +63,20 @@ export enum DifficultyLevel {
   ADVANCED = 'ADVANCED',
 }
 
+// Phase 3: Updated content status (ContentStatus in backend)
 export enum LearningUnitStatus {
   DRAFT = 'DRAFT',
+  PENDING_MAPPING = 'PENDING_MAPPING',
   ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
   SUSPENDED = 'SUSPENDED',
-  ARCHIVED = 'ARCHIVED',
+}
+
+// Phase 3: Competency mapping status
+export enum CompetencyMappingStatus {
+  PENDING = 'PENDING',
+  PARTIAL = 'PARTIAL',
+  COMPLETE = 'COMPLETE',
 }
 
 export interface User {
@@ -328,6 +337,16 @@ export interface LearningUnit {
   tags?: string[];
   metadata?: Record<string, any>;
   status: LearningUnitStatus;
+  // Phase 3: Content lifecycle fields
+  competencyMappingStatus?: CompetencyMappingStatus;
+  activatedAt?: string;
+  activatedBy?: string;
+  deactivatedAt?: string;
+  deactivatedBy?: string;
+  deactivationReason?: string;
+  // Phase 3: Content protection fields
+  viewOnly?: boolean;
+  downloadAllowed?: boolean;
   totalAccesses?: number;
   uniqueUsers?: number;
   createdAt: string;

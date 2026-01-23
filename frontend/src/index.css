@@ -36,6 +36,7 @@
   --color-success: #4a9d7c;        /* Verdigris green */
   --color-warning: #d4a84b;        /* Aged gold */
   --color-danger: #c45c4d;         /* Oxidized red */
+  --color-error: #c45c4d;          /* Alias for danger */
   --color-info: #5b8fa8;           /* Patina blue */
   
   /* === CREAM/LIGHT MODE SURFACES === */
@@ -60,6 +61,7 @@
   --radius-sm: 2px;
   --radius-md: 4px;
   --radius-lg: 8px;
+  --radius-full: 9999px;
   --border-subtle: 1px solid rgba(244, 241, 235, 0.08);
   --border-accent: 2px solid var(--color-accent);
   

@@ -1437,4 +1437,341 @@ export class BitflowOwnerService {
       participationByCollege,
     };
   }
+
+  // ========================================================================
+  // CONTENT MANAGEMENT - VIEW ALL PLATFORM CONTENT
+  // ========================================================================
+
+  /**
+   * Get all learning units across all publishers with filtering
+   */
+  async getAllContent(query: {
+    type?: string;
+    publisherId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { type, publisherId, status, search, page = 1, limit = 20 } = query;
+
+    const where: any = {};
+
+    if (type) where.type = type;
+    if (publisherId) where.publisherId = publisherId;
+    if (status) where.status = status;
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { subject: { contains: search, mode: 'insensitive' } },
+        { topic: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.learning_units.findMany({
+        where,
+        include: {
+          publishers: {
+            select: { id: true, name: true, code: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.learning_units.count({ where }),
+    ]);
+
+    return {
+      data: items.map(item => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        description: item.description,
+        subject: item.subject,
+        topic: item.topic,
+        subTopic: item.subTopic,
+        difficultyLevel: item.difficultyLevel,
+        estimatedDuration: item.estimatedDuration,
+        status: item.status,
+        competencyMappingStatus: item.competencyMappingStatus,
+        thumbnailUrl: item.thumbnailUrl,
+        tags: item.tags,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        publisher: item.publishers,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get content statistics by type
+   */
+  async getContentStats() {
+    const [
+      byType,
+      byStatus,
+      byPublisher,
+      recentContent,
+    ] = await Promise.all([
+      this.prisma.learning_units.groupBy({
+        by: ['type'],
+        _count: true,
+      }),
+      this.prisma.learning_units.groupBy({
+        by: ['status'],
+        _count: true,
+      }),
+      this.prisma.learning_units.groupBy({
+        by: ['publisherId'],
+        _count: true,
+      }),
+      this.prisma.learning_units.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        include: {
+          publishers: {
+            select: { id: true, name: true },
+          },
+        },
+      }),
+    ]);
+
+    // Get publisher names for byPublisher stats
+    const publisherIds = byPublisher.map(p => p.publisherId);
+    const publishers = await this.prisma.publishers.findMany({
+      where: { id: { in: publisherIds } },
+      select: { id: true, name: true },
+    });
+    const publisherMap = new Map(publishers.map(p => [p.id, p.name]));
+
+    return {
+      byType: byType.map(item => ({
+        type: item.type,
+        count: item._count,
+      })),
+      byStatus: byStatus.map(item => ({
+        status: item.status,
+        count: item._count,
+      })),
+      byPublisher: byPublisher.map(item => ({
+        publisherId: item.publisherId,
+        publisherName: publisherMap.get(item.publisherId) || 'Unknown',
+        count: item._count,
+      })),
+      recentContent: recentContent.map(item => ({
+        id: item.id,
+        type: item.type,
+        title: item.title,
+        subject: item.subject,
+        status: item.status,
+        createdAt: item.createdAt,
+        publisherName: item.publishers.name,
+      })),
+    };
+  }
+
+  /**
+   * Get single content item details
+   */
+  async getContentById(id: string) {
+    const item = await this.prisma.learning_units.findUnique({
+      where: { id },
+      include: {
+        publishers: {
+          select: { id: true, name: true, code: true },
+        },
+      },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Content not found');
+    }
+
+    // Get competency details if mapped
+    let competencies: any[] = [];
+    if (item.competencyIds.length > 0) {
+      competencies = await this.prisma.competencies.findMany({
+        where: { id: { in: item.competencyIds } },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          domain: true,
+        },
+      });
+    }
+
+    return {
+      ...item,
+      publisher: item.publishers,
+      competencies,
+    };
+  }
+
+  /**
+   * Update content status (activate/deactivate)
+   */
+  async updateContentStatus(
+    id: string, 
+    status: string, 
+    reason: string | undefined,
+    userId: string,
+  ) {
+    const item = await this.prisma.learning_units.findUnique({
+      where: { id },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Content not found');
+    }
+
+    const updateData: any = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (status === 'ACTIVE') {
+      updateData.activatedAt = new Date();
+      updateData.activatedBy = userId;
+    } else if (status === 'INACTIVE' || status === 'ARCHIVED') {
+      updateData.deactivatedAt = new Date();
+      updateData.deactivatedBy = userId;
+      updateData.deactivationReason = reason;
+    }
+
+    const updated = await this.prisma.learning_units.update({
+      where: { id },
+      data: updateData,
+      include: {
+        publishers: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    await this.auditService.log({
+      userId,
+      action: status === 'ACTIVE' ? AuditAction.CONTENT_ACTIVATED : AuditAction.CONTENT_DEACTIVATED,
+      entityType: 'LearningUnit',
+      entityId: id,
+      description: `Content status changed to ${status}: ${item.title}`,
+      metadata: { previousStatus: item.status, newStatus: status, reason },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Get all MCQs across all publishers
+   */
+  async getAllMcqs(query: {
+    publisherId?: string;
+    status?: string;
+    subject?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { publisherId, status, subject, search, page = 1, limit = 20 } = query;
+
+    const where: any = {};
+
+    if (publisherId) where.publisherId = publisherId;
+    if (status) where.status = status;
+    if (subject) where.subject = subject;
+    if (search) {
+      where.OR = [
+        { question: { contains: search, mode: 'insensitive' } },
+        { topic: { contains: search, mode: 'insensitive' } },
+        { subject: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.mcqs.findMany({
+        where,
+        include: {
+          publisher: {
+            select: { id: true, name: true, code: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.mcqs.count({ where }),
+    ]);
+
+    return {
+      data: items.map(item => ({
+        id: item.id,
+        questionText: item.question,
+        subject: item.subject,
+        topic: item.topic,
+        difficultyLevel: item.difficultyLevel,
+        bloomsLevel: item.bloomsLevel,
+        status: item.status,
+        isVerified: item.isVerified,
+        createdAt: item.createdAt,
+        publisher: item.publisher,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Get MCQ details
+   */
+  async getMcqById(id: string) {
+    const mcq = await this.prisma.mcqs.findUnique({
+      where: { id },
+      include: {
+        publisher: {
+          select: { id: true, name: true, code: true },
+        },
+      },
+    });
+
+    if (!mcq) {
+      throw new NotFoundException('MCQ not found');
+    }
+
+    // Get competency details if mapped
+    let competencies: any[] = [];
+    if (mcq.competencyIds.length > 0) {
+      competencies = await this.prisma.competencies.findMany({
+        where: { id: { in: mcq.competencyIds } },
+        select: {
+          id: true,
+          code: true,
+          title: true,
+          domain: true,
+        },
+      });
+    }
+
+    return {
+      ...mcq,
+      questionText: mcq.question,
+      options: [mcq.optionA, mcq.optionB, mcq.optionC, mcq.optionD, mcq.optionE].filter(Boolean),
+      correctOptionIndex: ['A', 'B', 'C', 'D', 'E'].indexOf(mcq.correctAnswer),
+      publisher: mcq.publisher,
+      competencies,
+    };
+  }
 }
+

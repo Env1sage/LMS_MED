@@ -6,7 +6,9 @@ import UnauthorizedPage from './pages/UnauthorizedPage';
 import Login from './pages/Login';
 import BitflowOwnerDashboard from './pages/BitflowOwnerDashboard';
 import CompetencyDashboard from './pages/CompetencyDashboard';
+import ContentManagement from './pages/ContentManagement';
 import PublisherAdminDashboard from './pages/PublisherAdminDashboard';
+import PublisherProfilePage from './pages/PublisherProfilePage';
 import CreateLearningUnit from './pages/CreateLearningUnit';
 import ViewLearningUnit from './pages/ViewLearningUnit';
 import McqManagement from './pages/McqManagement';
@@ -48,6 +50,14 @@ const App: React.FC = () => {
             } 
           />
           <Route 
+            path="/content" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <ContentManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/publisher-admin" 
             element={
               <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
@@ -76,6 +86,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
                 <McqManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/publisher-admin/profile" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
+                <PublisherProfilePage />
               </ProtectedRoute>
             } 
           />

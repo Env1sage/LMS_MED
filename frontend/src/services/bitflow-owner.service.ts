@@ -29,11 +29,20 @@ class BitflowOwnerService {
     return response.data;
   }
 
-  async createPublisher(name: string, code: string): Promise<Publisher> {
-    const response = await apiService.post<Publisher>(API_ENDPOINTS.PUBLISHERS, {
-      name,
-      code,
-    });
+  async createPublisher(data: {
+    name: string;
+    code: string;
+    legalName?: string;
+    contactPerson?: string;
+    contactEmail?: string;
+    contractStartDate?: string;
+    contractEndDate?: string;
+  }): Promise<Publisher> {
+    // Filter out empty strings
+    const payload = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== '')
+    );
+    const response = await apiService.post<Publisher>(API_ENDPOINTS.PUBLISHERS, payload);
     return response.data;
   }
 
@@ -56,11 +65,20 @@ class BitflowOwnerService {
     return response.data;
   }
 
-  async createCollege(name: string, code: string): Promise<College> {
-    const response = await apiService.post<College>(API_ENDPOINTS.COLLEGES, {
-      name,
-      code,
-    });
+  async createCollege(data: {
+    name: string;
+    code: string;
+    emailDomain?: string;
+    adminContactEmail?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+  }): Promise<College> {
+    // Filter out empty strings
+    const payload = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== '')
+    );
+    const response = await apiService.post<College>(API_ENDPOINTS.COLLEGES, payload);
     return response.data;
   }
 
@@ -208,6 +226,130 @@ class BitflowOwnerService {
     const response = await apiService.get<AssessmentParticipation>(API_ENDPOINTS.ASSESSMENT_PARTICIPATION);
     return response.data;
   }
+
+  // ========================================================================
+  // CONTENT MANAGEMENT
+  // ========================================================================
+
+  async getAllContent(params: {
+    type?: string;
+    publisherId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ContentListResponse> {
+    const response = await apiService.get<ContentListResponse>('/bitflow-owner/content', { params });
+    return response.data;
+  }
+
+  async getContentStats(): Promise<ContentStats> {
+    const response = await apiService.get<ContentStats>('/bitflow-owner/content/stats');
+    return response.data;
+  }
+
+  async getContentById(id: string): Promise<ContentItem> {
+    const response = await apiService.get<ContentItem>(`/bitflow-owner/content/${id}`);
+    return response.data;
+  }
+
+  async updateContentStatus(id: string, status: string, reason?: string): Promise<ContentItem> {
+    const response = await apiService.patch<ContentItem>(
+      `/bitflow-owner/content/${id}/status`,
+      { status, reason }
+    );
+    return response.data;
+  }
+
+  async getAllMcqs(params: {
+    publisherId?: string;
+    status?: string;
+    subject?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<McqListResponse> {
+    const response = await apiService.get<McqListResponse>('/bitflow-owner/mcqs', { params });
+    return response.data;
+  }
+
+  async getMcqById(id: string): Promise<McqItem> {
+    const response = await apiService.get<McqItem>(`/bitflow-owner/mcqs/${id}`);
+    return response.data;
+  }
+}
+
+// Content Types
+export interface ContentItem {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  subject: string;
+  topic: string;
+  subTopic?: string;
+  difficultyLevel: string;
+  estimatedDuration: number;
+  status: string;
+  competencyMappingStatus: string;
+  thumbnailUrl?: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+  publisher: { id: string; name: string; code: string };
+  competencies?: { id: string; code: string; shortTitle: string; domain: string }[];
+}
+
+export interface ContentListResponse {
+  data: ContentItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface ContentStats {
+  byType: { type: string; count: number }[];
+  byStatus: { status: string; count: number }[];
+  byPublisher: { publisherId: string; publisherName: string; count: number }[];
+  recentContent: {
+    id: string;
+    type: string;
+    title: string;
+    subject: string;
+    status: string;
+    createdAt: string;
+    publisherName: string;
+  }[];
+}
+
+export interface McqItem {
+  id: string;
+  questionText: string;
+  subject: string;
+  topic: string;
+  difficultyLevel: string;
+  bloomsLevel: string;
+  status: string;
+  isVerified: boolean;
+  createdAt: string;
+  publisher: { id: string; name: string; code: string };
+  competencies?: { id: string; code: string; shortTitle: string; domain: string }[];
+  options?: string[];
+  correctOptionIndex?: number;
+  explanation?: string;
+}
+
+export interface McqListResponse {
+  data: McqItem[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export default new BitflowOwnerService();

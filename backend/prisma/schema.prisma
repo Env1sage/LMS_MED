@@ -314,6 +314,7 @@ model publishers {
   // Phase 2: Contract management
   contactPerson       String?
   contactEmail        String?
+  physicalAddress     String?          // Phase 3: Publisher address
   contractStartDate   DateTime?
   contractEndDate     DateTime?
   contractDocument    String?          // URL to contract document

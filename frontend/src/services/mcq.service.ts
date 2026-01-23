@@ -133,6 +133,20 @@ const mcqService = {
     );
     return response.data;
   },
+
+  bulkUpload: async (file: File): Promise<{ success: number; failed: number; errors: string[] }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const token = localStorage.getItem('token');
+    const response = await axios.post(`${API_BASE_URL}/bulk-upload`, formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 export default mcqService;

@@ -11,8 +11,9 @@ import {
   Req,
   UseInterceptors,
   UploadedFile,
+  UploadedFiles,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { LearningUnitService } from './learning-unit.service';
 import { CreateLearningUnitDto } from './dto/create-learning-unit.dto';
 import { UpdateLearningUnitDto } from './dto/update-learning-unit.dto';
@@ -20,14 +21,15 @@ import { QueryLearningUnitDto } from './dto/query-learning-unit.dto';
 import { GenerateAccessTokenDto } from './dto/generate-access-token.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { PublisherContractGuard } from '../auth/guards/publisher-contract.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UserRole, LearningUnitStatus } from '@prisma/client';
+import { UserRole, ContentStatus } from '@prisma/client';
 import type { Request } from 'express';
 import { FileUploadService } from '../publisher-admin/file-upload.service';
 
 @Controller('learning-units')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PublisherContractGuard)
 export class LearningUnitController {
   constructor(
     private readonly learningUnitService: LearningUnitService,
@@ -47,6 +49,65 @@ export class LearningUnitController {
   ) {
     const url = await this.fileUploadService.uploadFile(file, type);
     return { url };
+  }
+
+  /**
+   * Bulk upload learning units from CSV
+   * POST /api/learning-units/bulk-upload
+   */
+  @Post('bulk-upload')
+  @Roles(UserRole.PUBLISHER_ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('publisherId') publisherId: string,
+  ) {
+    return this.learningUnitService.bulkUploadFromCsv(file, userId, publisherId);
+  }
+
+  /**
+   * Bulk upload files with metadata
+   * POST /api/learning-units/bulk-upload-files
+   */
+  @Post('bulk-upload-files')
+  @Roles(UserRole.PUBLISHER_ADMIN)
+  @UseInterceptors(FilesInterceptor('files', 20))
+  async bulkUploadFiles(
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body('metadata') metadataJson: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('publisherId') publisherId: string,
+  ) {
+    return this.learningUnitService.bulkUploadWithFiles(files, metadataJson, userId, publisherId);
+  }
+
+  /**
+   * Download CSV template for bulk upload
+   * GET /api/learning-units/bulk-template
+   */
+  @Get('bulk-template')
+  @Roles(UserRole.PUBLISHER_ADMIN)
+  getBulkTemplate() {
+    return {
+      templateUrl: '/templates/learning-units-template.csv',
+      columns: [
+        'type (BOOK|VIDEO|MCQ|NOTES)',
+        'title',
+        'description (min 20 chars)',
+        'subject',
+        'topic',
+        'subTopic (optional)',
+        'difficultyLevel (BEGINNER|INTERMEDIATE|ADVANCED)',
+        'estimatedDuration (minutes)',
+        'secureAccessUrl',
+        'deliveryType (REDIRECT|EMBED|STREAM)',
+        'watermarkEnabled (true|false)',
+        'sessionExpiryMinutes',
+        'competencyIds (comma-separated, optional)',
+      ],
+      example: 'BOOK,Cardiovascular Anatomy,Comprehensive guide to heart structure and function covering all major components,Anatomy,Cardiovascular System,,INTERMEDIATE,45,https://cdn.example.com/book1.pdf,REDIRECT,true,30,comp-1,comp-2',
+    };
   }
 
   /**
@@ -171,11 +232,40 @@ export class LearningUnitController {
   @Roles(UserRole.PUBLISHER_ADMIN)
   updateStatus(
     @Param('id') id: string,
-    @Body('status') status: LearningUnitStatus,
+    @Body('status') status: ContentStatus,
     @CurrentUser('userId') userId: string,
     @CurrentUser('publisherId') publisherId: string,
   ) {
     return this.learningUnitService.updateStatus(id, status, userId, publisherId);
+  }
+
+  /**
+   * Activate content (requires competency mapping)
+   * POST /api/learning-units/:id/activate
+   */
+  @Post(':id/activate')
+  @Roles(UserRole.PUBLISHER_ADMIN)
+  activateContent(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('publisherId') publisherId: string,
+  ) {
+    return this.learningUnitService.activateContent(id, userId, publisherId);
+  }
+
+  /**
+   * Deactivate content
+   * POST /api/learning-units/:id/deactivate
+   */
+  @Post(':id/deactivate')
+  @Roles(UserRole.PUBLISHER_ADMIN)
+  deactivateContent(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('publisherId') publisherId: string,
+  ) {
+    return this.learningUnitService.deactivateContent(id, reason || 'Deactivated by publisher', userId, publisherId);
   }
 
   /**

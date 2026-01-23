@@ -5,6 +5,7 @@ import { LearningUnitService } from './learning-unit.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../audit/audit.module';
 import { PublisherAdminModule } from '../publisher-admin/publisher-admin.module';
+import { PublisherContractGuard } from '../auth/guards/publisher-contract.guard';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { PublisherAdminModule } from '../publisher-admin/publisher-admin.module'
     }),
   ],
   controllers: [LearningUnitController],
-  providers: [LearningUnitService],
+  providers: [LearningUnitService, PublisherContractGuard],
   exports: [LearningUnitService],
 })
 export class LearningUnitModule {}

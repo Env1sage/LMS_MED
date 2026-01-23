@@ -97,6 +97,16 @@
   background: rgba(204, 102, 102, 0.2);
 }
 
+.btn-warning {
+  background: rgba(212, 168, 75, 0.1);
+  border: 1px solid rgba(212, 168, 75, 0.3);
+  color: var(--color-warning);
+}
+
+.btn-warning:hover {
+  background: rgba(212, 168, 75, 0.2);
+}
+
 /* Alerts */
 .alert {
   display: flex;

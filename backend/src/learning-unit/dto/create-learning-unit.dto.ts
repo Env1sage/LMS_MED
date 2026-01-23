@@ -63,6 +63,15 @@ export class CreateLearningUnitDto {
   @IsOptional()
   timeLimit?: number; // For MCQs (minutes)
 
+  // Phase 3: Content Protection fields
+  @IsBoolean()
+  @IsOptional()
+  viewOnly?: boolean; // If true, content cannot be printed/copied
+
+  @IsBoolean()
+  @IsOptional()
+  downloadAllowed?: boolean; // If true, content can be downloaded
+
   @IsOptional()
   @IsUrl({}, { message: 'thumbnailUrl must be a valid URL' })
   thumbnailUrl?: string;

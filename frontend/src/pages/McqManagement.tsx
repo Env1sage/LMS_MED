@@ -6,6 +6,7 @@ import { Competency, CompetencyStatus } from '../types';
 import BulkMcqUpload from '../components/publisher/BulkMcqUpload';
 import CompetencySearch from '../components/common/CompetencySearch';
 import '../styles/McqManagement.css';
+import '../styles/PublisherAdmin.css';
 
 const McqManagement: React.FC = () => {
   const navigate = useNavigate();
@@ -313,7 +314,7 @@ const McqManagement: React.FC = () => {
 
       {tab === 'bulk' && (
         <div className="tab-content">
-          <BulkMcqUpload />
+          <BulkMcqUpload onSuccess={() => { loadData(); setTab('list'); }} />
         </div>
       )}
 
