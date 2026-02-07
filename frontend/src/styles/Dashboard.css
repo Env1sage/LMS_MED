@@ -628,6 +628,78 @@ code {
   background: rgba(74, 157, 124, 0.25);
 }
 
+.info-btn-sm {
+  background: rgba(23, 162, 184, 0.15);
+  color: #17a2b8;
+  border: 1px solid rgba(23, 162, 184, 0.2);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.info-btn-sm:hover {
+  background: rgba(23, 162, 184, 0.25);
+}
+
+.warning-btn-sm {
+  background: rgba(255, 193, 7, 0.15);
+  color: #d39e00;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.warning-btn-sm:hover {
+  background: rgba(255, 193, 7, 0.25);
+}
+
+.secondary-btn-sm {
+  background: rgba(108, 117, 125, 0.15);
+  color: #6c757d;
+  border: 1px solid rgba(108, 117, 125, 0.2);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.secondary-btn-sm:hover {
+  background: rgba(108, 117, 125, 0.25);
+}
+
+.danger-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.danger-btn:hover {
+  background: #c82333;
+}
+
 /* === SETTINGS GRID === */
 .settings-grid {
   display: grid;

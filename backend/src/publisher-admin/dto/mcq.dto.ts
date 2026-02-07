@@ -16,11 +16,13 @@ export enum McqStatus {
   ARCHIVED = 'ARCHIVED',
 }
 
+// CBME Miller's Pyramid competency levels
 export enum DifficultyLevel {
-  BEGINNER = 'BEGINNER',
-  INTERMEDIATE = 'INTERMEDIATE',
-  ADVANCED = 'ADVANCED',
-  EXPERT = 'EXPERT',
+  K = 'K',     // Knows
+  KH = 'KH',   // Knows How
+  S = 'S',     // Shows
+  SH = 'SH',   // Shows How
+  P = 'P',     // Performs
 }
 
 export class CreateMcqDto {

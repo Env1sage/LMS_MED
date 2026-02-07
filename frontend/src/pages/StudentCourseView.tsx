@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -30,6 +30,7 @@ import {
   TouchApp as InteractiveIcon,
 } from '@mui/icons-material';
 import apiService from '../services/api.service';
+import SecurePdfViewer from '../components/SecurePdfViewer';
 
 interface LearningUnit {
   id: string;
@@ -77,6 +78,100 @@ const StudentCourseView: React.FC = () => {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [currentUnit, setCurrentUnit] = useState<LearningUnit | null>(null);
   const [startTime, setStartTime] = useState<number>(0);
+  const [iframeError, setIframeError] = useState(false);
+  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Backend API URL for serving files with authentication
+  const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
+  // Helper to get full content URL
+  const getFullContentUrl = (url: string | undefined): string => {
+    if (!url) {
+      console.warn('No URL provided to getFullContentUrl');
+      return '';
+    }
+    // If it's already a full URL, return as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      console.log('Full URL detected:', url);
+      return url;
+    }
+    // If it's a relative path starting with /uploads, prepend API_URL
+    if (url.startsWith('/uploads/')) {
+      const fullUrl = `${API_URL}${url}`;
+      console.log('Built full URL:', fullUrl, 'from:', url);
+      return fullUrl;
+    }
+    // For other relative paths, construct the URL
+    const fullUrl = `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    console.log('Built full URL:', fullUrl, 'from:', url);
+    return fullUrl;
+  };
+
+  // ===== SECURITY: Block keyboard shortcuts =====
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!viewerOpen) return;
+    
+    // Block Print Screen
+    if (e.key === 'PrintScreen') {
+      e.preventDefault();
+      setSecurityWarning('Screenshots are not allowed');
+      setTimeout(() => setSecurityWarning(null), 3000);
+      return false;
+    }
+    
+    // Block Ctrl/Cmd + P (Print)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+      e.preventDefault();
+      setSecurityWarning('Printing is not allowed');
+      setTimeout(() => setSecurityWarning(null), 3000);
+      return false;
+    }
+    
+    // Block Ctrl/Cmd + S (Save)
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      setSecurityWarning('Saving is not allowed');
+      setTimeout(() => setSecurityWarning(null), 3000);
+      return false;
+    }
+    
+    // Block Ctrl/Cmd + C (Copy)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      e.preventDefault();
+      setSecurityWarning('Copying is not allowed');
+      setTimeout(() => setSecurityWarning(null), 3000);
+      return false;
+    }
+    
+    // Block F12 (Dev Tools)
+    if (e.key === 'F12') {
+      e.preventDefault();
+      return false;
+    }
+  }, [viewerOpen]);
+
+  // ===== SECURITY: Block right-click context menu =====
+  const handleContextMenu = useCallback((e: MouseEvent) => {
+    if (!viewerOpen) return;
+    e.preventDefault();
+    setSecurityWarning('Right-click is disabled for security');
+    setTimeout(() => setSecurityWarning(null), 2000);
+    return false;
+  }, [viewerOpen]);
+
+  // Setup security event listeners
+  useEffect(() => {
+    if (viewerOpen) {
+      document.addEventListener('keydown', handleKeyDown as any);
+      document.addEventListener('contextmenu', handleContextMenu as any);
+      
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown as any);
+        document.removeEventListener('contextmenu', handleContextMenu as any);
+      };
+    }
+  }, [viewerOpen, handleKeyDown, handleContextMenu]);
 
   useEffect(() => {
     if (courseId) {
@@ -178,10 +273,10 @@ const StudentCourseView: React.FC = () => {
   };
 
   const formatDuration = (minutes: number) => {
-    if (minutes < 60) return `${minutes} min`;
+    if (minutes < 60) return `⏱️ Learn in ${minutes} min`;
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return `${hours}h ${mins}m`;
+    return `⏱️ Learn in ${hours}h ${mins}m`;
   };
 
   const calculateOverallProgress = () => {
@@ -352,138 +447,260 @@ const StudentCourseView: React.FC = () => {
       <Dialog
         open={viewerOpen}
         onClose={handleCloseViewer}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
         PaperProps={{
           sx: {
-            minHeight: '80vh',
-            userSelect: 'none', // Disable text selection
+            minHeight: '90vh',
+            height: '90vh',
+            userSelect: 'none',
             WebkitUserSelect: 'none',
             MozUserSelect: 'none',
             msUserSelect: 'none',
           }
         }}
-        onContextMenu={(e) => e.preventDefault()} // Disable right-click
+        onContextMenu={(e) => e.preventDefault()}
       >
-        <DialogTitle>
-          {currentUnit?.title}
-          <Typography variant="body2" color="text.secondary">
-            {currentUnit?.type}
-          </Typography>
-          {/* Session Watermark */}
+        {/* Security Warning Toast */}
+        {securityWarning && (
           <Box
             sx={{
-              position: 'absolute',
-              top: 10,
-              right: 10,
-              fontSize: '10px',
-              color: 'rgba(0,0,0,0.3)',
-              pointerEvents: 'none',
-              userSelect: 'none',
+              position: 'fixed',
+              top: 20,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              bgcolor: 'error.main',
+              color: 'white',
+              px: 3,
+              py: 1.5,
+              borderRadius: 2,
+              zIndex: 10000,
+              boxShadow: 3,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
             }}
           >
-            Session: {Date.now().toString(36)}
+            🔒 {securityWarning}
+          </Box>
+        )}
+
+        <DialogTitle sx={{ borderBottom: '1px solid #e0e0e0' }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box>
+              <Typography variant="h6">{currentUnit?.title}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {currentUnit?.type} • {currentUnit?.estimatedDuration} min
+              </Typography>
+            </Box>
+            {/* Session Watermark */}
+            <Box
+              sx={{
+                fontSize: '10px',
+                color: 'rgba(0,0,0,0.3)',
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            >
+              Protected Content • Session: {Date.now().toString(36).toUpperCase()}
+            </Box>
           </Box>
         </DialogTitle>
+        
         <DialogContent
+          ref={contentRef}
           sx={{
+            p: 0,
+            position: 'relative',
+            overflow: 'hidden',
             userSelect: 'none',
             WebkitTouchCallout: 'none',
+            height: 'calc(100% - 120px)',
           }}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {currentUnit?.type === 'BOOK' && currentUnit.secureAccessUrl && (
-            <Box sx={{ width: '100%', height: '70vh', position: 'relative' }}>
-              <iframe
-                src={currentUnit.secureAccessUrl}
-                width="100%"
-                height="100%"
-                title="Content Viewer"
-                style={{ border: 'none', pointerEvents: 'auto' }}
-                sandbox="allow-same-origin allow-scripts"
-              />
-              {/* Overlay watermark */}
+          <Box sx={{ width: '100%', height: '100%', position: 'relative', bgcolor: '#f5f5f5' }}>
+            {/* Watermark Overlay for non-PDF content */}
+            {currentUnit && !currentUnit.secureAccessUrl.match(/\.(pdf)$/i) && (
               <Box
                 sx={{
                   position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%) rotate(-45deg)',
-                  fontSize: '60px',
-                  color: 'rgba(0,0,0,0.05)',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
                   pointerEvents: 'none',
+                  zIndex: 1,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '100px',
+                  padding: '50px',
+                  opacity: 0.05,
                   userSelect: 'none',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
                 }}
               >
-                AIIMS NAGPUR - CONFIDENTIAL
+                {[...Array(20)].map((_, i) => (
+                  <Box
+                    key={i}
+                    sx={{
+                      transform: 'rotate(-45deg)',
+                      fontSize: '24px',
+                      fontWeight: 'bold',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    AIIMS NAGPUR • PROTECTED
+                  </Box>
+                ))}
               </Box>
-            </Box>
-          )}
-          
-          {currentUnit?.type === 'VIDEO' && currentUnit.secureAccessUrl && (
-            <Box sx={{ width: '100%', height: '70vh', bgcolor: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              {currentUnit.deliveryType === 'EMBED' ? (
-                <video
+            )}
+
+            {/* PDF: Use SecurePdfViewer */}
+            {currentUnit?.secureAccessUrl.match(/\.(pdf)$/i) && (
+              <SecurePdfViewer 
+                url={getFullContentUrl(currentUnit.secureAccessUrl)} 
+                watermarkText="AIIMS NAGPUR • STUDENT ACCESS"
+              />
+            )}
+
+            {/* VIDEO Content */}
+            {currentUnit?.secureAccessUrl.match(/\.(mp4|webm|ogg)$/i) && (
+              <Box sx={{ width: '100%', height: '100%', bgcolor: 'black', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                <video 
+                  className="secure-video"
                   controls
-                  width="100%"
-                  height="100%"
-                  style={{ maxHeight: '70vh' }}
-                  controlsList="nodownload"
-                  onContextMenu={(e) => e.preventDefault()}
+                  controlsList="nodownload noplaybackrate"
                   disablePictureInPicture
+                  onContextMenu={(e) => e.preventDefault()}
+                  style={{ width: '100%', height: '100%', maxHeight: '100%' }}
                 >
-                  <source src={currentUnit.secureAccessUrl} type="video/mp4" />
+                  <source src={getFullContentUrl(currentUnit.secureAccessUrl)} />
                   Your browser does not support the video tag.
                 </video>
-              ) : (
-                <iframe
-                  src={currentUnit.secureAccessUrl}
-                  width="100%"
-                  height="100%"
-                  title="Video Viewer"
-                  style={{ border: 'none' }}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
+                {/* Video watermark */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 60,
+                    right: 20,
+                    fontSize: '12px',
+                    color: 'rgba(255,255,255,0.7)',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    backgroundColor: 'rgba(0,0,0,0.6)',
+                    padding: '4px 12px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  AIIMS Nagpur Medical LMS • Protected Content
+                </Box>
+              </Box>
+            )}
+
+            {/* IMAGE Content */}
+            {currentUnit?.secureAccessUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) && (
+              <Box 
+                sx={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  bgcolor: '#000',
+                }}
+              >
+                <img 
+                  src={getFullContentUrl(currentUnit.secureAccessUrl)} 
+                  alt={currentUnit.title} 
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                  style={{ 
+                    maxWidth: '100%', 
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    userSelect: 'none',
+                  }}
                 />
-              )}
-              {/* Video watermark */}
+              </Box>
+            )}
+
+            {/* YOUTUBE/EMBEDDED VIDEO */}
+            {currentUnit && (getFullContentUrl(currentUnit.secureAccessUrl).includes('youtube.com') || getFullContentUrl(currentUnit.secureAccessUrl).includes('youtu.be')) && (
+              <iframe
+                src={getFullContentUrl(currentUnit.secureAccessUrl).replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                title={currentUnit.title}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                onError={() => setIframeError(true)}
+              />
+            )}
+
+            {/* INTERACTIVE/HTML Content */}
+            {currentUnit && 
+              !currentUnit.secureAccessUrl.match(/\.(pdf|mp4|webm|ogg|jpg|jpeg|png|gif|webp)$/i) &&
+              !getFullContentUrl(currentUnit.secureAccessUrl).includes('youtube.com') &&
+              !getFullContentUrl(currentUnit.secureAccessUrl).includes('youtu.be') && (
+              <iframe
+                src={getFullContentUrl(currentUnit.secureAccessUrl)}
+                title={currentUnit.title}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                sandbox="allow-same-origin allow-scripts allow-forms"
+                onError={() => setIframeError(true)}
+              />
+            )}
+
+            {/* Iframe Error Overlay */}
+            {iframeError && (
               <Box
                 sx={{
                   position: 'absolute',
-                  bottom: 20,
-                  right: 20,
-                  fontSize: '12px',
-                  color: 'rgba(255,255,255,0.6)',
-                  pointerEvents: 'none',
-                  userSelect: 'none',
-                  backgroundColor: 'rgba(0,0,0,0.5)',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  bgcolor: 'rgba(0,0,0,0.8)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 10,
                 }}
               >
-                AIIMS Nagpur Medical LMS
+                <Box sx={{ textAlign: 'center', color: 'white', p: 4 }}>
+                  <Typography variant="h5" gutterBottom>⚠️ Cannot Display Content</Typography>
+                  <Typography variant="body1" sx={{ mb: 3 }}>
+                    The content cannot be loaded in secure view mode.
+                  </Typography>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => setIframeError(false)}
+                    sx={{ mr: 2 }}
+                  >
+                    🔄 Retry
+                  </Button>
+                  <Button 
+                    variant="outlined" 
+                    onClick={handleCloseViewer}
+                    sx={{ color: 'white', borderColor: 'white' }}
+                  >
+                    Close
+                  </Button>
+                </Box>
               </Box>
-            </Box>
-          )}
-          
-          {currentUnit?.type === 'INTERACTIVE' && currentUnit.secureAccessUrl && (
-            <Box sx={{ width: '100%', height: '70vh' }}>
-              <iframe
-                src={currentUnit.secureAccessUrl}
-                width="100%"
-                height="100%"
-                title="Interactive Content"
-                style={{ border: 'none' }}
-                sandbox="allow-same-origin allow-scripts allow-forms"
-              />
-            </Box>
-          )}
+            )}
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseViewer} variant="contained">
-            Mark as Complete & Close
+        
+        <DialogActions sx={{ borderTop: '1px solid #e0e0e0', p: 2 }}>
+          <Button onClick={handleCloseViewer} variant="outlined" sx={{ mr: 'auto' }}>
+            Close
+          </Button>
+          <Button onClick={handleCloseViewer} variant="contained" color="success">
+            ✓ Mark as Complete & Close
           </Button>
         </DialogActions>
       </Dialog>

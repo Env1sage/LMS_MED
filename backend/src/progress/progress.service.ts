@@ -100,7 +100,7 @@ export class ProgressService {
     const step = accessCheck.currentStep;
     const courseId = step.courseId;
 
-    // Create or update progress
+    // Create or update step progress
     const progress = await this.prisma.step_progress.upsert({
       where: {
         studentId_stepId: {
@@ -125,6 +125,83 @@ export class ProgressService {
         updatedAt: new Date(),
       },
     });
+
+    // Update student_progress table for dashboard
+    if (dto.completionPercent >= 100) {
+      // Get or create student_progress record
+      const existingStudentProgress = await this.prisma.student_progress.findUnique({
+        where: {
+          studentId_courseId: {
+            studentId: student.id,
+            courseId,
+          },
+        },
+      });
+
+      const completedSteps = existingStudentProgress?.completedSteps || [];
+      if (!completedSteps.includes(dto.learning_flow_stepsId)) {
+        completedSteps.push(dto.learning_flow_stepsId);
+      }
+
+      // Get total steps for the course
+      const totalSteps = await this.prisma.learning_flow_steps.count({
+        where: { courseId },
+      });
+
+      const status = completedSteps.length === totalSteps ? 'COMPLETED' : 
+                     completedSteps.length > 0 ? 'IN_PROGRESS' : 'NOT_STARTED';
+
+      await this.prisma.student_progress.upsert({
+        where: {
+          studentId_courseId: {
+            studentId: student.id,
+            courseId,
+          },
+        },
+        update: {
+          completedSteps,
+          status: status as any,
+          currentStepId: dto.learning_flow_stepsId,
+          updatedAt: new Date(),
+          completedAt: status === 'COMPLETED' ? new Date() : null,
+        },
+        create: {
+          id: `student_progress_${student.id}_${courseId}_${Date.now()}`,
+          studentId: student.id,
+          courseId,
+          completedSteps,
+          status: status as any,
+          currentStepId: dto.learning_flow_stepsId,
+          startedAt: new Date(),
+          updatedAt: new Date(),
+          completedAt: status === 'COMPLETED' ? new Date() : null,
+        },
+      });
+    } else if (dto.completionPercent > 0) {
+      // Just mark as started if not complete
+      await this.prisma.student_progress.upsert({
+        where: {
+          studentId_courseId: {
+            studentId: student.id,
+            courseId,
+          },
+        },
+        update: {
+          currentStepId: dto.learning_flow_stepsId,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: `student_progress_${student.id}_${courseId}_${Date.now()}`,
+          studentId: student.id,
+          courseId,
+          completedSteps: [],
+          status: 'IN_PROGRESS',
+          currentStepId: dto.learning_flow_stepsId,
+          startedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+    }
 
     return progress;
   }

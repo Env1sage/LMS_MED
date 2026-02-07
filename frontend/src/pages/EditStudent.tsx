@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { studentService } from '../services/student.service';
-import '../styles/CreateStudent.css';
+import '../styles/CollegeAdminNew.css';
 
 const EditStudent: React.FC = () => {
   const navigate = useNavigate();

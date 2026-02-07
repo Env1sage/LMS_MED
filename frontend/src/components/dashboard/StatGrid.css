@@ -1,0 +1,26 @@
+/* ============================================
+   STAT GRID · RESPONSIVE LAYOUT
+   ============================================ */
+
+.stat-grid-component {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.stat-grid-component[data-columns="2"] {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.stat-grid-component[data-columns="3"] {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.stat-grid-component[data-columns="4"] {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+@media (max-width: 768px) {
+  .stat-grid-component {
+    grid-template-columns: 1fr;
+  }
+}

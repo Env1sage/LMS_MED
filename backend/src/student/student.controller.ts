@@ -3,11 +3,16 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { StudentService } from './student.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
@@ -60,6 +65,16 @@ export class StudentController {
   @Roles(UserRole.COLLEGE_ADMIN, UserRole.COLLEGE_DEAN, UserRole.COLLEGE_HOD)
   getStats(@CurrentUser('collegeId') collegeId: string) {
     return this.studentService.getStats(collegeId);
+  }
+
+  /**
+   * Get student performance analytics
+   * GET /api/students/performance-analytics
+   */
+  @Get('performance-analytics')
+  @Roles(UserRole.COLLEGE_ADMIN, UserRole.COLLEGE_DEAN, UserRole.COLLEGE_HOD)
+  getPerformanceAnalytics(@CurrentUser('collegeId') collegeId: string) {
+    return this.studentService.getPerformanceAnalytics(collegeId);
   }
 
   /**
@@ -133,6 +148,27 @@ export class StudentController {
   }
 
   /**
+   * Bulk upload students from CSV
+   * POST /api/students/bulk-upload
+   */
+  @Post('bulk-upload')
+  @Roles(UserRole.COLLEGE_ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('collegeId') collegeId: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('CSV file is required');
+    }
+    if (!file.originalname.endsWith('.csv')) {
+      throw new BadRequestException('File must be a CSV');
+    }
+    return this.studentService.bulkUploadFromCSV(file.buffer, userId, collegeId);
+  }
+
+  /**
    * Reset student credentials
    * POST /api/students/:id/reset-credentials
    */
@@ -145,5 +181,19 @@ export class StudentController {
     @CurrentUser('collegeId') collegeId: string,
   ) {
     return this.studentService.resetCredentials(id, dto, userId, collegeId);
+  }
+
+  /**
+   * Delete student permanently
+   * DELETE /api/students/:id
+   */
+  @Delete(':id')
+  @Roles(UserRole.COLLEGE_ADMIN)
+  delete(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('collegeId') collegeId: string,
+  ) {
+    return this.studentService.delete(id, userId, collegeId);
   }
 }

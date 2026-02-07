@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { courseService, AssignCourseData } from '../services/course.service';
 import { studentService } from '../services/student.service';
+import '../styles/FacultyPortal.css';
 import '../styles/AssignCourse.css';
 
 interface Course {
@@ -53,7 +54,7 @@ const AssignCourse: React.FC = () => {
       const term = searchTerm.toLowerCase();
       setFilteredStudents(students.filter(student => 
         student.fullName.toLowerCase().includes(term) ||
-        student.users.email.toLowerCase().includes(term) ||
+        student.users?.email?.toLowerCase().includes(term) ||
         student.currentAcademicYear.toLowerCase().includes(term) ||
         student.yearOfAdmission.toString().includes(term)
       ));
@@ -275,7 +276,7 @@ const AssignCourse: React.FC = () => {
                         />
                       </td>
                       <td>{student.fullName}</td>
-                      <td>{student.users.email}</td>
+                      <td>{student.users?.email || 'N/A'}</td>
                       <td>{student.currentAcademicYear.replace('_', ' ')}</td>
                       <td>{student.yearOfAdmission}</td>
                     </tr>

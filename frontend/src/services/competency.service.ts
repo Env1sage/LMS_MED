@@ -100,4 +100,5 @@ class CompetencyService {
   }
 }
 
-export default new CompetencyService();
+const competencyService = new CompetencyService();
+export default competencyService;

@@ -495,7 +495,7 @@ export class CourseService {
             select: {
               id: true,
               fullName: true,
-              users: {
+              user: {
                 select: {
                   email: true,
                 },
@@ -529,7 +529,7 @@ export class CourseService {
         return {
           studentId: assignment.students.id,
           studentName: assignment.students.fullName,
-          email: assignment.students.users.email,
+          email: assignment.students.user.email,
           assignedAt: assignment.assignedAt,
           startedAt: assignment.startedAt,
           completedAt: assignment.completedAt,

@@ -25,6 +25,9 @@
   "exclude": [
     "prisma/**/*.ts",
     "src/progress/**/*",
-    "src/progress.bak/**/*"
+    "src/progress.bak/**/*",
+    "dist/**/*",
+    "node_modules",
+    "*.ts"
   ]
 }

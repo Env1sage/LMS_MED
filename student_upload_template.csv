@@ -1,0 +1,3 @@
+fullName,email,yearOfAdmission,expectedPassingYear,currentAcademicYear
+Doe,john1@college.edu,2024,2029,FIRST_YEAR
+Smith,jane1@college.edu,2024,2029,FIRST_YEAR

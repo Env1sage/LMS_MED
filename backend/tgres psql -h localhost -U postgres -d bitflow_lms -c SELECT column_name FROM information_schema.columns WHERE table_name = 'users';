@@ -1,0 +1,41 @@
+                                     Table "public.users"
+    Column    |              Type              | Collation | Nullable |        Default         
+--------------+--------------------------------+-----------+----------+------------------------
+ id           | text                           |           | not null | 
+ email        | text                           |           | not null | 
+ passwordHash | text                           |           | not null | 
+ fullName     | text                           |           | not null | 
+ role         | "UserRole"                     |           | not null | 
+ status       | "UserStatus"                   |           | not null | 'ACTIVE'::"UserStatus"
+ collegeId    | text                           |           |          | 
+ publisherId  | text                           |           |          | 
+ lastLoginAt  | timestamp(3) without time zone |           |          | 
+ createdAt    | timestamp(3) without time zone |           | not null | CURRENT_TIMESTAMP
+ updatedAt    | timestamp(3) without time zone |           | not null | 
+ departmentId | text                           |           |          | 
+Indexes:
+    "users_pkey" PRIMARY KEY, btree (id)
+    "users_collegeId_idx" btree ("collegeId")
+    "users_departmentId_idx" btree ("departmentId")
+    "users_email_idx" btree (email)
+    "users_email_key" UNIQUE, btree (email)
+    "users_publisherId_idx" btree ("publisherId")
+    "users_role_idx" btree (role)
+Foreign-key constraints:
+    "users_collegeId_fkey" FOREIGN KEY ("collegeId") REFERENCES colleges(id) ON UPDATE CASCADE ON DELETE SET NULL
+    "users_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES publishers(id) ON UPDATE CASCADE ON DELETE SET NULL
+Referenced by:
+    TABLE "audit_logs" CONSTRAINT "audit_logs_userId_fkey" FOREIGN KEY ("userId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL
+    TABLE "course_assignments" CONSTRAINT "course_assignments_assignedBy_fkey" FOREIGN KEY ("assignedBy") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "courses" CONSTRAINT "courses_facultyId_fkey" FOREIGN KEY ("facultyId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "departments" CONSTRAINT "departments_hodId_fkey" FOREIGN KEY ("hodId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL
+    TABLE "faculty_assignments" CONSTRAINT "faculty_assignments_userId_fkey" FOREIGN KEY ("userId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "mcqs" CONSTRAINT "mcqs_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    TABLE "mcqs" CONSTRAINT "mcqs_verifiedBy_fkey" FOREIGN KEY ("verifiedBy") REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL
+    TABLE "notification_reads" CONSTRAINT "notification_reads_userId_fkey" FOREIGN KEY ("userId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "notifications" CONSTRAINT "notifications_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    TABLE "refresh_tokens" CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "students" CONSTRAINT "students_userId_fkey" FOREIGN KEY ("userId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+    TABLE "tests" CONSTRAINT "tests_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES users(id) ON UPDATE CASCADE ON DELETE RESTRICT
+    TABLE "user_sessions" CONSTRAINT "user_sessions_userId_fkey" FOREIGN KEY ("userId") REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE
+

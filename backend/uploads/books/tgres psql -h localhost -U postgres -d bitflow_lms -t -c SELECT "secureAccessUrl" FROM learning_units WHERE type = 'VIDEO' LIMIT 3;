@@ -1,0 +1,9 @@
+                  id                  |                   title                    | type  |          secureAccessUrl           
+--------------------------------------+--------------------------------------------+-------+------------------------------------
+ 65a7f867-5169-47dd-8651-c12e66fc4bb4 | Heart Dissection - Step by Step - ELSEVIER | VIDEO | /uploads/videos/sample-video-1.mp4
+ 8d38087a-fcc1-449e-ab4d-bbfecdc19a18 | ECG Interpretation Masterclass - ELSEVIER  | VIDEO | /uploads/videos/sample-video-2.mp4
+ 8a3e7447-0097-4c24-8f8c-24e970ead28a | Biochemical Pathways Animation - ELSEVIER  | VIDEO | /uploads/videos/sample-video-3.mp4
+ 9fd7625b-4c18-43b9-ba03-6206eea95c9b | Histopathology Techniques - ELSEVIER       | VIDEO | /uploads/videos/sample-video-4.mp4
+ 4ca1705f-6de2-49eb-b1d6-8692f2282b13 | Drug Mechanisms Explained - ELSEVIER       | VIDEO | /uploads/videos/sample-video-5.mp4
+(5 rows)
+

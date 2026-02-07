@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
+import { GlassCard } from '../components/ui/GlassCard';
+import { GlassButton } from '../components/ui/GlassButton';
+import { GlassInput } from '../components/ui/GlassInput';
 import '../styles/Login.css';
 
 const Login: React.FC = () => {
@@ -39,163 +42,181 @@ const Login: React.FC = () => {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Authentication failed. Verify credentials.');
+      setError(err.response?.data?.message || 'Authentication failed. Please verify your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
+  const quickLogin = (emailVal: string, passwordVal: string) => {
+    setEmail(emailVal);
+    setPassword(passwordVal);
+  };
+
   return (
-    <div className="login-page">
-      {/* Decorative molecular grid background */}
-      <div className="login-grid-overlay" aria-hidden="true">
-        <svg className="molecular-grid" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <pattern id="hexPattern" x="0" y="0" width="60" height="52" patternUnits="userSpaceOnUse">
-              <polygon 
-                points="30,0 60,15 60,45 30,60 0,45 0,15" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="0.5"
-                opacity="0.15"
-              />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#hexPattern)" />
-        </svg>
+    <div className="premium-login-page">
+      {/* Animated Gradient Background */}
+      <div className="gradient-bg">
+        <div className="gradient-orb gradient-orb-1"></div>
+        <div className="gradient-orb gradient-orb-2"></div>
+        <div className="gradient-orb gradient-orb-3"></div>
       </div>
 
-      <main className="login-main">
-        {/* Branding Section */}
-        <header className="login-brand animate-slideInLeft">
-          <div className="brand-mark">
-            <svg className="brand-icon" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="4" y="4" width="40" height="40" rx="4" stroke="currentColor" strokeWidth="2"/>
-              <path d="M24 12V36M12 24H36" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-              <circle cx="24" cy="24" r="6" stroke="currentColor" strokeWidth="2"/>
-            </svg>
-          </div>
-          <h1 className="brand-title">Bitflow</h1>
-          <span className="brand-subtitle">Medical Learning System</span>
-          <div className="brand-tagline">
-            <span className="tagline-accent">◆</span>
-            Secure Clinical Education Platform
-          </div>
-        </header>
+      {/* Grid Pattern Overlay */}
+      <div className="grid-pattern"></div>
 
-        {/* Login Form Card */}
-        <section className="login-card animate-fadeInUp">
-          <div className="card-header">
-            <h2>System Access</h2>
-            <p className="card-subtitle">Enter credentials to authenticate</p>
+      <div className="login-container">
+        {/* Left Side - Branding */}
+        <div className="login-branding">
+          <div className="brand-logo-container">
+            <div className="brand-logo-glass">
+              <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                <rect width="64" height="64" rx="16" fill="url(#logoGradient)"/>
+                <path d="M20 32h24M32 20v24M26 26l12 12M26 38l12-12" 
+                      stroke="white" 
+                      strokeWidth="3" 
+                      strokeLinecap="round"/>
+                <defs>
+                  <linearGradient id="logoGradient" x1="0" y1="0" x2="64" y2="64">
+                    <stop offset="0%" stopColor="#667eea"/>
+                    <stop offset="100%" stopColor="#764ba2"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
           </div>
+          
+          <h1 className="brand-title">
+            Bitflow<span className="brand-accent">.</span>
+          </h1>
+          
+          <p className="brand-tagline">
+            Premium Medical Learning Management System
+          </p>
+          
+          <div className="brand-features">
+            <div className="feature-item">
+              <div className="feature-icon">✓</div>
+              <span>Multi-tenant Architecture</span>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">✓</div>
+              <span>Secure Clinical Education</span>
+            </div>
+            <div className="feature-item">
+              <div className="feature-icon">✓</div>
+              <span>Advanced Analytics</span>
+            </div>
+          </div>
+        </div>
 
-          <form onSubmit={handleSubmit} className="login-form">
+        {/* Right Side - Login Form */}
+        <div className="login-form-section">
+          <GlassCard className="login-card">
+            <div className="login-header">
+              <h2 className="login-title">Welcome Back</h2>
+              <p className="login-subtitle">Enter your credentials to access your account</p>
+            </div>
+
             {error && (
-              <div className="error-alert" role="alert">
-                <span className="error-icon">⚠</span>
-                <span className="error-text">{error}</span>
+              <div className="error-banner">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                </svg>
+                <span>{error}</span>
               </div>
             )}
 
-            <div className="input-group">
-              <label htmlFor="email" className="input-label">
-                <span className="label-text">Email Address</span>
-                <span className="label-indicator" />
-              </label>
-              <input
+            <form onSubmit={handleSubmit} className="login-form">
+              <GlassInput
                 type="email"
-                id="email"
-                className="input-field"
+                label="Email Address"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@institution.edu"
+                onChange={setEmail}
+                placeholder="your@email.com"
                 required
                 disabled={loading}
-                autoComplete="email"
+                icon={
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                  </svg>
+                }
               />
-            </div>
 
-            <div className="input-group">
-              <label htmlFor="password" className="input-label">
-                <span className="label-text">Password</span>
-                <span className="label-indicator" />
-              </label>
-              <input
+              <GlassInput
                 type="password"
-                id="password"
-                className="input-field"
+                label="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                onChange={setPassword}
+                placeholder="••••••••"
                 required
                 disabled={loading}
-                autoComplete="current-password"
+                icon={
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
+                  </svg>
+                }
               />
+
+              <GlassButton
+                type="submit"
+                variant="primary"
+                loading={loading}
+                fullWidth
+              >
+                {!loading && (
+                  <>
+                    <span>Sign In</span>
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+                    </svg>
+                  </>
+                )}
+              </GlassButton>
+            </form>
+
+            <div className="login-footer">
+              <div className="status-indicator">
+                <div className="status-dot"></div>
+                <span>Phase 0–5 • Production Ready</span>
+              </div>
             </div>
+          </GlassCard>
 
-            <button 
-              type="submit" 
-              className={`submit-btn ${loading ? 'is-loading' : ''}`}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <span className="loading-spinner" />
-                  <span>Authenticating...</span>
-                </>
-              ) : (
-                <>
-                  <span>Authenticate</span>
-                  <span className="btn-arrow">→</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          <footer className="card-footer">
-            <div className="version-badge">
-              <span className="version-dot" />
-              Phase 0–5 • Multi-Tenant Architecture
+          {/* Quick Access Credentials */}
+          <GlassCard className="credentials-card">
+            <div className="credentials-header">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
+              </svg>
+              <h3>Quick Access</h3>
             </div>
-          </footer>
-        </section>
-
-        {/* Test Credentials Panel */}
-        <aside className="credentials-panel animate-fadeInUp stagger-3">
-          <div className="panel-header">
-            <span className="panel-icon">◇</span>
-            <h3>Development Credentials</h3>
-          </div>
-          <ul className="credentials-list">
-            <li className="credential-row">
-              <span className="role-badge role-owner">Owner</span>
-              <code className="credential-value">owner@bitflow.com</code>
-              <code className="credential-pass">BitflowAdmin@2026</code>
-            </li>
-            <li className="credential-row">
-              <span className="role-badge role-publisher">Publisher</span>
-              <code className="credential-value">admin@elsevier.com</code>
-              <code className="credential-pass">Password123!</code>
-            </li>
-            <li className="credential-row">
-              <span className="role-badge role-admin">Admin</span>
-              <code className="credential-value">admin@aiimsnagpur.edu.in</code>
-              <code className="credential-pass">Password123!</code>
-            </li>
-            <li className="credential-row">
-              <span className="role-badge role-faculty">Faculty</span>
-              <code className="credential-value">faculty@aiimsnagpur.edu.in</code>
-              <code className="credential-pass">Password123!</code>
-            </li>
-            <li className="credential-row">
-              <span className="role-badge role-student">Student</span>
-              <code className="credential-value">priya.sharma@student...</code>
-              <code className="credential-pass">Password123!</code>
-            </li>
-          </ul>
-        </aside>
-      </main>
+            
+            <div className="credentials-grid">
+              <button className="credential-btn" onClick={() => quickLogin('owner@bitflow.com', 'BitflowAdmin@2026')}>
+                <div className="credential-badge badge-owner">Owner</div>
+                <code>owner@bitflow.com</code>
+              </button>
+              
+              <button className="credential-btn" onClick={() => quickLogin('admin@elsevier.com', 'Password123!')}>
+                <div className="credential-badge badge-publisher">Publisher</div>
+                <code>admin@elsevier.com</code>
+              </button>
+              
+              <button className="credential-btn" onClick={() => quickLogin('admin@aiimsnagpur.edu.in', 'Password123!')}>
+                <div className="credential-badge badge-admin">Admin</div>
+                <code>admin@aiimsnagpur.edu.in</code>
+              </button>
+              
+              <button className="credential-btn" onClick={() => quickLogin('faculty@aiimsnagpur.edu.in', 'Password123!')}>
+                <div className="credential-badge badge-faculty">Faculty</div>
+                <code>faculty@aiimsnagpur.edu.in</code>
+              </button>
+            </div>
+          </GlassCard>
+        </div>
+      </div>
     </div>
   );
 };

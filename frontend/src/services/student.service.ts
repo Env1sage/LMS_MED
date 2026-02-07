@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('accessToken');
@@ -80,6 +80,37 @@ export const studentService = {
   // Get statistics
   getStats: async () => {
     const response = await axios.get(`${API_URL}/students/stats`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  },
+
+  // Get performance analytics for college dashboard
+  getPerformanceAnalytics: async () => {
+    const response = await axios.get(`${API_URL}/students/performance-analytics`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  },
+
+  // Bulk upload from CSV file
+  bulkUpload: async (file: File) => {
+    const token = localStorage.getItem('accessToken');
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axios.post(`${API_URL}/students/bulk-upload`, formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Delete student permanently
+  delete: async (id: string) => {
+    const response = await axios.delete(`${API_URL}/students/${id}`, {
       headers: getAuthHeaders(),
     });
     return response.data;

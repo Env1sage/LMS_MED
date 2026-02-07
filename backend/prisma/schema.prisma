@@ -31,40 +31,99 @@ model audit_logs {
 }
 
 model colleges {
-  id                  String        @id
-  name                String
-  code                String        @unique
-  status              CollegeStatus @default(ACTIVE)
-  // Phase 2: Enhanced college metadata
-  emailDomain         String?       // Official email domain (e.g., aiims.edu.in)
-  adminContactEmail   String?       // IT Admin contact
-  address             String?
-  city                String?
-  state               String?
-  // Tracking
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime
-  // Relations
-  audit_logs          audit_logs[]
-  courses             courses[]
-  departments         departments[]
-  students            students[]
-  users               users[]
+  id                   String                 @id
+  name                 String
+  code                 String                 @unique
+  status               CollegeStatus          @default(ACTIVE)
+  emailDomain          String?
+  adminContactEmail    String?
+  address              String?
+  city                 String?
+  state                String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  audit_logs           audit_logs[]
+  college_packages     college_packages[]
+  courses              courses[]
+  departments          departments[]
+  notifications        notifications[]
+  ratings              ratings[]
+  self_paced_resources self_paced_resources[]
+  students             students[]
+  users                users[]
 }
 
-// Phase 1: Department structure for HOD-scoped access
+model ratings {
+  id          String     @id @default(uuid())
+  studentId   String
+  collegeId   String
+  ratingType  RatingType
+  entityId    String
+  rating      Int
+  feedback    String?
+  isAnonymous Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  college     colleges   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  student     students   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, ratingType, entityId])
+  @@index([studentId])
+  @@index([collegeId])
+  @@index([ratingType])
+  @@index([entityId])
+  @@index([rating])
+}
+
+model packages {
+  id               String             @id @default(uuid())
+  publisherId      String
+  name             String
+  description      String?
+  status           PackageStatus      @default(ACTIVE)
+  subjects         String[]
+  contentTypes     LearningUnitType[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  college_packages college_packages[]
+  publisher        publishers         @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@index([publisherId])
+  @@index([status])
+}
+
+model college_packages {
+  id         String                  @id @default(uuid())
+  collegeId  String
+  packageId  String
+  startDate  DateTime
+  endDate    DateTime?
+  status     PackageAssignmentStatus @default(ACTIVE)
+  assignedBy String
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  college    colleges                @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  package    packages                @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([collegeId, packageId])
+  @@index([collegeId])
+  @@index([packageId])
+  @@index([status])
+}
+
 model departments {
   id                  String                @id @default(uuid())
   collegeId           String
   name                String
   code                String
-  hodId               String?               // User ID of HOD
+  hodId               String?
   status              DepartmentStatus      @default(ACTIVE)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   college             colleges              @relation(fields: [collegeId], references: [id], onDelete: Cascade)
   hod                 users?                @relation("DepartmentHOD", fields: [hodId], references: [id])
   faculty_assignments faculty_assignments[]
+  notifications       notifications[]
   student_departments student_departments[]
 
   @@unique([collegeId, code])
@@ -72,29 +131,27 @@ model departments {
   @@index([hodId])
 }
 
-// Phase 1: Faculty assigned to departments with granular permissions
 model faculty_assignments {
   id           String              @id @default(uuid())
   userId       String
   departmentId String
-  permissions  faculty_permissions @relation(fields: [permissionId], references: [id])
   permissionId String
-  subjects     String[]            // Subject codes this faculty can teach
+  subjects     String[]
   status       FacultyStatus       @default(ACTIVE)
   assignedAt   DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
-  user         users               @relation(fields: [userId], references: [id], onDelete: Cascade)
   department   departments         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  permissions  faculty_permissions @relation(fields: [permissionId], references: [id])
+  user         users               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, departmentId])
   @@index([userId])
   @@index([departmentId])
 }
 
-// Phase 1: Granular faculty permissions (defined by College Admin)
 model faculty_permissions {
   id                  String                @id @default(uuid())
-  name                String                // e.g., "Full Access", "Read Only", "Assessment Only"
+  name                String
   collegeId           String
   canCreateCourses    Boolean               @default(false)
   canEditCourses      Boolean               @default(false)
@@ -114,18 +171,46 @@ model faculty_permissions {
   @@index([collegeId])
 }
 
-// Phase 1: Students assigned to departments
 model student_departments {
   id           String      @id @default(uuid())
   studentId    String
   departmentId String
   assignedAt   DateTime    @default(now())
-  student      students    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   department   departments @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  student      students    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, departmentId])
   @@index([studentId])
   @@index([departmentId])
+}
+
+model students {
+  id                     String                   @id @default(uuid())
+  collegeId              String
+  userId                 String                   @unique
+  fullName               String
+  yearOfAdmission        Int
+  expectedPassingYear    Int
+  currentAcademicYear    AcademicYear
+  status                 StudentStatus            @default(ACTIVE)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  course_assignments     course_assignments[]
+  practice_sessions      practice_sessions[]
+  ratings                ratings[]
+  self_paced_access_logs self_paced_access_logs[]
+  step_progress          step_progress[]
+  student_departments    student_departments[]
+  student_progress       student_progress[]
+  college                colleges                 @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  user                   users                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test_assignments       test_assignments[]
+  test_attempts          test_attempts[]
+
+  @@index([collegeId])
+  @@index([currentAcademicYear])
+  @@index([status])
+  @@index([userId])
 }
 
 model competencies {
@@ -134,6 +219,7 @@ model competencies {
   title               String
   description         String
   subject             String
+  topicId             String?
   domain              CompetencyDomain
   academicLevel       AcademicLevel
   status              CompetencyStatus      @default(ACTIVE)
@@ -145,6 +231,7 @@ model competencies {
   activatedAt         DateTime?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime
+  topic               topics?               @relation(fields: [topicId], references: [id])
   course_competencies course_competencies[]
 
   @@index([academicLevel])
@@ -152,6 +239,27 @@ model competencies {
   @@index([domain])
   @@index([status])
   @@index([subject])
+  @@index([topicId])
+}
+
+model topics {
+  id                   String                 @id @default(uuid())
+  subject              String
+  name                 String
+  code                 String                 @unique
+  description          String?
+  academicYear         AcademicYear?
+  status               ContentStatus          @default(ACTIVE)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  competencies         competencies[]
+  learning_units       learning_units[]
+  mcqs                 mcqs[]
+  self_paced_resources self_paced_resources[]
+
+  @@index([subject])
+  @@index([academicYear])
+  @@index([status])
 }
 
 model course_assignments {
@@ -208,6 +316,7 @@ model courses {
   learning_flow_steps learning_flow_steps[]
   step_progress       step_progress[]
   student_progress    student_progress[]
+  tests               tests[]
 
   @@index([academicYear])
   @@index([collegeId])
@@ -267,7 +376,8 @@ model learning_units {
   title                     String
   description               String
   subject                   String
-  topic                     String
+  topicId                   String?
+  topic                     String?
   subTopic                  String?
   difficultyLevel           DifficultyLevel
   estimatedDuration         Int
@@ -278,7 +388,6 @@ model learning_units {
   sessionExpiryMinutes      Int                         @default(30)
   maxAttempts               Int?
   timeLimit                 Int?
-  // Phase 1: Enhanced content lifecycle
   status                    ContentStatus               @default(DRAFT)
   competencyMappingStatus   CompetencyMappingStatus     @default(PENDING)
   activatedAt               DateTime?
@@ -286,10 +395,8 @@ model learning_units {
   deactivatedAt             DateTime?
   deactivatedBy             String?
   deactivationReason        String?
-  // Content protection (Phase 1)
   downloadAllowed           Boolean                     @default(false)
   viewOnly                  Boolean                     @default(true)
-  // Metadata
   thumbnailUrl              String?
   tags                      String[]
   createdAt                 DateTime                    @default(now())
@@ -297,6 +404,7 @@ model learning_units {
   learning_flow_steps       learning_flow_steps[]
   learning_unit_access_logs learning_unit_access_logs[]
   publishers                publishers                  @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  topicRef                  topics?                     @relation(fields: [topicId], references: [id])
 
   @@index([difficultyLevel])
   @@index([publisherId])
@@ -304,72 +412,75 @@ model learning_units {
   @@index([competencyMappingStatus])
   @@index([subject])
   @@index([type])
+  @@index([topicId])
 }
 
 model publishers {
-  id                  String           @id
-  name                String
-  code                String           @unique
-  status              PublisherStatus  @default(ACTIVE)
-  // Phase 2: Contract management
-  contactPerson       String?
-  contactEmail        String?
-  physicalAddress     String?          // Phase 3: Publisher address
-  contractStartDate   DateTime?
-  contractEndDate     DateTime?
-  contractDocument    String?          // URL to contract document
-  legalName           String?
-  // Tracking
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime
-  // Relations
-  audit_logs          audit_logs[]
-  learning_units      learning_units[]
-  mcqs                mcqs[]
-  users               users[]
+  id                String           @id
+  name              String
+  code              String           @unique
+  status            PublisherStatus  @default(ACTIVE)
+  contactPerson     String?
+  contactEmail      String?
+  physicalAddress   String?
+  contractStartDate DateTime?
+  contractEndDate   DateTime?
+  contractDocument  String?
+  legalName         String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  audit_logs        audit_logs[]
+  learning_units    learning_units[]
+  mcqs              mcqs[]
+  packages          packages[]
+  users             users[]
 
   @@index([contractEndDate])
 }
 
 model mcqs {
-  id                String       @id
-  question          String
-  questionImage     String?
-  optionA           String
-  optionB           String
-  optionC           String
-  optionD           String
-  optionE           String?
-  correctAnswer     String
-  explanation       String?
-  explanationImage  String?
-  subject           String
-  topic             String
-  difficultyLevel   DifficultyLevel
-  bloomsLevel       BloomsLevel  @default(REMEMBER)
-  competencyIds     String[]     @default([])
-  tags              String[]     @default([])
-  year              Int?
-  source            String?
-  publisherId       String
-  createdBy         String
-  status            McqStatus    @default(DRAFT)
-  isVerified        Boolean      @default(false)
-  verifiedBy        String?
-  verifiedAt        DateTime?
-  usageCount        Int          @default(0)
-  correctRate       Float        @default(0)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime
-  publisher         publishers   @relation(fields: [publisherId], references: [id], onDelete: Cascade)
-  creator           users        @relation("McqCreator", fields: [createdBy], references: [id])
-  verifier          users?       @relation("McqVerifier", fields: [verifiedBy], references: [id])
+  id               String          @id
+  question         String
+  questionImage    String?
+  optionA          String
+  optionB          String
+  optionC          String
+  optionD          String
+  optionE          String?
+  correctAnswer    String
+  explanation      String?
+  explanationImage String?
+  subject          String
+  topicId          String?
+  topic            String?
+  mcqType          McqType         @default(NORMAL)
+  difficultyLevel  DifficultyLevel
+  bloomsLevel      BloomsLevel     @default(REMEMBER)
+  competencyIds    String[]        @default([])
+  tags             String[]        @default([])
+  year             Int?
+  source           String?
+  publisherId      String
+  createdBy        String
+  status           McqStatus       @default(DRAFT)
+  isVerified       Boolean         @default(false)
+  verifiedBy       String?
+  verifiedAt       DateTime?
+  usageCount       Int             @default(0)
+  correctRate      Float           @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  creator          users           @relation("McqCreator", fields: [createdBy], references: [id])
+  publisher        publishers      @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  topicRef         topics?         @relation(fields: [topicId], references: [id])
+  verifier         users?          @relation("McqVerifier", fields: [verifiedBy], references: [id])
 
   @@index([publisherId])
   @@index([subject])
   @@index([status])
   @@index([createdBy])
   @@index([competencyIds], type: Gin)
+  @@index([topicId])
 }
 
 model refresh_tokens {
@@ -446,30 +557,6 @@ model student_progress {
   @@index([studentId])
 }
 
-model students {
-  id                   String                @id
-  collegeId            String
-  userId               String                @unique
-  fullName             String
-  yearOfAdmission      Int
-  expectedPassingYear  Int
-  currentAcademicYear  AcademicYear
-  status               StudentStatus         @default(ACTIVE)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime
-  course_assignments   course_assignments[]
-  step_progress        step_progress[]
-  student_progress     student_progress[]
-  student_departments  student_departments[]
-  colleges             colleges              @relation(fields: [collegeId], references: [id], onDelete: Cascade)
-  users                users                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([collegeId])
-  @@index([currentAcademicYear])
-  @@index([status])
-  @@index([userId])
-}
-
 model user_sessions {
   id                String   @id
   userId            String
@@ -488,38 +575,296 @@ model user_sessions {
 }
 
 model users {
-  id                  String                @id
-  email               String                @unique
-  passwordHash        String
-  fullName            String
-  role                UserRole
-  status              UserStatus            @default(ACTIVE)
-  collegeId           String?
-  publisherId         String?
-  // Phase 1: Enhanced user fields
-  departmentId        String?               // For HOD/Faculty department scope
-  lastLoginAt         DateTime?
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime
-  audit_logs          audit_logs[]
-  course_assignments  course_assignments[]
-  courses             courses[]
-  refresh_tokens      refresh_tokens[]
-  students            students?
-  user_sessions       user_sessions[]
-  mcqsCreated         mcqs[]                @relation("McqCreator")
-  mcqsVerified        mcqs[]                @relation("McqVerifier")
-  colleges            colleges?             @relation(fields: [collegeId], references: [id])
-  publishers          publishers?           @relation(fields: [publisherId], references: [id])
-  // Phase 1: New relations
-  departmentsAsHOD    departments[]         @relation("DepartmentHOD")
-  faculty_assignments faculty_assignments[]
+  id                   String                 @id
+  email                String                 @unique
+  passwordHash         String
+  fullName             String
+  role                 UserRole
+  status               UserStatus             @default(ACTIVE)
+  collegeId            String?
+  publisherId          String?
+  departmentId         String?
+  lastLoginAt          DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  audit_logs           audit_logs[]
+  course_assignments   course_assignments[]
+  courses              courses[]
+  departmentsAsHOD     departments[]          @relation("DepartmentHOD")
+  faculty_assignments  faculty_assignments[]
+  mcqsCreated          mcqs[]                 @relation("McqCreator")
+  mcqsVerified         mcqs[]                 @relation("McqVerifier")
+  notificationReads    notification_reads[]
+  notificationsCreated notifications[]        @relation("NotificationCreator")
+  refresh_tokens       refresh_tokens[]
+  self_paced_resources self_paced_resources[] @relation("FacultyResources")
+  students             students?
+  testsCreated         tests[]                @relation("TestCreator")
+  user_sessions        user_sessions[]
+  colleges             colleges?              @relation(fields: [collegeId], references: [id])
+  publishers           publishers?            @relation(fields: [publisherId], references: [id])
 
   @@index([collegeId])
   @@index([departmentId])
   @@index([email])
   @@index([publisherId])
   @@index([role])
+}
+
+model notifications {
+  id           String               @id @default(uuid())
+  collegeId    String
+  createdBy    String
+  title        String
+  message      String
+  type         NotificationType     @default(ANNOUNCEMENT)
+  priority     NotificationPriority @default(NORMAL)
+  audience     NotificationAudience @default(ALL)
+  departmentId String?
+  academicYear AcademicYear?
+  isActive     Boolean              @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  readReceipts notification_reads[]
+  college      colleges             @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  creator      users                @relation("NotificationCreator", fields: [createdBy], references: [id])
+  department   departments?         @relation(fields: [departmentId], references: [id])
+
+  @@index([collegeId])
+  @@index([createdBy])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model notification_reads {
+  id             String        @id @default(uuid())
+  notificationId String
+  userId         String
+  readAt         DateTime      @default(now())
+  notification   notifications @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+
+model tests {
+  id                    String             @id @default(uuid())
+  courseId              String
+  createdBy             String
+  collegeId             String
+  title                 String
+  description           String?
+  type                  TestType           @default(SCHEDULED_TEST)
+  status                TestStatus         @default(DRAFT)
+  subject               String
+  totalQuestions        Int
+  totalMarks            Int
+  passingMarks          Int?
+  durationMinutes       Int
+  scheduledStartTime    DateTime?
+  scheduledEndTime      DateTime?
+  allowMultipleAttempts Boolean            @default(false)
+  maxAttempts           Int                @default(1)
+  shuffleQuestions      Boolean            @default(true)
+  showAnswersAfter      Boolean            @default(true)
+  showExplanations      Boolean            @default(true)
+  negativeMarking       Boolean            @default(false)
+  negativeMarkValue     Float              @default(0)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  assignments           test_assignments[]
+  attempts              test_attempts[]
+  questions             test_questions[]
+  course                courses            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator               users              @relation("TestCreator", fields: [createdBy], references: [id])
+
+  @@index([courseId])
+  @@index([collegeId])
+  @@index([status])
+  @@index([scheduledStartTime])
+}
+
+model test_questions {
+  id            String   @id @default(uuid())
+  testId        String
+  mcqId         String
+  questionOrder Int
+  marks         Int      @default(1)
+  createdAt     DateTime @default(now())
+  test          tests    @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, mcqId])
+  @@index([testId])
+}
+
+model test_assignments {
+  id         String           @id @default(uuid())
+  testId     String
+  studentId  String
+  assignedAt DateTime         @default(now())
+  dueDate    DateTime?
+  status     AssignmentStatus @default(ASSIGNED)
+  student    students         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  test       tests            @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model test_attempts {
+  id               String           @id @default(uuid())
+  testId           String
+  studentId        String
+  attemptNumber    Int              @default(1)
+  status           AttemptStatus    @default(NOT_STARTED)
+  startedAt        DateTime?
+  submittedAt      DateTime?
+  totalScore       Float?
+  totalCorrect     Int?
+  totalIncorrect   Int?
+  totalSkipped     Int?
+  percentageScore  Float?
+  isPassed         Boolean?
+  timeSpentSeconds Int              @default(0)
+  ipAddress        String?
+  userAgent        String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  student          students         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  test             tests            @relation(fields: [testId], references: [id], onDelete: Cascade)
+  responses        test_responses[]
+
+  @@index([testId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model test_responses {
+  id               String        @id @default(uuid())
+  attemptId        String
+  mcqId            String
+  questionOrder    Int
+  selectedAnswer   String?
+  isCorrect        Boolean?
+  marksAwarded     Float?
+  timeSpentSeconds Int           @default(0)
+  answeredAt       DateTime?
+  attempt          test_attempts @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, mcqId])
+  @@index([attemptId])
+}
+
+model practice_sessions {
+  id               String               @id @default(uuid())
+  studentId        String
+  subject          String?
+  topic            String?
+  totalQuestions   Int
+  correctAnswers   Int                  @default(0)
+  incorrectAnswers Int                  @default(0)
+  skippedQuestions Int                  @default(0)
+  timeSpentSeconds Int                  @default(0)
+  startedAt        DateTime             @default(now())
+  completedAt      DateTime?
+  metadata         Json?
+  responses        practice_responses[]
+  student          students             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([subject])
+}
+
+model practice_responses {
+  id                String            @id @default(uuid())
+  sessionId         String
+  mcqId             String
+  selectedAnswer    String?
+  isCorrect         Boolean?
+  timeSpentSeconds  Int               @default(0)
+  viewedExplanation Boolean           @default(false)
+  answeredAt        DateTime?
+  session           practice_sessions @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model schedule_events {
+  id             String            @id @default(uuid())
+  collegeId      String
+  studentId      String?
+  title          String
+  description    String?
+  eventType      ScheduleEventType
+  startTime      DateTime
+  endTime        DateTime?
+  location       String?
+  courseId       String?
+  testId         String?
+  isRecurring    Boolean           @default(false)
+  recurrenceRule String?
+  createdBy      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([collegeId])
+  @@index([studentId])
+  @@index([startTime])
+  @@index([eventType])
+}
+
+model self_paced_resources {
+  id            String                   @id @default(uuid())
+  facultyId     String
+  collegeId     String
+  title         String
+  description   String?
+  resourceType  SelfPacedResourceType
+  fileUrl       String?
+  content       String?
+  subject       String?
+  academicYear  AcademicYear?
+  tags          String[]
+  status        ContentStatus            @default(ACTIVE)
+  viewCount     Int                      @default(0)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  competencyIds String[]
+  topicId       String?
+  access_logs   self_paced_access_logs[]
+  college       colleges                 @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  faculty       users                    @relation("FacultyResources", fields: [facultyId], references: [id], onDelete: Cascade)
+  topic         topics?                  @relation(fields: [topicId], references: [id])
+
+  @@index([facultyId])
+  @@index([collegeId])
+  @@index([status])
+  @@index([subject])
+  @@index([topicId])
+}
+
+model self_paced_access_logs {
+  id         String               @id @default(uuid())
+  resourceId String
+  studentId  String
+  viewedAt   DateTime             @default(now())
+  timeSpent  Int?
+  resource   self_paced_resources @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  student    students             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([studentId])
+  @@index([viewedAt])
+}
+
+enum RatingType {
+  COURSE
+  TEACHER
+  CONTENT
 }
 
 enum AcademicLevel {
@@ -529,12 +874,18 @@ enum AcademicLevel {
 }
 
 enum AcademicYear {
+  YEAR_1
+  YEAR_2
+  YEAR_3_MINOR
+  YEAR_3_MAJOR
+  INTERNSHIP
   FIRST_YEAR
   SECOND_YEAR
   THIRD_YEAR
   FOURTH_YEAR
   FIFTH_YEAR
-  INTERNSHIP
+  PART_1
+  PART_2
 }
 
 enum AssignmentStatus {
@@ -592,6 +943,7 @@ enum AuditAction {
   STUDENT_DEACTIVATED
   STUDENT_PROMOTED
   STUDENT_BULK_PROMOTED
+  STUDENT_BULK_CREATED
   STUDENT_CREDENTIALS_RESET
   COURSE_CREATED
   COURSE_UPDATED
@@ -605,30 +957,36 @@ enum AuditAction {
   FLOW_MODIFIED
   STEP_COMPLETED
   INVALID_COMPLETION
-  // Phase 1: Department Management
   DEPARTMENT_CREATED
   DEPARTMENT_UPDATED
   DEPARTMENT_DEACTIVATED
   HOD_ASSIGNED
   HOD_REMOVED
-  // Phase 1: Faculty Permissions
   FACULTY_PERMISSION_CREATED
   FACULTY_PERMISSION_UPDATED
   FACULTY_ASSIGNED_TO_DEPARTMENT
   FACULTY_REMOVED_FROM_DEPARTMENT
   FACULTY_PERMISSIONS_CHANGED
-  // Phase 1: Content Lifecycle
   CONTENT_SUBMITTED_FOR_MAPPING
   CONTENT_COMPETENCY_MAPPED
   CONTENT_ACTIVATED
   CONTENT_DEACTIVATED
   CONTENT_SUSPENDED
   CONTENT_MAPPING_INCOMPLETE
-  // Phase 1: Governance
   ROLE_BOUNDARY_VIOLATION
   CROSS_TENANT_ACCESS_ATTEMPT
   PERMISSION_DENIED
   DATA_ISOLATION_BREACH_ATTEMPT
+  TOPIC_CREATED
+  TOPIC_UPDATED
+  TOPIC_DEACTIVATED
+  TOPICS_BULK_IMPORTED
+  PACKAGE_CREATED
+  PACKAGE_UPDATED
+  PACKAGE_DEACTIVATED
+  PACKAGE_ASSIGNED
+  PACKAGE_ASSIGNMENT_UPDATED
+  PACKAGE_ASSIGNMENT_CANCELLED
 }
 
 enum CollegeStatus {
@@ -662,35 +1020,32 @@ enum DeliveryType {
 }
 
 enum DifficultyLevel {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
-  EXPERT
+  K
+  KH
+  S
+  SH
+  P
 }
 
-// Phase 1: New content lifecycle status (replaces LearningUnitStatus)
 enum ContentStatus {
-  DRAFT              // Initial creation state
-  PENDING_MAPPING    // Content uploaded but competency mapping incomplete
-  ACTIVE             // Competency mapped, content available
-  INACTIVE           // Deactivated by publisher
-  SUSPENDED          // Suspended by Bitflow Owner
+  DRAFT
+  PENDING_MAPPING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
 }
 
-// Phase 1: Competency mapping status for content
 enum CompetencyMappingStatus {
-  PENDING            // No competencies mapped yet
-  PARTIAL            // Some competencies mapped
-  COMPLETE           // All required competencies mapped
+  PENDING
+  PARTIAL
+  COMPLETE
 }
 
-// Phase 1: Department status
 enum DepartmentStatus {
   ACTIVE
   INACTIVE
 }
 
-// Phase 1: Faculty assignment status
 enum FacultyStatus {
   ACTIVE
   INACTIVE
@@ -706,7 +1061,6 @@ enum LearningUnitStatus {
 enum LearningUnitType {
   BOOK
   VIDEO
-  MCQ
   NOTES
 }
 
@@ -714,6 +1068,12 @@ enum McqStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
+}
+
+enum McqType {
+  NORMAL
+  SCENARIO_BASED
+  IMAGE_BASED
 }
 
 enum BloomsLevel {
@@ -738,6 +1098,18 @@ enum PublisherStatus {
   INACTIVE
 }
 
+enum PackageStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum PackageAssignmentStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
 enum StudentStatus {
   ACTIVE
   INACTIVE
@@ -759,4 +1131,71 @@ enum UserStatus {
   ACTIVE
   INACTIVE
   SUSPENDED
+}
+
+enum NotificationType {
+  ANNOUNCEMENT
+  SCHEDULE_CHANGE
+  ACADEMIC_NOTICE
+  SYSTEM_ALERT
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum NotificationAudience {
+  ALL
+  FACULTY
+  STUDENTS
+  DEPARTMENT
+  BATCH
+}
+
+enum TestType {
+  SCHEDULED_TEST
+  PRACTICE_TEST
+  ASSIGNMENT
+  QUIZ
+}
+
+enum TestStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+  GRADED
+}
+
+enum ScheduleEventType {
+  LECTURE
+  TEST
+  ASSIGNMENT_DUE
+  PRACTICAL
+  SEMINAR
+  HOLIDAY
+  OTHER
+}
+
+enum SelfPacedResourceType {
+  NOTE
+  VIDEO
+  DOCUMENT
+  REFERENCE
+  PRACTICE
+  MCQ
+  HANDBOOK
+  LECTURE_NOTES
+  CASE_STUDY
 }

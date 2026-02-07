@@ -192,7 +192,7 @@ export class FacultyPermissionService {
         canUploadNotes: false,
       },
       {
-        name: 'View Only',
+        name: 'Read Only',
         canCreateCourses: false,
         canEditCourses: false,
         canDeleteCourses: false,

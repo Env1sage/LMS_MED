@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { studentService } from '../services/student.service';
-import '../styles/CreateStudent.css';
+import '../styles/CollegeAdminModern.css';
 
 const ResetStudentPassword: React.FC = () => {
   const navigate = useNavigate();

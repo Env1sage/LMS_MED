@@ -17,6 +17,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { McqService } from './mcq.service';
+import { FileUploadService } from './file-upload.service';
 import {
   CreateMcqDto,
   UpdateMcqDto,
@@ -30,7 +31,10 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('PUBLISHER_ADMIN')
 export class McqController {
-  constructor(private mcqService: McqService) {}
+  constructor(
+    private mcqService: McqService,
+    private fileUploadService: FileUploadService,
+  ) {}
 
   @Post()
   async create(
@@ -99,5 +103,18 @@ export class McqController {
       req.user.sub,
       req.user.publisherId,
     );
+  }
+
+  /**
+   * Upload image for MCQ (question or explanation image)
+   * POST /api/publisher-admin/mcqs/upload-image
+   */
+  @Post('upload-image')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadImage(
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<{ url: string }> {
+    const url = await this.fileUploadService.uploadFile(file, 'image');
+    return { url };
   }
 }

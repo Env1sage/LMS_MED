@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsInt, Min, IsBoolean, IsOptional, IsArray, IsUrl, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsInt, Min, IsBoolean, IsOptional, IsArray, MinLength, Matches } from 'class-validator';
 import { LearningUnitType, DeliveryType, DifficultyLevel } from '@prisma/client';
 
 export class CreateLearningUnitDto {
@@ -38,8 +38,10 @@ export class CreateLearningUnitDto {
   @IsString({ each: true })
   competencyIds: string[]; // Array of competency UUIDs
 
-  @IsUrl()
-  secureAccessUrl: string; // External URL (publisher-hosted)
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^(https?:\/\/|\/uploads\/)/, { message: 'secureAccessUrl must be a valid URL or uploaded file path' })
+  secureAccessUrl: string; // External URL or uploaded file path
 
   @IsEnum(DeliveryType)
   deliveryType: DeliveryType;
@@ -73,7 +75,7 @@ export class CreateLearningUnitDto {
   downloadAllowed?: boolean; // If true, content can be downloaded
 
   @IsOptional()
-  @IsUrl({}, { message: 'thumbnailUrl must be a valid URL' })
+  @IsString()
   thumbnailUrl?: string;
 
   @IsArray()

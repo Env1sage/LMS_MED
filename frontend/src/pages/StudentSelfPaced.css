@@ -1,0 +1,8 @@
+/* Shared styles for student self-paced learning page */
+.student-self-paced {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Reuse all common styles from SelfPacedContent.css */

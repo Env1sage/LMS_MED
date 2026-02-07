@@ -144,7 +144,11 @@ export class AuthService {
     // The user status check above is sufficient for login
 
     // Verify password
+    console.log('DEBUG: Attempting login for', dto.email);
+    console.log('DEBUG: Password provided:', dto.password);
+    console.log('DEBUG: Hash in DB:', user.passwordHash?.substring(0, 20) + '...');
     const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    console.log('DEBUG: Password valid:', isPasswordValid);
     if (!isPasswordValid) {
       await this.auditService.log({
         userId: user.id,

@@ -90,6 +90,32 @@ class BitflowOwnerService {
     return response.data;
   }
 
+  // Resend credentials via email
+  async resendPublisherCredentials(publisherId: string): Promise<{ success: boolean; message: string }> {
+    const response = await apiService.post<{ success: boolean; message: string }>(
+      `/bitflow-owner/publishers/${publisherId}/resend-credentials`
+    );
+    return response.data;
+  }
+
+  async resendCollegeCredentials(collegeId: string, role: 'IT_ADMIN' | 'DEAN'): Promise<{ success: boolean; message: string }> {
+    const response = await apiService.post<{ success: boolean; message: string }>(
+      `/bitflow-owner/colleges/${collegeId}/resend-credentials`,
+      { role }
+    );
+    return response.data;
+  }
+
+  // Delete Publisher
+  async deletePublisher(id: string): Promise<void> {
+    await apiService.delete(API_ENDPOINTS.PUBLISHER_BY_ID(id));
+  }
+
+  // Delete College
+  async deleteCollege(id: string): Promise<void> {
+    await apiService.delete(API_ENDPOINTS.COLLEGE_BY_ID(id));
+  }
+
   // Security Policy & Feature Flags
   async getSecurityPolicy(): Promise<SecurityPolicy> {
     const response = await apiService.get<SecurityPolicy>(API_ENDPOINTS.SECURITY_POLICY);
@@ -193,6 +219,7 @@ class BitflowOwnerService {
     address?: string;
     city?: string;
     state?: string;
+    contractEndDate?: string;
   }): Promise<College> {
     const response = await apiService.put<College>(
       API_ENDPOINTS.COLLEGE_BY_ID(id),
@@ -352,4 +379,5 @@ export interface McqListResponse {
   };
 }
 
-export default new BitflowOwnerService();
+const bitflowOwnerService = new BitflowOwnerService();
+export default bitflowOwnerService;

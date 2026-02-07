@@ -1,60 +1,59 @@
 /* ============================================
-   LOGIN PAGE - Laboratory Console Aesthetic
+   MODERN LOGIN PAGE - Clean & Professional
    ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-lg);
+  padding: 2rem;
   position: relative;
   overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   
-  /* Deep atmospheric gradient */
-  background: 
-    radial-gradient(ellipse at 20% 80%, rgba(196, 115, 53, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, rgba(91, 143, 168, 0.06) 0%, transparent 40%),
-    linear-gradient(180deg, var(--color-base) 0%, var(--color-base-dark) 100%);
+  /* Modern gradient background */
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
 }
 
-/* === MOLECULAR GRID BACKGROUND === */
+/* Animated background pattern */
 .login-grid-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.1;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px),
+    repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px);
 }
 
 .molecular-grid {
-  width: 100%;
-  height: 100%;
-  color: var(--color-accent-muted);
+  display: none;
 }
 
 /* === MAIN LAYOUT === */
 .login-main {
   display: grid;
   grid-template-columns: 1fr;
-  gap: var(--space-xl);
+  gap: 2rem;
   width: 100%;
-  max-width: 480px;
+  max-width: 1200px;
   position: relative;
   z-index: 1;
 }
 
 @media (min-width: 1024px) {
   .login-main {
-    max-width: 960px;
-    grid-template-columns: 1fr 1.2fr;
-    grid-template-rows: auto auto;
-    gap: var(--space-2xl);
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
   }
   
   .login-brand {
     grid-column: 1;
     grid-row: 1 / 3;
-    align-self: center;
   }
   
   .login-card {
@@ -71,13 +70,13 @@
 /* === BRAND SECTION === */
 .login-brand {
   text-align: center;
-  padding: var(--space-xl);
+  padding: 2rem;
+  color: white;
 }
 
 @media (min-width: 1024px) {
   .login-brand {
     text-align: left;
-    padding: var(--space-2xl);
   }
 }
 
@@ -85,52 +84,46 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 72px;
-  margin-bottom: var(--space-lg);
-  background: var(--color-surface);
-  border: 2px solid var(--color-accent);
-  border-radius: var(--radius-lg);
-  box-shadow: 
-    var(--shadow-raised),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  width: 80px;
+  height: 80px;
+  margin-bottom: 2rem;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
 .brand-icon {
-  width: 40px;
-  height: 40px;
-  color: var(--color-accent);
+  width: 48px;
+  height: 48px;
+  color: white;
 }
 
 .brand-title {
-  font-family: var(--font-display);
   font-size: 3rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-xs) 0;
-  line-height: 1;
+  font-weight: 800;
+  color: white !important;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
 }
 
 .brand-subtitle {
-  display: block;
-  font-family: var(--font-ui);
-  font-size: 0.875rem;
+  font-size: 1.25rem;
   font-weight: 500;
-  color: var(--color-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  margin-bottom: var(--space-lg);
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1.5rem;
+  display: block;
 }
 
 .brand-tagline {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
   justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 1rem;
 }
 
 @media (min-width: 1024px) {
@@ -140,57 +133,47 @@
 }
 
 .tagline-accent {
-  color: var(--color-accent);
-  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* === LOGIN CARD === */
 .login-card {
-  background: var(--color-surface);
-  border: 1px solid rgba(244, 241, 235, 0.06);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
+  background: white !important;
+  border-radius: 24px;
+  padding: 3rem;
   box-shadow: 
-    var(--shadow-floating),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  
-  /* Subtle top accent line */
-  position: relative;
+    0 20px 60px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+  animation: fadeInUp 0.6s ease-out;
 }
 
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: var(--space-lg);
-  right: var(--space-lg);
-  height: 2px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    var(--color-accent) 20%, 
-    var(--color-accent) 80%, 
-    transparent 100%
-  );
-  border-radius: 0 0 2px 2px;
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card-header {
-  margin-bottom: var(--space-xl);
+  margin-bottom: 2rem;
   text-align: center;
 }
 
 .card-header h2 {
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-xs) 0;
+  font-size: 1.875rem !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  margin: 0 0 0.5rem 0 !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 .card-subtitle {
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  color: var(--color-text-tertiary);
+  font-size: 0.875rem;
+  color: #6B7280;
   margin: 0;
 }
 
@@ -198,67 +181,74 @@
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: 1.5rem;
+}
+
+.error-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 12px;
+  color: #DC2626;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.error-icon {
+  font-size: 1.25rem;
 }
 
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 0.5rem;
 }
 
 .input-label {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  justify-content: space-between;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
 }
 
 .label-text {
-  font-family: var(--font-ui);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
 }
 
 .label-indicator {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, 
-    rgba(244, 241, 235, 0.1) 0%, 
-    transparent 100%
-  );
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10B981;
 }
 
 .input-field {
-  font-family: var(--font-ui);
-  font-size: 0.9375rem;
-  padding: var(--space-md);
-  background: var(--color-surface-sunken);
-  border: 1px solid rgba(244, 241, 235, 0.08);
-  border-radius: var(--radius-md);
-  color: var(--color-text-primary);
-  transition: all var(--transition-fast);
-  
-  /* Inset effect */
-  box-shadow: var(--shadow-inset);
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: #F9FAFB !important;
+  border: 2px solid #E5E7EB;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #111827 !important;
+  transition: all 0.2s;
 }
 
 .input-field::placeholder {
-  color: var(--color-text-tertiary);
-}
-
-.input-field:hover:not(:disabled) {
-  border-color: rgba(244, 241, 235, 0.15);
+  color: #9CA3AF;
 }
 
 .input-field:focus {
   outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 
-    var(--shadow-inset),
-    0 0 0 3px rgba(196, 115, 53, 0.15);
+  background: white !important;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .input-field:disabled {
@@ -266,67 +256,27 @@
   cursor: not-allowed;
 }
 
-/* === ERROR ALERT === */
-.error-alert {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  background: rgba(196, 92, 77, 0.1);
-  border: 1px solid rgba(196, 92, 77, 0.3);
-  border-left: 3px solid var(--color-danger);
-  border-radius: var(--radius-md);
-  animation: fadeInUp 0.3s ease-out;
-}
-
-.error-icon {
-  color: var(--color-danger);
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.error-text {
-  font-family: var(--font-ui);
-  font-size: 0.8125rem;
-  color: var(--color-text-primary);
-}
-
-/* === SUBMIT BUTTON === */
 .submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-md) var(--space-lg);
-  margin-top: var(--space-sm);
-  
-  font-family: var(--font-ui);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  
-  color: var(--color-base-dark);
-  background: linear-gradient(180deg, 
-    var(--color-accent-bright) 0%, 
-    var(--color-accent) 100%
-  );
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  
-  box-shadow: 
-    0 2px 8px rgba(196, 115, 53, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  
-  transition: all var(--transition-fast);
+  gap: 0.5rem;
+  transition: all 0.2s;
+  margin-top: 0.5rem;
 }
 
 .submit-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 
-    0 4px 16px rgba(196, 115, 53, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(102, 126, 234, 0.3);
 }
 
 .submit-btn:active:not(:disabled) {
@@ -334,177 +284,210 @@
 }
 
 .submit-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .submit-btn.is-loading {
-  pointer-events: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .btn-arrow {
-  transition: transform var(--transition-fast);
+  font-size: 1.25rem;
+  transition: transform 0.2s;
 }
 
 .submit-btn:hover .btn-arrow {
   transform: translateX(4px);
 }
 
-.loading-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(10, 46, 54, 0.3);
-  border-top-color: var(--color-base-dark);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* === CARD FOOTER === */
 .card-footer {
-  margin-top: var(--space-xl);
-  padding-top: var(--space-lg);
-  border-top: 1px solid rgba(244, 241, 235, 0.06);
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #E5E7EB;
   text-align: center;
 }
 
 .version-badge {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-family: var(--font-ui);
-  font-size: 0.6875rem;
-  color: var(--color-text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #6B7280;
+  font-weight: 500;
 }
 
 .version-dot {
   width: 6px;
   height: 6px;
-  background: var(--color-success);
+  background: #10B981;
   border-radius: 50%;
   animation: pulse 2s ease-in-out infinite;
 }
 
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 /* === CREDENTIALS PANEL === */
 .credentials-panel {
-  background: var(--color-surface-sunken);
-  border: 1px solid rgba(244, 241, 235, 0.04);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 1.5rem;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
 }
 
 .panel-header {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
-  padding-bottom: var(--space-md);
-  border-bottom: 1px solid rgba(244, 241, 235, 0.06);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  color: white;
 }
 
 .panel-icon {
-  color: var(--color-accent-muted);
-  font-size: 0.75rem;
+  font-size: 1.25rem;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .panel-header h3 {
-  font-family: var(--font-ui);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  color: var(--color-text-tertiary);
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin: 0;
+  letter-spacing: 0.05em;
+  color: white !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 .credentials-list {
   list-style: none;
-  margin: 0;
   padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: 0.75rem;
 }
 
 .credential-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: var(--space-sm);
+  gap: 0.75rem;
   align-items: center;
-  padding: var(--space-sm);
-  background: rgba(244, 241, 235, 0.02);
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  transition: all 0.2s;
 }
 
 .credential-row:hover {
-  background: rgba(244, 241, 235, 0.04);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .role-badge {
-  font-family: var(--font-ui);
-  font-size: 0.625rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
 .role-owner {
-  background: rgba(196, 115, 53, 0.2);
-  color: var(--color-accent);
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: white;
 }
 
 .role-publisher {
-  background: rgba(91, 143, 168, 0.2);
-  color: var(--color-info);
+  background: linear-gradient(135deg, #3B82F6, #1E40AF);
+  color: white;
 }
 
 .role-admin {
-  background: rgba(74, 157, 124, 0.2);
-  color: var(--color-success);
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
 }
 
 .role-faculty {
-  background: rgba(212, 168, 75, 0.2);
-  color: var(--color-warning);
+  background: linear-gradient(135deg, #8B5CF6, #6D28D9);
+  color: white;
 }
 
 .role-student {
-  background: rgba(168, 181, 184, 0.15);
-  color: var(--color-text-secondary);
+  background: linear-gradient(135deg, #EC4899, #BE185D);
+  color: white;
 }
 
 .credential-value,
 .credential-pass {
-  font-family: var(--font-ui);
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary);
-  background: transparent;
-  padding: 0;
-  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.375rem 0.5rem;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .credential-pass {
-  text-align: right;
-  color: var(--color-text-tertiary);
+  color: rgba(255, 255, 255, 0.7);
 }
 
-/* === RESPONSIVE ADJUSTMENTS === */
-@media (max-width: 480px) {
-  .login-page {
-    padding: var(--space-md);
+/* === ANIMATIONS === */
+.animate-slideInLeft {
+  animation: slideInLeft 0.6s ease-out;
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
   }
-  
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.stagger-3 {
+  animation-delay: 0.2s;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 640px) {
   .login-card {
-    padding: var(--space-lg);
+    padding: 2rem;
   }
   
   .brand-title {
@@ -513,10 +496,11 @@
   
   .credential-row {
     grid-template-columns: 1fr;
-    gap: 2px;
+    gap: 0.5rem;
   }
   
+  .credential-value,
   .credential-pass {
-    text-align: left;
+    font-size: 0.7rem;
   }
 }

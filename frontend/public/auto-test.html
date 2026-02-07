@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto PDF Test - Medical LMS</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.02); }
+        button:active { transform: scale(0.98); }
+        pre {
+            background: #2d3748;
+            color: #68d391;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .step {
+            background: #f7fafc;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        #logs {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .log-success { background: #d4edda; color: #155724; }
+        .log-error { background: #f8d7da; color: #721c24; }
+        .log-info { background: #e7f3ff; color: #004085; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Medical LMS - Automated PDF Test</h1>
+        
+        <div class="step">
+            <h3>📋 Test Sequence</h3>
+            <ol>
+                <li>Auto-login as Publisher</li>
+                <li>Store token in localStorage</li>
+                <li>Test PDF endpoint</li>
+                <li>Redirect to publisher portal</li>
+            </ol>
+        </div>
+
+        <button onclick="runFullTest()">🚀 Run Complete Test</button>
+        <button onclick="quickLogin()" style="background: #28a745;">⚡ Quick Login Only</button>
+        <button onclick="checkStatus()" style="background: #17a2b8;">🔍 Check Current Status</button>
+        <button onclick="clearAll()" style="background: #dc3545;">🗑️ Clear All Tokens</button>
+
+        <div id="status"></div>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        const PUBLISHER_EMAIL = 'admin@elsevier.com';
+        const PUBLISHER_PASSWORD = 'Password123!';
+        
+        let logCount = 0;
+
+        function log(message, type = 'info') {
+            logCount++;
+            const logsDiv = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        async function quickLogin() {
+            try {
+                log('Starting quick login...', 'info');
+                showStatus('🔄 Logging in as Publisher...', 'info');
+
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: PUBLISHER_EMAIL,
+                        password: PUBLISHER_PASSWORD
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const token = data.accessToken;
+
+                if (!token) {
+                    throw new Error('No access token in response');
+                }
+
+                // Store both keys for compatibility
+                localStorage.setItem('accessToken', token);
+                localStorage.setItem('token', token);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                localStorage.setItem('user', JSON.stringify(data.user));
+
+                log(`✅ Login successful! Token: ${token.substring(0, 40)}...`, 'success');
+                log(`✅ User: ${data.user.fullName} (${data.user.role})`, 'success');
+                
+                showStatus(`✅ Login Successful!<br>User: ${data.user.fullName}<br>Role: ${data.user.role}<br><br><strong>Token stored successfully!</strong>`, 'success');
+
+                return token;
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`, 'error');
+                showStatus(`❌ Login Failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function testPdfEndpoint(token) {
+            try {
+                log('Testing PDF endpoint...', 'info');
+                
+                const pdfUrl = `${API_URL}/uploads/books/sample-book-3.pdf?token=${token}`;
+                
+                const response = await fetch(pdfUrl);
+                
+                log(`PDF request status: ${response.status}`, response.ok ? 'success' : 'error');
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const sizeMB = (blob.size / 1024 / 1024).toFixed(2);
+                    log(`✅ PDF downloaded successfully! Size: ${sizeMB} MB`, 'success');
+                    return true;
+                } else {
+                    const text = await response.text();
+                    log(`❌ PDF download failed: ${text}`, 'error');
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ PDF test error: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function runFullTest() {
+            try {
+                document.getElementById('logs').innerHTML = '';
+                logCount = 0;
+
+                log('=== Starting Full Automated Test ===', 'info');
+                
+                // Step 1: Login
+                const token = await quickLogin();
+                
+                // Step 2: Test PDF endpoint
+                showStatus('🧪 Testing PDF endpoint...', 'info');
+                const pdfWorks = await testPdfEndpoint(token);
+
+                if (pdfWorks) {
+                    showStatus(`
+                        <h3 style="color: #28a745;">✅ ALL TESTS PASSED!</h3>
+                        <p><strong>Login:</strong> ✅ Success</p>
+                        <p><strong>Token Storage:</strong> ✅ Success</p>
+                        <p><strong>PDF Loading:</strong> ✅ Success</p>
+                        <br>
+                        <button onclick="goToPublisherPortal()" style="background: #28a745; margin-top: 10px;">
+                            🚀 Go to Publisher Portal
+                        </button>
+                    `, 'success');
+                    log('=== ALL TESTS PASSED ===', 'success');
+                } else {
+                    showStatus('⚠️ PDF test failed, but token is stored. Try the portal anyway.', 'warning');
+                }
+
+            } catch (error) {
+                showStatus(`❌ Test failed: ${error.message}`, 'error');
+                log(`=== TEST FAILED: ${error.message} ===`, 'error');
+            }
+        }
+
+        function checkStatus() {
+            document.getElementById('logs').innerHTML = '';
+            log('=== Checking Current Status ===', 'info');
+
+            const accessToken = localStorage.getItem('accessToken');
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+
+            let message = '<h3>Current Status:</h3>';
+
+            if (accessToken) {
+                log(`✅ accessToken found: ${accessToken.substring(0, 40)}...`, 'success');
+                message += `<p><strong>accessToken:</strong> ✅ Present</p>`;
+                
+                try {
+                    const payload = JSON.parse(atob(accessToken.split('.')[1]));
+                    const exp = new Date(payload.exp * 1000);
+                    const now = new Date();
+                    
+                    if (exp > now) {
+                        log(`✅ Token valid until: ${exp.toLocaleString()}`, 'success');
+                        message += `<p><strong>Expiry:</strong> ${exp.toLocaleString()} ✅</p>`;
+                    } else {
+                        log(`❌ Token expired on: ${exp.toLocaleString()}`, 'error');
+                        message += `<p><strong>Expiry:</strong> ${exp.toLocaleString()} ❌ EXPIRED</p>`;
+                    }
+                } catch (e) {
+                    log('⚠️ Could not decode token', 'error');
+                }
+            } else {
+                log('❌ No accessToken found', 'error');
+                message += `<p><strong>accessToken:</strong> ❌ Missing</p>`;
+            }
+
+            if (user) {
+                const userData = JSON.parse(user);
+                log(`✅ User: ${userData.fullName} (${userData.role})`, 'success');
+                message += `<p><strong>User:</strong> ${userData.fullName} (${userData.role})</p>`;
+            } else {
+                log('❌ No user data found', 'error');
+                message += `<p><strong>User:</strong> ❌ Not logged in</p>`;
+            }
+
+            showStatus(message, accessToken ? 'success' : 'warning');
+        }
+
+        function clearAll() {
+            localStorage.clear();
+            sessionStorage.clear();
+            document.getElementById('logs').innerHTML = '';
+            log('✅ All tokens and data cleared', 'success');
+            showStatus('✅ All tokens and data cleared!', 'success');
+        }
+
+        function goToPublisherPortal() {
+            log('Redirecting to Publisher Portal...', 'info');
+            window.location.href = '/publisher-admin';
+        }
+
+        // Auto-check status on load
+        window.addEventListener('load', () => {
+            log('Page loaded, checking status...', 'info');
+            checkStatus();
+        });
+    </script>
+</body>
+</html>

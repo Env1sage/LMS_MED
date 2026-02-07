@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { courseService } from '../services/course.service';
+import '../styles/FacultyPortal.css';
 import '../styles/CourseDetails.css';
 
 interface Course {

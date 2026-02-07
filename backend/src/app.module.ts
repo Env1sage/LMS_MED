@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { EmailModule } from './email/email.module';
 import { TenantIsolationMiddleware } from './common/middleware/tenant-isolation.middleware';
 import { SecurityValidationMiddleware } from './common/middleware/security-validation.middleware';
 import { BitflowOwnerModule } from './bitflow-owner/bitflow-owner.module';
@@ -15,6 +16,11 @@ import { CourseModule } from './course/course.module';
 import { ProgressModule } from './progress/progress.module';
 import { PublisherAdminModule } from './publisher-admin/publisher-admin.module';
 import { GovernanceModule } from './governance/governance.module';
+import { StudentPortalModule } from './student-portal/student-portal.module';
+import { TopicsModule } from './topics/topics.module';
+import { PackagesModule } from './packages/packages.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { FilesModule } from './files/files.module';
 
 @Module({
   imports: [
@@ -24,6 +30,7 @@ import { GovernanceModule } from './governance/governance.module';
     PrismaModule,
     AuditModule,
     AuthModule,
+    EmailModule,
     BitflowOwnerModule,
     CompetencyModule,
     LearningUnitModule,
@@ -32,6 +39,11 @@ import { GovernanceModule } from './governance/governance.module';
     ProgressModule,
     PublisherAdminModule,
     GovernanceModule,
+    StudentPortalModule,
+    TopicsModule,
+    PackagesModule,
+    RatingsModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

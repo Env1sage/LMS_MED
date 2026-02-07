@@ -6,10 +6,28 @@ import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserRole } from '../common/enums';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private prisma: PrismaService,
+  ) {}
+
+  /**
+   * TEMPORARY: Reset password for testing (remove in production!)
+   */
+  @Post('dev-reset-password')
+  async devResetPassword(@Body() body: { email: string; newPassword: string }) {
+    const hash = await bcrypt.hash(body.newPassword, 10);
+    const user = await this.prisma.users.update({
+      where: { email: body.email },
+      data: { passwordHash: hash },
+    });
+    return { success: true, email: user.email };
+  }
 
   /**
    * Register a new user

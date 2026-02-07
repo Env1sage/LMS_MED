@@ -12,6 +12,7 @@ class AuthService {
     const { accessToken, refreshToken, user } = response.data;
     
     localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('token', accessToken); // For backward compatibility
     localStorage.setItem('refreshToken', refreshToken);
     localStorage.setItem('user', JSON.stringify(user));
 
@@ -29,6 +30,7 @@ class AuthService {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     }
@@ -41,9 +43,9 @@ class AuthService {
     return response.data as any;
   }
 
-  async changePassword(oldPassword: string, newPassword: string): Promise<void> {
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     await apiService.post(API_ENDPOINTS.CHANGE_PASSWORD, {
-      oldPassword,
+      currentPassword,
       newPassword,
     });
   }
@@ -62,4 +64,5 @@ class AuthService {
   }
 }
 
-export default new AuthService();
+const authService = new AuthService();
+export default authService;

@@ -1,28 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Box,
-  Card,
-  CardContent,
-  CardActions,
-  Button,
-  Grid,
-  LinearProgress,
-  Chip,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
-import {
-  School as SchoolIcon,
-  PlayCircleOutline as PlayIcon,
-  CheckCircle as CheckIcon,
-  Schedule as ScheduleIcon,
-  Lock as LockIcon,
-} from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import apiService from '../services/api.service';
+import { AppShell, NavItem } from '../components/layout';
+import { GlassButton } from '../components/ui';
+import { DashboardLayout, StatGrid, StatCard, PageSection } from '../components/dashboard';
+import './StudentDashboard.css';
 
 interface CourseProgress {
   courseId: number;
@@ -40,10 +23,18 @@ interface CourseProgress {
 
 const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [courses, setCourses] = useState<CourseProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Student navigation items
+  const navItems: NavItem[] = [
+    { path: '/student', label: 'Dashboard', icon: '📊' },
+    { path: '/student/portal', label: 'My Courses', icon: '📚' },
+    { path: '/student/self-paced', label: 'Self-Paced', icon: '🎯' },
+    { path: '/student/progress', label: 'Progress', icon: '📈' },
+  ];
 
   useEffect(() => {
     fetchMyCourses();
@@ -71,23 +62,14 @@ const StudentDashboard: React.FC = () => {
     navigate(`/student/courses/${courseId}`);
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  const getStatusChip = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'NOT_STARTED':
-        return <Chip label="Not Started" size="small" color="default" />;
+        return <span className="badge badge-neutral">Not Started</span>;
       case 'IN_PROGRESS':
-        return <Chip label="In Progress" size="small" color="primary" />;
+        return <span className="badge badge-info">In Progress</span>;
       case 'COMPLETED':
-        return <Chip label="Completed" size="small" color="success" icon={<CheckIcon />} />;
+        return <span className="badge badge-success">✓ Completed</span>;
       default:
         return null;
     }
@@ -110,192 +92,122 @@ const StudentDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
-      </Box>
+      <AppShell navItems={navItems}>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your courses...</p>
+        </div>
+      </AppShell>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4, userSelect: 'none' }} onContextMenu={(e) => e.preventDefault()}>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h4" gutterBottom>
-            <SchoolIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-            My Learning Dashboard
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Welcome back, {user?.fullName || 'Student'}!
-          </Typography>
-        </Box>
-        <Button variant="outlined" color="error" onClick={handleLogout}>
-          Logout
-        </Button>
-      </Box>
+    <AppShell navItems={navItems}>
+      <DashboardLayout
+        title="My Learning Dashboard"
+        subtitle={`Welcome back, ${user?.fullName || 'Student'}!`}
+      >
+        {error && (
+          <div className="error-banner">
+            <span>{error}</span>
+            <button onClick={() => setError(null)}>×</button>
+          </div>
+        )}
 
-      {/* Error Alert */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        <StatGrid columns={3}>
+          <StatCard label="Total Courses" value={courses.length} type="default" />
+          <StatCard 
+            label="In Progress" 
+            value={courses.filter(c => c.status === 'IN_PROGRESS').length} 
+            type="accent" 
+          />
+          <StatCard 
+            label="Completed" 
+            value={courses.filter(c => c.status === 'COMPLETED').length} 
+            type="success" 
+          />
+        </StatGrid>
 
-      {/* Statistics Cards */}
-      <Grid container spacing={3} mb={4}>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Total Courses
-              </Typography>
-              <Typography variant="h3">{courses.length}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                In Progress
-              </Typography>
-              <Typography variant="h3">
-                {courses.filter(c => c.status === 'IN_PROGRESS').length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 12, sm: 4 }}>
-          <Card>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Completed
-              </Typography>
-              <Typography variant="h3">
-                {courses.filter(c => c.status === 'COMPLETED').length}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+        <PageSection title="My Courses">
+          {courses.length === 0 ? (
+            <div className="empty-state">
+              <span style={{ fontSize: '48px' }}>🔒</span>
+              <h3>No courses assigned yet</h3>
+              <p>Your faculty will assign courses to you soon.</p>
+            </div>
+          ) : (
+            <div className="courses-grid">
+              {courses.map((course) => (
+                <div key={course.courseId} className="course-card">
+                  <div className="course-header">
+                    <h3 className="course-title">{course.title}</h3>
+                    {getStatusBadge(course.status)}
+                  </div>
 
-      {/* Courses Section */}
-      <Typography variant="h5" gutterBottom mb={2}>
-        My Courses
-      </Typography>
+                  <p className="course-description">{course.description}</p>
 
-      {courses.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Box textAlign="center" py={4}>
-              <LockIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" color="text.secondary">
-                No courses assigned yet
-              </Typography>
-              <Typography variant="body2" color="text.secondary" mt={1}>
-                Your faculty will assign courses to you soon.
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-      ) : (
-        <Grid container spacing={3}>
-          {courses.map((course) => (
-            <Grid size={{ xs: 12, md: 6 }} key={course.courseId}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
-                    <Typography variant="h6" component="div">
-                      {course.title}
-                    </Typography>
-                    {getStatusChip(course.status)}
-                  </Box>
-                  
-                  <Typography variant="body2" color="text.secondary" mb={2}>
-                    {course.description}
-                  </Typography>
+                  <div className="course-code">CODE: {course.code}</div>
 
-                  <Chip 
-                    label={`Code: ${course.code}`} 
-                    size="small" 
-                    variant="outlined" 
-                    sx={{ mb: 2 }}
-                  />
-
-                  {/* Progress Bar */}
-                  <Box mb={2}>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2" color="text.secondary">
-                        Progress
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {course.completedSteps} / {course.totalSteps} steps
-                      </Typography>
-                    </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={course.progressPercentage} 
-                      sx={{ height: 8, borderRadius: 4 }}
-                    />
-                    <Typography variant="caption" color="text.secondary" mt={0.5}>
+                  <div className="progress-section">
+                    <div className="progress-header">
+                      <span className="progress-label">Progress</span>
+                      <span className="progress-steps">{course.completedSteps} / {course.totalSteps} steps</span>
+                    </div>
+                    <div className="progress-bar-container">
+                      <div 
+                        className="progress-bar-fill"
+                        style={{ width: `${course.progressPercentage}%` }}
+                      />
+                    </div>
+                    <div className="progress-percentage">
                       {course.progressPercentage}% Complete
-                    </Typography>
-                  </Box>
+                    </div>
+                  </div>
 
-                  {/* Last Accessed */}
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <ScheduleIcon fontSize="small" color="action" />
-                    <Typography variant="caption" color="text.secondary">
-                      Last accessed: {formatLastAccessed(course.lastAccessedAt)}
-                    </Typography>
-                  </Box>
+                  <div className="last-accessed">
+                    <span className="last-accessed-icon">⏱</span>
+                    <span>Last accessed: {formatLastAccessed(course.lastAccessedAt)}</span>
+                  </div>
 
-                  {/* Next Step Info */}
                   {course.nextStepTitle && course.status !== 'COMPLETED' && (
-                    <Box mt={2} p={1.5} bgcolor="primary.light" borderRadius={1}>
-                      <Typography variant="caption" color="primary.contrastText" fontWeight="bold">
-                        Next: {course.nextStepTitle}
-                      </Typography>
-                    </Box>
+                    <div className="next-step">
+                      <div className="next-step-label">Next Up</div>
+                      <div className="next-step-title">{course.nextStepTitle}</div>
+                    </div>
                   )}
-                </CardContent>
 
-                <CardActions sx={{ p: 2, pt: 0 }}>
                   {course.status === 'NOT_STARTED' ? (
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      startIcon={<PlayIcon />}
+                    <GlassButton
+                      variant="primary"
                       onClick={() => handleStartCourse(course.courseId)}
+                      fullWidth
                     >
                       Start Course
-                    </Button>
+                    </GlassButton>
                   ) : course.status === 'COMPLETED' ? (
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      startIcon={<CheckIcon />}
+                    <GlassButton
+                      variant="secondary"
                       onClick={() => handleContinueCourse(course.courseId)}
+                      fullWidth
                     >
                       Review Course
-                    </Button>
+                    </GlassButton>
                   ) : (
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      startIcon={<PlayIcon />}
+                    <GlassButton
+                      variant="primary"
                       onClick={() => handleContinueCourse(course.courseId)}
+                      fullWidth
                     >
                       Continue Learning
-                    </Button>
+                    </GlassButton>
                   )}
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
-    </Container>
+                </div>
+              ))}
+            </div>
+          )}
+        </PageSection>
+      </DashboardLayout>
+    </AppShell>
   );
 };
 

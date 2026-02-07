@@ -78,9 +78,10 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source
-"What is the normal heart rate?","60-100 bpm","40-60 bpm","100-120 bpm","120-140 bpm","","A","Physiology","Cardiovascular System","INTERMEDIATE","REMEMBER","PY2.1,PY2.2","cardiology,vitals","2024","NEET PG"
-"Which organ produces insulin?","Liver","Pancreas","Kidney","Spleen","","B","Physiology","Endocrine System","BEGINNER","REMEMBER","PY5.1","endocrine,diabetes","2024","NEET PG"`;
+    const csvContent = `question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,mcqType,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source
+"What is the normal heart rate?","60-100 bpm","40-60 bpm","100-120 bpm","120-140 bpm","","A","Physiology","Cardiovascular System","NORMAL","K","REMEMBER","PY2.1,PY2.2","cardiology,vitals","2024","NEET PG"
+"A 45-year-old patient presents with chest pain. ECG shows ST elevation. What is the diagnosis?","Myocardial Infarction","Angina","Pericarditis","Aortic Dissection","","A","Medicine","Cardiovascular System","SCENARIO_BASED","KH","APPLY","IM3.1,IM3.2","cardiology,emergency","2024","AIIMS"
+"Identify the structure marked in the image","Liver","Spleen","Kidney","Pancreas","","B","Anatomy","Abdominal Organs","IMAGE_BASED","S","REMEMBER","AN45.1","radiology,anatomy","2024","NEET PG"`;
     
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -326,11 +327,11 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
         <ul style={styles.templateList}>
           <li style={styles.templateItem}>
             <span>•</span>
-            <span><strong>Required:</strong> question, optionA, optionB, optionC, optionD, correctAnswer</span>
+            <span><strong>Required:</strong> question, optionA, optionB, optionC, optionD, correctAnswer, subject, topic</span>
           </li>
           <li style={styles.templateItem}>
             <span>•</span>
-            <span><strong>Optional:</strong> optionE, subject, topic, difficultyLevel, bloomsLevel, competencyIds, tags, year, source</span>
+            <span><strong>Optional:</strong> optionE, mcqType, difficultyLevel, bloomsLevel, competencyCodes, tags, year, source</span>
           </li>
           <li style={styles.templateItem}>
             <span>•</span>
@@ -338,11 +339,15 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
           </li>
           <li style={styles.templateItem}>
             <span>•</span>
-            <span><strong>difficultyLevel:</strong> BEGINNER, INTERMEDIATE, ADVANCED, EXPERT</span>
+            <span><strong>mcqType:</strong> NORMAL, SCENARIO_BASED, IMAGE_BASED</span>
           </li>
           <li style={styles.templateItem}>
             <span>•</span>
-            <span><strong>competencyIds:</strong> Comma-separated list (e.g., "comp123,comp456")</span>
+            <span><strong>difficultyLevel (Miller's Pyramid):</strong> K (Knows), KH (Knows How), S (Shows), SH (Shows How), P (Performs)</span>
+          </li>
+          <li style={styles.templateItem}>
+            <span>•</span>
+            <span><strong>competencyCodes:</strong> Comma-separated competency codes (e.g., "PY2.1,PY2.2")</span>
           </li>
         </ul>
         <button style={styles.downloadBtn} onClick={downloadTemplate}>

@@ -1,0 +1,4 @@
+question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,mcqType,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source
+"What is the normal heart rate?","60-100 bpm","40-60 bpm","100-120 bpm","120-140 bpm","","A","Physiology","Cardiovascular System","NORMAL","K","REMEMBER","PY2.1,PY2.2","cardiology,vitals","2024","NEET PG"
+"A 45-year-old patient presents with chest pain. ECG shows ST elevation. What is the diagnosis?","Myocardial Infarction","Angina","Pericarditis","Aortic Dissection","","A","Medicine","Cardiovascular System","SCENARIO_BASED","KH","APPLY","IM3.1,IM3.2","cardiology,emergency","2024","AIIMS"
+"Identify the structure marked in the image","Liver","Spleen","Kidney","Pancreas","","B","Anatomy","Abdominal Organs","IMAGE_BASED","S","REMEMBER","AN45.1","radiology,anatomy","2024","NEET PG"

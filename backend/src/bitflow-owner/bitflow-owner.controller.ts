@@ -87,6 +87,14 @@ export class BitflowOwnerController {
     return this.bitflowOwnerService.updatePublisherStatus(id, dto, userId);
   }
 
+  @Post('publishers/:id/resend-credentials')
+  async resendPublisherCredentials(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.bitflowOwnerService.resendPublisherCredentials(id, userId);
+  }
+
   // ========================================================================
   // COLLEGE LIFECYCLE
   // ========================================================================
@@ -117,6 +125,15 @@ export class BitflowOwnerController {
     @CurrentUser('userId') userId: string,
   ): Promise<CollegeResponseDto> {
     return this.bitflowOwnerService.updateCollegeStatus(id, dto, userId);
+  }
+
+  @Post('colleges/:id/resend-credentials')
+  async resendCollegeCredentials(
+    @Param('id') id: string,
+    @Body() body: { role: 'IT_ADMIN' | 'DEAN' },
+    @CurrentUser('userId') userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.bitflowOwnerService.resendCollegeCredentials(id, body.role, userId);
   }
 
   // ========================================================================

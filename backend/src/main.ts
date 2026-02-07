@@ -7,16 +7,14 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Serve static files from uploads directory
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-    prefix: '/uploads/',
-  });
-
   // Enable CORS with strict origin validation
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:3002'],
     credentials: true,
   });
+
+  // API prefix
+  app.setGlobalPrefix('api');
 
   // Global validation pipe - validates all DTOs
   app.useGlobalPipes(
@@ -29,9 +27,6 @@ async function bootstrap() {
       },
     }),
   );
-
-  // API prefix
-  app.setGlobalPrefix('api');
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

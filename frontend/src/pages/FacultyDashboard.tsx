@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { courseService } from '../services/course.service';
-import '../styles/FacultyDashboard.css';
+import { facultyAnalyticsService, DashboardOverview, StudentInfo } from '../services/faculty-analytics.service';
+import { useAuth } from '../context/AuthContext';
+import ProfileModal from '../components/common/ProfileModal';
+import { NotificationBell } from '../components/notifications';
+import './FacultyDashboard.css';
 
 const FacultyDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'analytics'>('overview');
+  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState<'overview' | 'courses' | 'analytics' | 'self-paced'>('overview');
   const [courses, setCourses] = useState<any[]>([]);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<DashboardOverview | null>(null);
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  const [modalType, setModalType] = useState<'students' | 'assignments' | 'active' | 'progress'>('students');
+  const [studentList, setStudentList] = useState<StudentInfo[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [stats, setStats] = useState({
     totalCourses: 0,
     publishedCourses: 0,
@@ -20,10 +31,51 @@ const FacultyDashboard: React.FC = () => {
     academicYear: '',
     search: '',
   });
+  const [courseFilters, setCourseFilters] = useState({
+    academicYear: 'all',
+    status: 'all',
+    hasAssignments: 'all',
+  });
+  const [showOnlyWithAssignments, setShowOnlyWithAssignments] = useState(false);
 
   useEffect(() => {
     loadData();
+    loadAnalytics();
   }, []);
+
+  const loadAnalytics = async () => {
+    try {
+      const data = await facultyAnalyticsService.getDashboardOverview();
+      setAnalyticsData(data);
+    } catch (err) {
+      console.error('Failed to load analytics:', err);
+    }
+  };
+
+  const loadStudents = async (filter?: 'all' | 'active' | 'assigned') => {
+    try {
+      setLoadingStudents(true);
+      const data = await facultyAnalyticsService.getAllStudents(filter);
+      setStudentList(data.students);
+    } catch (err) {
+      console.error('Failed to load students:', err);
+      setStudentList([]);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const handleCardClick = (type: 'students' | 'assignments' | 'active' | 'progress') => {
+    setModalType(type);
+    setShowStudentModal(true);
+    // Load appropriate data based on type
+    if (type === 'students' || type === 'progress') {
+      loadStudents('all');
+    } else if (type === 'active') {
+      loadStudents('active');
+    }
+    // For 'assignments', we use analyticsData.courses directly, no API call needed
+  };
 
   const loadData = async () => {
     try {
@@ -50,10 +102,8 @@ const FacultyDashboard: React.FC = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
@@ -137,11 +187,22 @@ const FacultyDashboard: React.FC = () => {
             <button className="btn btn-primary" onClick={() => navigate('/faculty/create-course')}>
               + Create Course
             </button>
+            <NotificationBell />
+            <button className="btn btn-outline" onClick={() => setShowProfileModal(true)} style={{ marginLeft: '10px' }}>
+              👤 Profile
+            </button>
             <button className="btn btn-secondary" onClick={handleLogout} style={{ marginLeft: '10px' }}>
               Logout
             </button>
           </div>
         </div>
+
+        {/* Profile Modal */}
+        <ProfileModal
+          user={user}
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+        />
 
         {error && (
           <div className="alert alert-danger">
@@ -168,6 +229,12 @@ const FacultyDashboard: React.FC = () => {
             onClick={() => setActiveTab('analytics')}
           >
             Analytics
+          </button>
+          <button
+            className={`tab ${activeTab === 'self-paced' ? 'active' : ''}`}
+            onClick={() => navigate('/faculty/self-paced')}
+          >
+            📚 Self-Paced Content
           </button>
         </div>
 
@@ -318,13 +385,22 @@ const FacultyDashboard: React.FC = () => {
                               </>
                             )}
                             {course.status === 'PUBLISHED' && (
-                              <button
-                                className="btn-icon"
-                                onClick={() => navigate(`/faculty/assign-course/${course.id}`)}
-                                title="Assign Students"
-                              >
-                                👥
-                              </button>
+                              <>
+                                <button
+                                  className="btn-icon"
+                                  onClick={() => navigate(`/faculty/assign-course/${course.id}`)}
+                                  title="Assign Students"
+                                >
+                                  👥
+                                </button>
+                                <button
+                                  className="btn-icon"
+                                  onClick={() => navigate(`/faculty/courses/${course.id}/tracking`)}
+                                  title="Student Tracking"
+                                >
+                                  📈
+                                </button>
+                              </>
                             )}
                             <button
                               className="btn-icon"
@@ -362,12 +438,543 @@ const FacultyDashboard: React.FC = () => {
 
           {activeTab === 'analytics' && (
             <div className="analytics-overview">
-              <h3>Course Performance Overview</h3>
-              <p>Select a course from the "My Courses" tab to view detailed analytics.</p>
+              <h3>Student Analytics & Performance</h3>
+              
+              {analyticsData ? (
+                <div className="analytics-grid">
+                  {/* Key Metrics Cards */}
+                  <div className="analytics-cards">
+                    <div 
+                      className="analytics-card clickable"
+                      onClick={() => handleCardClick('students')}
+                    >
+                      <div className="card-icon">👥</div>
+                      <div className="card-content">
+                        <h4>Total Students</h4>
+                        <div className="card-value">{analyticsData.overview.uniqueStudents}</div>
+                        <p className="card-subtitle">Across all courses</p>
+                      </div>
+                    </div>
+
+                    <div 
+                      className="analytics-card clickable"
+                      onClick={() => handleCardClick('assignments')}
+                    >
+                      <div className="card-icon">📚</div>
+                      <div className="card-content">
+                        <h4>Active Assignments</h4>
+                        <div className="card-value">{analyticsData.overview.totalAssignments}</div>
+                        <p className="card-subtitle">
+                          {analyticsData.overview.completedAssignments} completed
+                        </p>
+                      </div>
+                    </div>
+
+                    <div 
+                      className="analytics-card clickable"
+                      onClick={() => handleCardClick('progress')}
+                      title="Click to see student progress breakdown"
+                    >
+                      <div className="card-icon">📊</div>
+                      <div className="card-content">
+                        <h4>Average Progress</h4>
+                        <div className="card-value">
+                          {analyticsData.overview.averageProgress || 0}%
+                        </div>
+                        <p className="card-subtitle">
+                          {analyticsData.overview.completedAssignments} fully completed
+                        </p>
+                      </div>
+                    </div>
+
+                    <div 
+                      className="analytics-card clickable"
+                      onClick={() => handleCardClick('active')}
+                    >
+                      <div className="card-icon">🔥</div>
+                      <div className="card-content">
+                        <h4>Active Students</h4>
+                        <div className="card-value">
+                          {analyticsData.overview.activeStudentsLast7Days}
+                        </div>
+                        <p className="card-subtitle">Last 7 days</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Course Performance Section with Filters and Chart */}
+                  <div className="course-performance-table">
+                    <h4>📊 Course-wise Performance</h4>
+                    
+                    {/* Filters Bar */}
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '15px', 
+                      marginBottom: '20px', 
+                      padding: '15px', 
+                      background: '#f8fafc', 
+                      borderRadius: '8px',
+                      flexWrap: 'wrap',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>Academic Year</label>
+                        <select
+                          value={courseFilters.academicYear}
+                          onChange={(e) => setCourseFilters({ ...courseFilters, academicYear: e.target.value })}
+                          style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '130px' }}
+                        >
+                          <option value="all">All Years</option>
+                          <option value="YEAR_1">Year 1</option>
+                          <option value="YEAR_2">Year 2</option>
+                          <option value="YEAR_3">Year 3</option>
+                          <option value="YEAR_4">Year 4</option>
+                        </select>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>Status</label>
+                        <select
+                          value={courseFilters.status}
+                          onChange={(e) => setCourseFilters({ ...courseFilters, status: e.target.value })}
+                          style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '130px' }}
+                        >
+                          <option value="all">All Status</option>
+                          <option value="PUBLISHED">Published</option>
+                          <option value="DRAFT">Draft</option>
+                        </select>
+                      </div>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>Assignments</label>
+                        <select
+                          value={courseFilters.hasAssignments}
+                          onChange={(e) => setCourseFilters({ ...courseFilters, hasAssignments: e.target.value })}
+                          style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', minWidth: '150px' }}
+                        >
+                          <option value="all">All Courses</option>
+                          <option value="with">With Assignments</option>
+                          <option value="without">Without Assignments</option>
+                        </select>
+                      </div>
+                      
+                      <button
+                        onClick={() => setCourseFilters({ academicYear: 'all', status: 'all', hasAssignments: 'all' })}
+                        style={{ 
+                          padding: '8px 16px', 
+                          borderRadius: '6px', 
+                          border: '1px solid #e2e8f0', 
+                          background: 'white',
+                          cursor: 'pointer',
+                          marginTop: 'auto'
+                        }}
+                      >
+                        🔄 Reset
+                      </button>
+                      
+                      <div style={{ marginLeft: 'auto', fontSize: '14px', color: '#64748b', marginTop: 'auto' }}>
+                        Showing {analyticsData.courses.filter(course => {
+                          if (courseFilters.academicYear !== 'all' && course.academicYear !== courseFilters.academicYear) return false;
+                          if (courseFilters.status !== 'all' && course.status !== courseFilters.status) return false;
+                          if (courseFilters.hasAssignments === 'with' && course.assignmentCount === 0) return false;
+                          if (courseFilters.hasAssignments === 'without' && course.assignmentCount > 0) return false;
+                          return true;
+                        }).length} of {analyticsData.courses.length} courses
+                      </div>
+                    </div>
+
+                    {/* Course Distribution Chart */}
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                      gap: '15px', 
+                      marginBottom: '20px',
+                      padding: '15px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      borderRadius: '12px',
+                      color: 'white'
+                    }}>
+                      <div style={{ textAlign: 'center', padding: '15px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
+                          {analyticsData.courses.filter(c => c.academicYear === 'YEAR_1').length}
+                        </div>
+                        <div style={{ fontSize: '14px', opacity: 0.9 }}>Year 1 Courses</div>
+                        <div style={{ 
+                          height: '6px', 
+                          background: 'rgba(255,255,255,0.3)', 
+                          borderRadius: '3px', 
+                          marginTop: '8px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            height: '100%', 
+                            width: `${(analyticsData.courses.filter(c => c.academicYear === 'YEAR_1').length / analyticsData.courses.length * 100)}%`,
+                            background: '#4ade80',
+                            borderRadius: '3px'
+                          }}/>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '15px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
+                          {analyticsData.courses.filter(c => c.academicYear === 'YEAR_2').length}
+                        </div>
+                        <div style={{ fontSize: '14px', opacity: 0.9 }}>Year 2 Courses</div>
+                        <div style={{ 
+                          height: '6px', 
+                          background: 'rgba(255,255,255,0.3)', 
+                          borderRadius: '3px', 
+                          marginTop: '8px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            height: '100%', 
+                            width: `${(analyticsData.courses.filter(c => c.academicYear === 'YEAR_2').length / analyticsData.courses.length * 100)}%`,
+                            background: '#60a5fa',
+                            borderRadius: '3px'
+                          }}/>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '15px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
+                          {analyticsData.courses.filter(c => c.assignmentCount > 0).length}
+                        </div>
+                        <div style={{ fontSize: '14px', opacity: 0.9 }}>With Assignments</div>
+                        <div style={{ 
+                          height: '6px', 
+                          background: 'rgba(255,255,255,0.3)', 
+                          borderRadius: '3px', 
+                          marginTop: '8px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            height: '100%', 
+                            width: `${(analyticsData.courses.filter(c => c.assignmentCount > 0).length / analyticsData.courses.length * 100)}%`,
+                            background: '#fbbf24',
+                            borderRadius: '3px'
+                          }}/>
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '15px' }}>
+                        <div style={{ fontSize: '32px', fontWeight: 'bold' }}>
+                          {analyticsData.courses.reduce((sum, c) => sum + c.assignmentCount, 0)}
+                        </div>
+                        <div style={{ fontSize: '14px', opacity: 0.9 }}>Total Assignments</div>
+                        <div style={{ 
+                          height: '6px', 
+                          background: 'rgba(255,255,255,0.3)', 
+                          borderRadius: '3px', 
+                          marginTop: '8px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            height: '100%', 
+                            width: '100%',
+                            background: '#f472b6',
+                            borderRadius: '3px'
+                          }}/>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                      <table className="performance-table" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+                        <thead>
+                          <tr>
+                            <th style={{ position: 'sticky', top: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', zIndex: 10 }}>Course Title</th>
+                            <th style={{ position: 'sticky', top: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', zIndex: 10 }}>Academic Year</th>
+                            <th style={{ position: 'sticky', top: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', zIndex: 10 }}>Status</th>
+                            <th style={{ position: 'sticky', top: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', zIndex: 10 }}>Assignments</th>
+                            <th style={{ position: 'sticky', top: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', zIndex: 10 }}>Steps</th>
+                            <th style={{ position: 'sticky', top: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%)', zIndex: 10 }}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analyticsData.courses
+                            .filter(course => {
+                              if (courseFilters.academicYear !== 'all' && course.academicYear !== courseFilters.academicYear) return false;
+                              if (courseFilters.status !== 'all' && course.status !== courseFilters.status) return false;
+                              if (courseFilters.hasAssignments === 'with' && course.assignmentCount === 0) return false;
+                              if (courseFilters.hasAssignments === 'without' && course.assignmentCount > 0) return false;
+                              return true;
+                            })
+                            .map((course) => (
+                            <tr key={course.id}>
+                              <td>
+                                <strong>{course.title}</strong>
+                              </td>
+                              <td>
+                                <span className="badge badge-info">
+                                  {course.academicYear}
+                                </span>
+                              </td>
+                              <td>
+                                <span className={`badge badge-${course.status.toLowerCase()}`}>
+                                  {course.status}
+                                </span>
+                              </td>
+                              <td className="text-center">{course.assignmentCount}</td>
+                              <td className="text-center">{course.stepCount}</td>
+                              <td>
+                                <button
+                                  className="btn btn-sm btn-primary"
+                                  onClick={() => navigate(`/faculty/courses/${course.id}/analytics`)}
+                                >
+                                  View Details
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {analyticsData.courses.filter(course => {
+                        if (courseFilters.academicYear !== 'all' && course.academicYear !== courseFilters.academicYear) return false;
+                        if (courseFilters.status !== 'all' && course.status !== courseFilters.status) return false;
+                        if (courseFilters.hasAssignments === 'with' && course.assignmentCount === 0) return false;
+                        if (courseFilters.hasAssignments === 'without' && course.assignmentCount > 0) return false;
+                        return true;
+                      }).length === 0 && (
+                        <div className="no-data" style={{ padding: '40px', textAlign: 'center' }}>
+                          <p>No courses match the selected filters</p>
+                          <button
+                            className="btn btn-secondary"
+                            onClick={() => setCourseFilters({ academicYear: 'all', status: 'all', hasAssignments: 'all' })}
+                          >
+                            Reset Filters
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quick Actions */}
+                  <div className="analytics-actions">
+                    <h4>📈 Quick Actions</h4>
+                    <div className="action-buttons">
+                      <button
+                        className="btn btn-outline-primary"
+                        onClick={() => navigate('/faculty/courses')}
+                      >
+                        View All Courses
+                      </button>
+                      <button
+                        className="btn btn-outline-secondary"
+                        onClick={() => setActiveTab('courses')}
+                      >
+                        Create New Course
+                      </button>
+                      <button
+                        className="btn btn-outline-info"
+                        onClick={() => loadAnalytics()}
+                      >
+                        Refresh Data
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="loading-state">
+                  <p>Loading analytics data...</p>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Student Details Modal */}
+      {showStudentModal && (
+        <div className="modal-overlay" onClick={() => setShowStudentModal(false)}>
+          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                {modalType === 'students' && '👥 All Students'}
+                {modalType === 'assignments' && '📚 Active Assignments'}
+                {modalType === 'active' && '🔥 Active Students (Last 7 Days)'}
+                {modalType === 'progress' && '📊 Student Progress Breakdown'}
+              </h3>
+              <button className="modal-close" onClick={() => setShowStudentModal(false)}>
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {modalType === 'assignments' ? (
+                /* Show Courses for Assignments Modal */
+                analyticsData && analyticsData.courses.length > 0 ? (
+                  <div className="student-list-container">
+                    <table className="student-list-table">
+                      <thead>
+                        <tr>
+                          <th>Course Title</th>
+                          <th>Academic Year</th>
+                          <th>Status</th>
+                          <th>Assignments</th>
+                          <th>Steps</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {analyticsData.courses.filter(c => c.assignmentCount > 0).map((course) => (
+                          <tr key={course.id}>
+                            <td>
+                              <div className="student-info">
+                                <div className="student-avatar" style={{ backgroundColor: '#4f46e5' }}>
+                                  📚
+                                </div>
+                                <span>{course.title}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="badge badge-info">
+                                {course.academicYear.replace('YEAR_', 'Year ')}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`status-badge ${course.status.toLowerCase()}`}>
+                                {course.status}
+                              </span>
+                            </td>
+                            <td>
+                              <strong>{course.assignmentCount}</strong> students
+                            </td>
+                            <td>{course.stepCount} steps</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📭</div>
+                    <h4>No active assignments</h4>
+                    <p className="text-muted">No courses have students assigned yet</p>
+                  </div>
+                )
+              ) : loadingStudents ? (
+                <div className="loading-state" style={{ padding: '40px', textAlign: 'center' }}>
+                  <div className="spinner"></div>
+                  <p>Loading students...</p>
+                </div>
+              ) : studentList.length === 0 ? (
+                <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📭</div>
+                  <h4>No students found</h4>
+                  <p className="text-muted">
+                    {modalType === 'active' 
+                      ? 'No students have been active in the last 7 days'
+                      : 'No students are currently enrolled in your courses'}
+                  </p>
+                </div>
+              ) : (
+                <div className="student-list-container">
+                  {modalType === 'progress' && analyticsData && (
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '20px', 
+                      marginBottom: '20px', 
+                      padding: '15px', 
+                      background: '#f8fafc', 
+                      borderRadius: '8px' 
+                    }}>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#10b981' }}>
+                          {analyticsData.overview.completedAssignments}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Completed</div>
+                      </div>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#f59e0b' }}>
+                          {analyticsData.overview.inProgressAssignments}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>In Progress</div>
+                      </div>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ef4444' }}>
+                          {analyticsData.overview.notStartedAssignments}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Not Started</div>
+                      </div>
+                      <div style={{ textAlign: 'center', flex: 1 }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6366f1' }}>
+                          {analyticsData.overview.averageProgress}%
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b' }}>Average</div>
+                      </div>
+                    </div>
+                  )}
+                  <table className="student-list-table">
+                    <thead>
+                      <tr>
+                        <th>Student Name</th>
+                        <th>Email</th>
+                        <th>Academic Year</th>
+                        <th>Courses</th>
+                        <th>Progress</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(modalType === 'progress' 
+                        ? [...studentList].sort((a, b) => b.progress - a.progress)
+                        : studentList
+                      ).map((student) => (
+                        <tr key={student.id}>
+                          <td>
+                            <div className="student-info">
+                              <div className="student-avatar">
+                                {student.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span>{student.name}</span>
+                            </div>
+                          </td>
+                          <td className="text-muted">{student.email}</td>
+                          <td>{student.academicYear.replace('YEAR_', 'Year ')}</td>
+                          <td>
+                            <span title={student.courseNames.join(', ')}>
+                              {student.coursesEnrolled} course{student.coursesEnrolled !== 1 ? 's' : ''}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="progress-bar">
+                              <div 
+                                className="progress-fill" 
+                                style={{ width: `${student.progress}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-muted" style={{ fontSize: '0.75rem' }}>
+                              {student.progress}%
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`status-badge ${student.status.toLowerCase().replace('_', '-')}`}>
+                              {student.status.replace('_', ' ')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowStudentModal(false)}>
+                Close
+              </button>
+              <button className="btn btn-primary" onClick={() => navigate('/faculty/courses')}>
+                View All Courses
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showProfileModal && (
+        <ProfileModal 
+          user={user}
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)} 
+        />
+      )}
     </div>
   );
 };

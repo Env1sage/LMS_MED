@@ -3,19 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import { courseService, LearningFlowStep } from '../services/course.service';
 import learningUnitService from '../services/learning-unit.service';
 import competencyService from '../services/competency.service';
+import packagesService from '../services/packages.service';
+import { useAuth } from '../context/AuthContext';
+import '../styles/FacultyPortal.css';
 import '../styles/CreateCourse.css';
 
 const CreateCourse: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [resourcesLoading, setResourcesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [packageInfo, setPackageInfo] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    academicYear: 'FIRST_YEAR',
+    academicYear: 'YEAR_1',
     competencyIds: [] as string[],
   });
 
@@ -24,6 +29,8 @@ const CreateCourse: React.FC = () => {
   const [availableCompetencies, setAvailableCompetencies] = useState<any[]>([]);
   const [showUnitSelector, setShowUnitSelector] = useState(false);
   const [unitSearch, setUnitSearch] = useState('');
+  const [unitTypeFilter, setUnitTypeFilter] = useState('ALL');
+  const [unitSubjectFilter, setUnitSubjectFilter] = useState('ALL');
 
   useEffect(() => {
     loadResources();
@@ -32,16 +39,34 @@ const CreateCourse: React.FC = () => {
   const loadResources = async () => {
     try {
       setResourcesLoading(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       console.log('Loading resources...');
-      const [units, competencies] = await Promise.all([
-        learningUnitService.getAll({ page: 1, limit: 100 }),
-        competencyService.getAll({ page: 1, limit: 100 }),
-      ]);
-      console.log('Units loaded:', units.data?.length || 0);
-      console.log('Competencies loaded:', competencies.data?.length || 0);
-      setAvailableUnits(units.data || []);
+      
+      // Load competencies (these are available to all)
+      const competencies = await competencyService.getAll({ page: 1, limit: 100 });
       setAvailableCompetencies(competencies.data || []);
+      
+      // Load learning units based on college's assigned packages
+      if (user?.collegeId) {
+        const packageContent = await packagesService.getCollegeAvailableContent(user.collegeId);
+        console.log('Package content loaded:', packageContent);
+        
+        if (packageContent.learningUnits && packageContent.learningUnits.length > 0) {
+          setAvailableUnits(packageContent.learningUnits);
+          setPackageInfo(`Content from ${packageContent.packages.length} assigned package(s): ${packageContent.packages.map(p => p.name).join(', ')}`);
+        } else {
+          // Fallback to all units if no packages assigned (for demo/dev purposes)
+          const units = await learningUnitService.getAll({ page: 1, limit: 100 });
+          setAvailableUnits(units.data || []);
+          setPackageInfo('Note: No packages assigned to your college. Showing all available content.');
+        }
+      } else {
+        // Fallback for users without college context
+        const units = await learningUnitService.getAll({ page: 1, limit: 100 });
+        setAvailableUnits(units.data || []);
+      }
+      
+      console.log('Competencies loaded:', competencies.data?.length || 0);
     } catch (err: any) {
       console.error('Failed to load resources', err);
       setError(err.response?.data?.message || 'Failed to load competencies and learning units. Please refresh the page.');
@@ -51,7 +76,7 @@ const CreateCourse: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     navigate('/login');
@@ -144,14 +169,34 @@ const CreateCourse: React.FC = () => {
   };
 
   const filteredUnits = availableUnits.filter(unit => {
-    if (!unitSearch) return true;
-    const searchLower = unitSearch.toLowerCase();
-    return (
-      unit.title.toLowerCase().includes(searchLower) ||
-      unit.subject.toLowerCase().includes(searchLower) ||
-      unit.topic.toLowerCase().includes(searchLower)
-    );
+    // Search filter
+    if (unitSearch) {
+      const searchLower = unitSearch.toLowerCase();
+      const matchesSearch = (
+        unit.title.toLowerCase().includes(searchLower) ||
+        unit.subject.toLowerCase().includes(searchLower) ||
+        unit.topic.toLowerCase().includes(searchLower) ||
+        unit.description?.toLowerCase().includes(searchLower)
+      );
+      if (!matchesSearch) return false;
+    }
+    
+    // Type filter
+    if (unitTypeFilter !== 'ALL' && unit.type !== unitTypeFilter) {
+      return false;
+    }
+    
+    // Subject filter
+    if (unitSubjectFilter !== 'ALL' && unit.subject !== unitSubjectFilter) {
+      return false;
+    }
+    
+    return true;
   });
+
+  // Get unique subjects and types for filters
+  const uniqueSubjects = Array.from(new Set(availableUnits.map(u => u.subject))).sort();
+  const uniqueTypes = Array.from(new Set(availableUnits.map(u => u.type))).sort();
 
   const getUnitById = (id: string) => {
     return availableUnits.find(u => u.id === id);
@@ -186,6 +231,12 @@ const CreateCourse: React.FC = () => {
       {success && (
         <div className="alert alert-success">
           {success}
+        </div>
+      )}
+
+      {packageInfo && (
+        <div className="alert alert-info" style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #7dd3fc' }}>
+          📦 {packageInfo}
         </div>
       )}
 
@@ -224,10 +275,11 @@ const CreateCourse: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
               required
             >
-              <option value="FIRST_YEAR">1st Year</option>
-              <option value="SECOND_YEAR">2nd Year</option>
-              <option value="THIRD_YEAR">3rd Year</option>
-              <option value="FOURTH_YEAR">4th Year</option>
+              <option value="YEAR_1">Year 1</option>
+              <option value="YEAR_2">Year 2</option>
+              <option value="YEAR_3_MINOR">Year 3 (Part 1)</option>
+              <option value="YEAR_3_MAJOR">Year 3 (Part 2)</option>
+              <option value="INTERNSHIP">Internship</option>
             </select>
           </div>
 
@@ -375,6 +427,74 @@ const CreateCourse: React.FC = () => {
                 ×
               </button>
             </div>
+            
+            {/* Search and Filter Section */}
+            <div className="modal-filters">
+              <div className="search-box">
+                <input
+                  type="text"
+                  placeholder="🔍 Search by title, subject, topic..."
+                  value={unitSearch}
+                  onChange={(e) => setUnitSearch(e.target.value)}
+                  className="search-input"
+                />
+                {unitSearch && (
+                  <button 
+                    className="clear-search"
+                    onClick={() => setUnitSearch('')}
+                    title="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              
+              <div className="filter-row">
+                <div className="filter-group">
+                  <label>Type:</label>
+                  <select 
+                    value={unitTypeFilter} 
+                    onChange={(e) => setUnitTypeFilter(e.target.value)}
+                    className="filter-select"
+                  >
+                    <option value="ALL">All Types</option>
+                    {uniqueTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="filter-group">
+                  <label>Subject:</label>
+                  <select 
+                    value={unitSubjectFilter} 
+                    onChange={(e) => setUnitSubjectFilter(e.target.value)}
+                    className="filter-select"
+                  >
+                    <option value="ALL">All Subjects</option>
+                    {uniqueSubjects.map(subject => (
+                      <option key={subject} value={subject}>{subject}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <button 
+                  className="btn-clear-filters"
+                  onClick={() => {
+                    setUnitSearch('');
+                    setUnitTypeFilter('ALL');
+                    setUnitSubjectFilter('ALL');
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+              
+              <div className="results-summary">
+                Showing {filteredUnits.length} of {availableUnits.length} learning units
+              </div>
+            </div>
+            
             <div className="modal-body">
               {resourcesLoading ? (
                 <div className="loading-state">Loading learning units...</div>

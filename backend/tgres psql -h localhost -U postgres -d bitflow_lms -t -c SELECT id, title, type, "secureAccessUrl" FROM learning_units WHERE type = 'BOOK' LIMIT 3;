@@ -1,0 +1,7 @@
+                  id                  |                      title                      | type |         secureAccessUrl          | status 
+--------------------------------------+-------------------------------------------------+------+----------------------------------+--------
+ b45fddbc-0a2f-4ef6-a2a4-68946181a727 | Gray's Anatomy - Upper Limb - ELSEVIER          | BOOK | /uploads/books/sample-book-1.pdf | ACTIVE
+ cd5db8a7-9efe-4a6c-b2fb-ca3b59b33517 | Guyton Physiology - Cardiac Function - ELSEVIER | BOOK | /uploads/books/sample-book-2.pdf | ACTIVE
+ 91285437-6a00-4399-8aee-5918dc63fb43 | Harper's Biochemistry - Enzymes - ELSEVIER      | BOOK | /uploads/books/sample-book-3.pdf | ACTIVE
+(3 rows)
+

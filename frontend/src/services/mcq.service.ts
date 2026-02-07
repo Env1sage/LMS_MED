@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001/api/publisher-admin/mcqs';
+const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/publisher-admin/mcqs`;
 
 export interface Mcq {
   id: string;
@@ -15,7 +15,9 @@ export interface Mcq {
   explanation?: string;
   explanationImage?: string;
   subject: string;
-  topic: string;
+  topic?: string;
+  topicId?: string;
+  mcqType?: string;
   difficultyLevel: string;
   bloomsLevel: string;
   competencyIds: string[];
@@ -35,6 +37,12 @@ export interface Mcq {
     fullName: string;
     email: string;
   };
+  topicRef?: {
+    id: string;
+    name: string;
+    code: string;
+    subject: string;
+  };
 }
 
 export interface CreateMcqDto {
@@ -49,7 +57,9 @@ export interface CreateMcqDto {
   explanation?: string;
   explanationImage?: string;
   subject: string;
-  topic: string;
+  topic?: string;
+  topicId?: string;
+  mcqType?: string;
   difficultyLevel: string;
   bloomsLevel: string;
   competencyIds?: string[];
@@ -68,7 +78,7 @@ export interface McqStats {
 }
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('accessToken');
   return {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json',
@@ -138,8 +148,25 @@ const mcqService = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('accessToken');
     const response = await axios.post(`${API_BASE_URL}/bulk-upload`, formData, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  /**
+   * Upload image for MCQ (question or explanation image)
+   */
+  uploadImage: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const token = localStorage.getItem('accessToken');
+    const response = await axios.post(`${API_BASE_URL}/upload-image`, formData, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'multipart/form-data',

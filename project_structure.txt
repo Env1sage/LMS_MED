@@ -1,0 +1,214 @@
+.
+├── backend
+│   ├── prisma
+│   │   ├── migrations
+│   │   ├── reset-and-seed.ts.bak
+│   │   ├── reset-passwords.ts
+│   │   ├── reset-progress.ts
+│   │   ├── schema.prisma
+│   │   ├── seed-mci-competencies.ts.bak
+│   │   ├── seed-mci-production.ts
+│   │   ├── seed-topics.ts
+│   │   └── seed.ts.bak
+│   ├── scripts
+│   │   ├── cleanup-data.ts
+│   │   ├── extract-mci-competencies.sh
+│   │   ├── generate-excel-template.js
+│   │   ├── migrate-mci-competencies.ts
+│   │   └── parse-mci-competencies.js
+│   ├── src
+│   │   ├── audit
+│   │   ├── auth
+│   │   ├── bitflow-owner
+│   │   ├── common
+│   │   ├── competency
+│   │   ├── course
+│   │   ├── email
+│   │   ├── governance
+│   │   ├── learning-unit
+│   │   ├── packages
+│   │   ├── prisma
+│   │   ├── progress
+│   │   ├── publisher-admin
+│   │   ├── ratings
+│   │   ├── student
+│   │   ├── student-portal
+│   │   ├── topics
+│   │   ├── app.controller.spec.ts
+│   │   ├── app.controller.ts
+│   │   ├── app.module.ts
+│   │   ├── app.service.ts
+│   │   └── main.ts
+│   ├── test
+│   │   ├── app.e2e-spec.ts
+│   │   └── jest-e2e.json
+│   ├── uploads
+│   │   ├── books
+│   │   ├── images
+│   │   ├── mcq-csvs
+│   │   ├── notes
+│   │   ├── self-paced
+│   │   └── videos
+│   ├── backend.log
+│   ├── check_comp.ts
+│   ├── check-users.js
+│   ├── eslint.config.mjs
+│   ├── generate-hash.js
+│   ├── gen-hash.js
+│   ├── nest-cli.json
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── prisma.config.ts
+│   ├── quick-start.js
+│   ├── README.md
+│   ├── reset-passwords.js
+│   ├── seed-all.cjs
+│   ├── seed-analytics-data.js
+│   ├── seed-analytics.js
+│   ├── seed.cjs
+│   ├── seed-security.js
+│   ├── tgres psql -h localhost -U postgres -d bitflow_lms -c SELECT column_name FROM information_schema.columns WHERE table_name = 'users';
+│   ├── tsconfig.build.json
+│   └── tsconfig.json
+├── documentation
+│   ├── FInall_overview_docs_features
+│   │   ├── Phase1_Features.md
+│   │   ├── Phase2_Features.md
+│   │   ├── Phase3_Features.md
+│   │   ├── Phase4_Features.md
+│   │   ├── Phase5_Features.md
+│   │   └── Phase6_Features.md
+│   ├── FInal_Updated.md
+│   ├── MCI_COMPETENCIES.md
+│   ├── MCI_COMPETENCIES_SUMMARY.md
+│   ├── mcq_template (1).csv
+│   ├── mcq_template.csv
+│   ├── PHASE_0_5_COMPLETION_REPORT.md
+│   ├── phase0.md
+│   ├── phase1.md
+│   ├── phase2_completion.md
+│   ├── phase2.md
+│   ├── phase2_updated_completion.md
+│   ├── phase3_completion.md
+│   ├── phase3.md
+│   ├── phase3_updated_completion.md
+│   ├── phase4-completion-report.md
+│   ├── phase4.md
+│   ├── phase4-testing-guide.md
+│   ├── phase5-complete.md
+│   ├── phase5-completion-summary.md
+│   ├── phase5.md
+│   ├── PHASE_6_COMPLETION.md
+│   ├── PHASE_6_COMPLETION_REPORT.md
+│   ├── phase6.md
+│   ├── phase7.md
+│   ├── phase8.md
+│   ├── PROJECT_COMPLETION_REPORT.md
+│   ├── UG-Curriculum-Vol-III.pdf
+│   ├── UG-Curriculum-Vol-II.pdf
+│   └── UG-Curriculum-Vol-I.pdf
+├── frontend
+│   ├── public
+│   │   ├── favicon.ico
+│   │   ├── index.html
+│   │   ├── logo192.png
+│   │   ├── logo512.png
+│   │   ├── manifest.json
+│   │   └── robots.txt
+│   ├── src
+│   │   ├── components
+│   │   ├── config
+│   │   ├── context
+│   │   ├── pages
+│   │   ├── services
+│   │   ├── styles
+│   │   ├── types
+│   │   ├── App.css
+│   │   ├── App.test.tsx
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   ├── index.tsx
+│   │   ├── logo.svg
+│   │   ├── react-app-env.d.ts
+│   │   ├── reportWebVitals.ts
+│   │   └── setupTests.ts
+│   ├── frontend.log
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── README.md
+│   └── tsconfig.json
+├── prisma_BACKUP
+│   ├── migrations
+│   │   ├── 20260109103410_init
+│   │   ├── 20260109105831_add_phase1_audit_actions
+│   │   ├── 20260109112902_add_competency_framework
+│   │   ├── 20260109173746_add_learning_units_phase3
+│   │   ├── 20260109192843_add_students_phase4
+│   │   ├── 20260109204741_add_phase5_faculty_portal
+│   │   ├── 20260110090241_add_phase5_audit_actions
+│   │   ├── 20260110103619_phase6_student_portal_and_step_progress
+│   │   ├── 20260110104205_add_phase5_missing_fields
+│   │   └── migration_lock.toml
+│   ├── schema.prisma
+│   ├── seed-phase2.ts
+│   ├── seed-phase3.ts
+│   ├── seed-phase4.ts
+│   └── seed.ts
+├── Updated_Documentation
+│   ├── Phase1_updated.md
+│   ├── Phase2_updated.md
+│   ├── Phase3_updated.md
+│   ├── Phase4_updated.md
+│   ├── Phase5_updated.md
+│   └── Phase6_updated.md
+├── ACTUAL_CREDENTIALS.md
+├── ALL_LOGIN_CREDENTIALS.md
+├── ARCHITECTURE.md
+├── backend.log
+├── bulk-upload-template.xlsx
+├── COMPETENCY_SEARCH_IMPROVEMENTS.md
+├── COMPLETE_PROJECT_GUIDE.md
+├── COMPLETE_STATUS.md
+├── DATABASE_RESET_CREDENTIALS.md
+├── docker-compose.yml
+├── FIX_APPLIED.md
+├── last_ineration.md
+├── LOGIN_CREDENTIALS.md
+├── LOGIN_CREDENTIALS.txt
+├── MCI_COMPETENCIES_COMPLETE.txt
+├── mcq_template.csv
+├── Minutechanges.md
+├── PHASE0-5_STATUS_REPORT.md
+├── PHASE0_CHECKLIST.md
+├── PHASE0_COMPLETE.md
+├── PHASE0_PHASE1_COMPLETION.md
+├── PHASE1_UPDATED_COMPLETE.md
+├── PHASE2_COMPLETION.md
+├── PHASE2_UPDATED_COMPLETE.md
+├── PHASE5_STATUS.md
+├── PHASE6_SELF_PACED_COMPLETION.md
+├── PROJECT_100_PERCENT_COMPLETE.md
+├── PROJECT_AUDIT_ANALYSIS.md
+├── project_structure.txt
+├── PUBLISHER_ENHANCEMENTS.md
+├── PUBLISHER_STATUS.md
+├── README.md
+├── restart.flag
+├── SELF_PACED_ENHANCEMENT.md
+├── SELF_PACED_QUICK_START.md
+├── SELF_PACED_UX_UPDATE.md
+├── SETUP.md
+├── STATUS.md
+├── student_upload_template (1).csv
+├── student_upload_template.csv
+├── test_all_apis.sh
+├── TEST_ALL_ROLES.md
+├── test_all_roles.sh
+├── test_analytics.sh
+├── test-auth.html
+├── test_complete_system.sh
+├── TESTING_STATUS.md
+├── test_mcq_bulk_upload.csv
+└── test_system.sh
+
+54 directories, 157 files

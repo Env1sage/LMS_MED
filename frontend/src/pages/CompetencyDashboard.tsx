@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import competencyService, { CreateCompetencyData } from '../services/competency.service';
+import { NotificationBell } from '../components/notifications';
 import { 
   Competency, 
   CompetencyStats,
@@ -448,6 +449,7 @@ const CompetencyDashboard: React.FC = () => {
         </nav>
 
         <div className="user-profile">
+          <NotificationBell />
           <div className="user-info">
             <div className="user-name">{user?.fullName}</div>
             <div className="user-role">{user?.role}</div>

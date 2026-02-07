@@ -1,0 +1,10 @@
+const { exec } = require('child_process');
+console.log('Starting backend on port 3001...');
+console.log('Note: Self-paced API endpoints will be available at:');
+console.log('  POST   /api/self-paced');
+console.log('  GET    /api/self-paced/available');
+console.log('  GET    /api/self-paced/my-resources');
+console.log('Server is starting with some TS errors (in old code, not self-paced feature)...');
+const child = exec('npx ts-node-dev --transpile-only src/main.ts');
+child.stdout.pipe(process.stdout);
+child.stderr.pipe(process.stderr);

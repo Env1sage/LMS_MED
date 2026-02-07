@@ -44,10 +44,53 @@ export enum CompetencyStatus {
   DEPRECATED = 'DEPRECATED',
 }
 
+// Updated Academic Year per CBME spec
+export enum AcademicYear {
+  YEAR_1 = 'YEAR_1',
+  YEAR_2 = 'YEAR_2',
+  YEAR_3_MINOR = 'YEAR_3_MINOR',
+  YEAR_3_MAJOR = 'YEAR_3_MAJOR',
+  INTERNSHIP = 'INTERNSHIP',
+  // Legacy values (kept for backward compatibility)
+  FIRST_YEAR = 'FIRST_YEAR',
+  SECOND_YEAR = 'SECOND_YEAR',
+  THIRD_YEAR = 'THIRD_YEAR',
+  FOURTH_YEAR = 'FOURTH_YEAR',
+  FIFTH_YEAR = 'FIFTH_YEAR',
+}
+
+// MCQ Types per CBME spec
+export enum McqType {
+  NORMAL = 'NORMAL',
+  SCENARIO_BASED = 'SCENARIO_BASED',
+  IMAGE_BASED = 'IMAGE_BASED',
+}
+
+// Package status
+export enum PackageStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  DRAFT = 'DRAFT',
+}
+
+// Package assignment status
+export enum PackageAssignmentStatus {
+  ACTIVE = 'ACTIVE',
+  EXPIRED = 'EXPIRED',
+  CANCELLED = 'CANCELLED',
+}
+
+// Rating types
+export enum RatingType {
+  COURSE = 'COURSE',
+  TEACHER = 'TEACHER',
+  CONTENT = 'CONTENT',
+}
+
+// MCQ removed - MCQs are managed separately in MCQ Management
 export enum LearningUnitType {
   BOOK = 'BOOK',
   VIDEO = 'VIDEO',
-  MCQ = 'MCQ',
   NOTES = 'NOTES',
 }
 
@@ -57,10 +100,13 @@ export enum DeliveryType {
   STREAM = 'STREAM',
 }
 
+// CBME Competency Levels (Miller's Pyramid)
 export enum DifficultyLevel {
-  BEGINNER = 'BEGINNER',
-  INTERMEDIATE = 'INTERMEDIATE',
-  ADVANCED = 'ADVANCED',
+  K = 'K',           // Knows - Basic knowledge recall
+  KH = 'KH',         // Knows How - Applied knowledge
+  S = 'S',           // Shows - Can demonstrate in simulated setting
+  SH = 'SH',         // Shows How - Can demonstrate competently
+  P = 'P',           // Performs - Can perform independently
 }
 
 // Phase 3: Updated content status (ContentStatus in backend)
@@ -106,6 +152,11 @@ export interface Publisher {
   createdAt: string;
   updatedAt: string;
   adminCount?: number;
+  legalName?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
 }
 
 export interface College {
@@ -116,6 +167,12 @@ export interface College {
   createdAt: string;
   updatedAt: string;
   userCount?: number;
+  emailDomain?: string;
+  adminContactEmail?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  contractEndDate?: string;
 }
 
 export interface SecurityPolicy {
@@ -256,6 +313,7 @@ export interface AuditLog {
   id: string;
   userId: string | null;
   userEmail?: string;
+  userRole?: string;
   collegeId: string | null;
   collegeName?: string;
   publisherId: string | null;

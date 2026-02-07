@@ -42,6 +42,7 @@ class ApiService {
 
               const { accessToken } = response.data;
               localStorage.setItem('accessToken', accessToken);
+              localStorage.setItem('token', accessToken); // For backward compatibility
 
               originalRequest.headers.Authorization = `Bearer ${accessToken}`;
               return this.api(originalRequest);
@@ -49,6 +50,7 @@ class ApiService {
           } catch (refreshError) {
             // Refresh failed, logout user
             localStorage.removeItem('accessToken');
+            localStorage.removeItem('token');
             localStorage.removeItem('refreshToken');
             localStorage.removeItem('user');
             window.location.href = '/login';
@@ -77,9 +79,10 @@ class ApiService {
     return this.api.put<T>(url, data);
   }
 
-  delete<T = any>(url: string) {
-    return this.api.delete<T>(url);
+  delete<T = any>(url: string, config?: { data?: any; params?: any }) {
+    return this.api.delete<T>(url, config);
   }
 }
 
-export default new ApiService();
+const apiService = new ApiService();
+export default apiService;

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import learningUnitService from '../services/learning-unit.service';
 import competencyService from '../services/competency.service';
+import TopicSearch from '../components/TopicSearch';
+import { Topic } from '../services/topics.service';
 import { API_BASE_URL } from '../config/api';
 import {
   LearningUnitType,
@@ -24,15 +26,24 @@ const CreateLearningUnit: React.FC = () => {
   const [competencySearch, setCompetencySearch] = useState('');
   const [showCompetencyDropdown, setShowCompetencyDropdown] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+  const [topicCompetencies, setTopicCompetencies] = useState<Array<{
+    id: string;
+    code: string;
+    title: string;
+    description: string;
+    domain: string;
+  }>>([]);
   
   const [formData, setFormData] = useState({
     type: LearningUnitType.BOOK,
     title: '',
     description: '',
     subject: '',
+    topicId: '',
     topic: '',
     subTopic: '',
-    difficultyLevel: DifficultyLevel.INTERMEDIATE,
+    difficultyLevel: DifficultyLevel.K,
     estimatedDuration: 30,
     competencyIds: [] as string[],
     secureAccessUrl: '',
@@ -125,6 +136,20 @@ const CreateLearningUnit: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    // Mandatory Topic validation per CBME spec - Topic must be selected via search
+    if (!formData.topicId) {
+      setError('Topic selection is mandatory. Please search and select a valid topic from the dropdown.');
+      setLoading(false);
+      return;
+    }
+
+    // Mandatory Competency validation per CBME spec - At least 1 competency required
+    if (!formData.competencyIds || formData.competencyIds.length === 0) {
+      setError('At least one competency mapping is required per CBME specification.');
+      setLoading(false);
+      return;
+    }
 
     if (formData.description.length < 20) {
       setError('Description must be at least 20 characters');
@@ -545,7 +570,6 @@ const CreateLearningUnit: React.FC = () => {
   const typeOptions = [
     { value: LearningUnitType.BOOK, icon: '📚', label: 'Book' },
     { value: LearningUnitType.VIDEO, icon: '🎥', label: 'Video' },
-    { value: LearningUnitType.MCQ, icon: '✅', label: 'MCQ' },
     { value: LearningUnitType.NOTES, icon: '📝', label: 'Notes' },
   ];
 
@@ -646,27 +670,77 @@ const CreateLearningUnit: React.FC = () => {
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Topic *</label>
-                  <input
-                    style={styles.input}
-                    type="text"
-                    value={formData.topic}
-                    onChange={(e) => setFormData({ ...formData, topic: e.target.value })}
+                  <label style={styles.label}>Topic * (Search & Select)</label>
+                  <TopicSearch
+                    onTopicSelect={(topic) => {
+                      if (topic) {
+                        setSelectedTopic(topic);
+                        setFormData({ ...formData, topicId: topic.id, topic: topic.name, subject: topic.subject });
+                      } else {
+                        setSelectedTopic(null);
+                        setTopicCompetencies([]);
+                        setFormData({ ...formData, topicId: '', topic: '', competencyIds: [] });
+                      }
+                    }}
+                    onCompetenciesLoad={(comps) => {
+                      setTopicCompetencies(comps);
+                      // Auto-select all competencies from the topic
+                      if (comps.length > 0) {
+                        setFormData(prev => ({ ...prev, competencyIds: comps.map(c => c.id) }));
+                      }
+                    }}
                     required
-                    placeholder="e.g., Cardiovascular System"
                   />
+                  {selectedTopic && (
+                    <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '4px' }}>
+                      ✓ Selected: {selectedTopic.name} ({selectedTopic.code})
+                    </div>
+                  )}
                 </div>
 
+                {/* Auto-loaded Competencies from Topic */}
+                {topicCompetencies.length > 0 && (
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>📚 Mapped Competencies (Auto-loaded)</label>
+                    <div style={{ background: '#1e293b', borderRadius: '8px', padding: '12px', maxHeight: '200px', overflowY: 'auto' }}>
+                      {topicCompetencies.map(comp => (
+                        <div key={comp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #334155' }}>
+                          <input
+                            type="checkbox"
+                            id={`lu-comp-${comp.id}`}
+                            checked={formData.competencyIds.includes(comp.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, competencyIds: [...formData.competencyIds, comp.id] });
+                              } else {
+                                setFormData({ ...formData, competencyIds: formData.competencyIds.filter(id => id !== comp.id) });
+                              }
+                            }}
+                            style={{ width: '16px', height: '16px' }}
+                          />
+                          <label htmlFor={`lu-comp-${comp.id}`} style={{ color: '#e2e8f0', fontSize: '13px', cursor: 'pointer' }}>
+                            <strong style={{ color: '#3b82f6' }}>{comp.code}</strong> - {comp.title}
+                            <span style={{ color: '#94a3b8', marginLeft: '8px' }}>({comp.domain})</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>At least one competency mapping is required.</p>
+                  </div>
+                )}
+
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Difficulty Level</label>
+                  <label style={styles.label}>Competency Level (Miller's Pyramid)</label>
                   <select
                     style={styles.select}
                     value={formData.difficultyLevel}
                     onChange={(e) => setFormData({ ...formData, difficultyLevel: e.target.value as DifficultyLevel })}
                   >
-                    <option value={DifficultyLevel.BEGINNER}>🟢 Beginner</option>
-                    <option value={DifficultyLevel.INTERMEDIATE}>🟡 Intermediate</option>
-                    <option value={DifficultyLevel.ADVANCED}>🔴 Advanced</option>
+                    <option value={DifficultyLevel.K}>K - Knows (Basic knowledge)</option>
+                    <option value={DifficultyLevel.KH}>KH - Knows How (Applied knowledge)</option>
+                    <option value={DifficultyLevel.S}>S - Shows (Can demonstrate)</option>
+                    <option value={DifficultyLevel.SH}>SH - Shows How (Demonstrates competently)</option>
+                    <option value={DifficultyLevel.P}>P - Performs (Independent performance)</option>
                   </select>
                 </div>
 
@@ -750,26 +824,30 @@ const CreateLearningUnit: React.FC = () => {
                 </div>
               )}
 
-              <div style={styles.orDivider}>
-                <div style={styles.orLine}></div>
-                <span style={styles.orText}>OR enter external URL</span>
-                <div style={styles.orLine}></div>
-              </div>
+              {/* Only show URL input when no file is uploaded */}
+              {!uploadedFile && (
+                <>
+                  <div style={styles.orDivider}>
+                    <div style={styles.orLine}></div>
+                    <span style={styles.orText}>OR enter external URL</span>
+                    <div style={styles.orLine}></div>
+                  </div>
 
-              <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
-                <label style={styles.label}>External Content URL</label>
-                <input
-                  style={styles.input}
-                  type="url"
-                  value={formData.secureAccessUrl}
-                  onChange={(e) => {
-                    setFormData({ ...formData, secureAccessUrl: e.target.value });
-                    if (uploadedFile) setUploadedFile(null);
-                  }}
-                  placeholder="https://your-cdn.com/content/file.pdf"
-                />
-                <div style={styles.hint}>If you already have content hosted externally, paste the URL here</div>
-              </div>
+                  <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
+                    <label style={styles.label}>External Content URL</label>
+                    <input
+                      style={styles.input}
+                      type="text"
+                      value={formData.secureAccessUrl}
+                      onChange={(e) => {
+                        setFormData({ ...formData, secureAccessUrl: e.target.value });
+                      }}
+                      placeholder="https://your-cdn.com/content/file.pdf"
+                    />
+                    <div style={styles.hint}>If you already have content hosted externally, paste the URL here</div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

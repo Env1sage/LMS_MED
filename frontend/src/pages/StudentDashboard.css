@@ -1,0 +1,329 @@
+/* ============================================
+   STUDENT DASHBOARD — Clinical Editorial
+   Medical Education, Learning Platform
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-display: 'Crimson Pro', Georgia, serif;
+  --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  
+  --clinical-teal: #006B5C;
+  --amber-highlight: #D97706;
+  --paper: #FDFDFB;
+  --surface: #FFFFFF;
+  --border: #D1D5DB;
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
+  
+  --success: #059669;
+  --success-bg: #ECFDF5;
+  --info: #1E40AF;
+  --info-bg: #EFF6FF;
+  
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  
+  --transition-editorial: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --card-radius: 4px;
+  --border-hover: var(--clinical-teal);
+}
+
+.courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: var(--space-5);
+}
+
+.course-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  padding: var(--space-6);
+  transition: all var(--transition-editorial);
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.course-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  background: var(--clinical-teal);
+  opacity: 0;
+  transition: opacity var(--transition-editorial);
+}
+
+.course-card:hover {
+  border-color: var(--clinical-teal);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  transform: translateX(4px);
+}
+
+.course-card:hover::before {
+  opacity: 1;
+}
+
+.course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.course-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--clinical-teal);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.course-code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  background: var(--paper);
+  padding: 4px var(--space-3);
+  border: 1px solid var(--border);
+}
+
+.course-progress {
+  margin-top: var(--space-4);
+}
+
+.progress-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+  display: block;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--border);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--success);
+  transition: width 0.3s;
+}
+
+.progress-text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.course-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.course-btn {
+  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-editorial);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.course-btn-primary {
+  background: var(--clinical-teal);
+  color: white;
+  border-color: var(--clinical-teal);
+}
+
+.course-btn-primary:hover {
+  background: #004D3F;
+}
+
+.course-btn-secondary {
+  background: var(--surface);
+  color: var(--clinical-teal);
+  border-color: var(--clinical-teal);
+}
+
+.course-btn-secondary:hover {
+  background: var(--clinical-teal);
+  color: white;
+}
+
+.learning-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  padding: var(--space-5);
+  position: relative;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  background: var(--clinical-teal);
+  opacity: 0;
+  transition: opacity var(--transition-editorial);
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--clinical-teal);
+  line-height: 1;
+}
+
+@media (max-width: 768px) {
+  .courses-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Badge Styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-neutral {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.badge-info {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.badge-success {
+  background: #D1FAE5;
+  color: #059669;
+}
+
+/* Loading Styles */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 1rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #E5E7EB;
+  border-top-color: var(--clinical-teal);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error Banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-radius: 8px;
+  color: #DC2626;
+  margin-bottom: 1.5rem;
+}
+
+.error-banner button {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  color: #DC2626;
+  cursor: pointer;
+  padding: 0 0.5rem;
+}
+
+/* Empty State */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  gap: 1rem;
+}
+
+.empty-state h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty-state p {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0;
+}

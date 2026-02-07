@@ -1,0 +1,325 @@
+/* ============================================
+   DEAN DASHBOARD · LUXURY EDITORIAL
+   ============================================ */
+
+/* ============================================
+   DEPARTMENT OVERVIEW
+   ============================================ */
+
+.department-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+
+.department-overview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: var(--space-6);
+  transition: all var(--transition-editorial);
+}
+
+.department-overview-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.dept-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.dept-name {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-display);
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.dept-code {
+  font-family: var(--font-technical);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dept-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.dept-metric {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dept-metric-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: var(--weight-display);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.dept-metric-label {
+  font-family: var(--font-technical);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* ============================================
+   FACULTY PERFORMANCE
+   ============================================ */
+
+.faculty-performance-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.faculty-performance-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all var(--transition-editorial);
+}
+
+.faculty-performance-item:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.faculty-performance-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.faculty-performance-name {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.faculty-performance-dept {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  font-family: var(--font-technical);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.faculty-performance-stats {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.faculty-performance-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.faculty-performance-stat-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: var(--weight-display);
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.faculty-performance-stat-label {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ============================================
+   ACADEMIC PROGRESS
+   ============================================ */
+
+.academic-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+}
+
+.progress-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  padding: var(--space-6);
+}
+
+.progress-label {
+  font-family: var(--font-technical);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+.progress-value {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: var(--weight-display);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+}
+
+.progress-bar-wrapper {
+  width: 100%;
+  height: 6px;
+  background: var(--surface-soft);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar-inner {
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-editorial);
+}
+
+/* ============================================
+   REPORTS TABLE
+   ============================================ */
+
+.dean-reports-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dean-reports-table thead {
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.dean-reports-table th {
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  font-family: var(--font-technical);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.dean-reports-table td {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.dean-reports-table tbody tr:hover {
+  background: var(--surface-soft);
+}
+
+/* ============================================
+   APPROVALS QUEUE
+   ============================================ */
+
+.approvals-queue {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.approval-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: var(--space-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.approval-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.approval-title {
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  font-size: var(--text-base);
+}
+
+.approval-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.approval-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .department-overview-grid,
+  .academic-progress-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-performance-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .faculty-performance-stats {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .dean-reports-table {
+    font-size: var(--text-xs);
+  }
+
+  .dean-reports-table th,
+  .dean-reports-table td {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .approval-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .approval-actions {
+    width: 100%;
+  }
+}

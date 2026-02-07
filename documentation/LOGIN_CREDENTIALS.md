@@ -4,13 +4,14 @@
 
 ### For Phase 5 Testing (Faculty Portal):
 **Faculty Login:**
-- **Email:** `faculty@aiimsnagpur.edu.in`
-- **Password:** `Faculty@123`
+- **Email:** `faculty1@aiimsnagpur.edu.in`
+- **Password:** `Password123!`
 - **Role:** FACULTY
 - **College:** AIIMS Nagpur
+- **Name:** Dr. Anil Verma
 
 **Student Login (for testing course assignments):**
-- **Email:** `student1@aiimsnagpur.edu.in` to `student5@aiimsnagpur.edu.in`
+- **Email:** `aiim002@aiimsnagpur.edu.in` to `aiim030@aiimsnagpur.edu.in`x
 - **Password:** `Student@123`
 - **Role:** STUDENT
 - **College:** AIIMS Nagpur
@@ -27,17 +28,17 @@
 
 ### 2️⃣ College Admin
 - **Email:** `admin@aiimsnagpur.edu.in`
-- **Password:** `Admin@123`
+- **Password:** `Password123!`
 - **Role:** COLLEGE_ADMIN
 - **College:** AIIMS Nagpur
 - **Access:** Student management, batch operations, college analytics
 
 ### 3️⃣ Faculty (Phase 5)
-- **Email:** `faculty@aiimsnagpur.edu.in`
-- **Password:** `Faculty@123`
+- **Email:** `faculty1@aiimsnagpur.edu.in`
+- **Password:** `Password123!`
 - **Role:** FACULTY
 - **College:** AIIMS Nagpur
-- **Name:** Dr. Rajesh Kumar
+- **Name:** Dr. Anil Verma
 - **Access:** 
   - Create and publish courses
   - Design learning flows
@@ -89,7 +90,7 @@
 
 ### 5️⃣ Publisher Admin
 - **Email:** `admin@elsevier.com`
-- **Password:** `PublisherAdmin@2026`
+- **Password:** `Password123!`
 - **Role:** PUBLISHER_ADMIN
 - **Publisher:** Elsevier Medical Publishing
 - **Access:** Upload learning content, manage learning units
