@@ -30,7 +30,7 @@ import {
   CollegeStatus,
   DashboardOverview,
 } from '../types';
-import '../styles/BitflowPremium.css';
+import '../styles/BitflowModernClean.css';
 
 // Package types
 interface Package {
