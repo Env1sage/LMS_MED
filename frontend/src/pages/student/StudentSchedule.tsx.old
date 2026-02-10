@@ -1,0 +1,264 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import apiService from '../../services/api.service';
+import StudentLayout from '../../components/student/StudentLayout';
+import { Calendar, Clock, BookOpen, FileText, AlertCircle } from 'lucide-react';
+import '../../styles/bitflow-owner.css';
+
+interface ScheduleItem {
+  id: number;
+  type: 'CLASS' | 'TEST' | 'ASSIGNMENT' | 'EVENT';
+  title: string;
+  courseName?: string;
+  startTime: string;
+  endTime: string;
+  location?: string;
+  description?: string;
+  instructor?: string;
+}
+
+const StudentSchedule: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [error, setError] = useState('');
+
+  const fetchSchedule = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await apiService.get('/student-portal/schedule');
+      setSchedule(Array.isArray(response.data) ? response.data : []);
+    } catch (err: any) {
+      console.error('Failed to fetch schedule:', err);
+      setError(err.response?.data?.message || 'Failed to load schedule');
+      setSchedule([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSchedule();
+  }, [fetchSchedule]);
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'CLASS': return <BookOpen size={18} />;
+      case 'TEST': return <FileText size={18} />;
+      case 'ASSIGNMENT': return <FileText size={18} />;
+      case 'EVENT': return <Calendar size={18} />;
+      default: return <Calendar size={18} />;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'CLASS': return 'var(--bo-accent)';
+      case 'TEST': return 'var(--bo-danger)';
+      case 'ASSIGNMENT': return 'var(--bo-warning)';
+      case 'EVENT': return 'var(--bo-success)';
+      default: return 'var(--bo-text-muted)';
+    }
+  };
+
+  const todaySchedule = Array.isArray(schedule) ? schedule.filter(item => {
+    const itemDate = new Date(item.startTime);
+    return itemDate.toDateString() === selectedDate.toDateString();
+  }) : [];
+
+  if (loading) {
+    return (
+      <StudentLayout>
+        <div className="bo-loading" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bo-text-muted)' }}>
+          <div className="bo-spinner" style={{ marginRight: 10 }} />
+          Loading schedule...
+        </div>
+      </StudentLayout>
+    );
+  }
+
+  return (
+    <StudentLayout>
+      {/* Page Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)' }}>
+          My Schedule
+        </h1>
+        <p style={{ color: 'var(--bo-text-muted)', fontSize: 14, marginTop: 4 }}>
+          View your classes, tests, and upcoming events
+        </p>
+      </div>
+
+      {/* Date Selector */}
+      <div className="bo-card" style={{ padding: '16px 20px', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <Calendar size={20} style={{ color: 'var(--bo-accent)' }} />
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--bo-text-primary)' }}>
+                {selectedDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginTop: 2 }}>
+                {todaySchedule.length} {todaySchedule.length === 1 ? 'event' : 'events'} scheduled
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button 
+              className="bo-btn bo-btn-outline"
+              onClick={() => {
+                const newDate = new Date(selectedDate);
+                newDate.setDate(newDate.getDate() - 1);
+                setSelectedDate(newDate);
+              }}
+              style={{ padding: '8px 16px' }}
+            >
+              Previous
+            </button>
+            <button 
+              className="bo-btn bo-btn-outline"
+              onClick={() => setSelectedDate(new Date())}
+              style={{ padding: '8px 16px' }}
+            >
+              Today
+            </button>
+            <button 
+              className="bo-btn bo-btn-outline"
+              onClick={() => {
+                const newDate = new Date(selectedDate);
+                newDate.setDate(newDate.getDate() + 1);
+                setSelectedDate(newDate);
+              }}
+              style={{ padding: '8px 16px' }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Schedule Timeline */}
+      {error && (
+        <div className="bo-card" style={{ padding: 24, marginBottom: 24, textAlign: 'center', color: 'var(--bo-danger)' }}>
+          {error}
+        </div>
+      )}
+
+      {todaySchedule.length === 0 ? (
+        <div className="bo-card" style={{ padding: 80, textAlign: 'center' }}>
+          <Calendar size={64} style={{ color: 'var(--bo-text-muted)', opacity: 0.3, marginBottom: 16 }} />
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 8 }}>
+            No events scheduled
+          </h3>
+          <p style={{ color: 'var(--bo-text-muted)', fontSize: 14 }}>
+            You have a free day! Use this time to study or relax.
+          </p>
+        </div>
+      ) : (
+        <div style={{ position: 'relative' }}>
+          {/* Timeline line */}
+          <div style={{ 
+            position: 'absolute', 
+            left: 72, 
+            top: 0, 
+            bottom: 0, 
+            width: 2, 
+            background: 'var(--bo-border-light)' 
+          }} />
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {todaySchedule.map((item) => (
+              <div key={item.id} style={{ display: 'flex', gap: 20, position: 'relative' }}>
+                {/* Time */}
+                <div style={{ width: 60, flexShrink: 0, textAlign: 'right', paddingTop: 4 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--bo-text-primary)' }}>
+                    {new Date(item.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+
+                {/* Timeline dot */}
+                <div style={{ 
+                  width: 12, 
+                  height: 12, 
+                  borderRadius: '50%', 
+                  background: getTypeColor(item.type),
+                  border: '3px solid #fff',
+                  boxShadow: 'var(--bo-shadow-sm)',
+                  flexShrink: 0,
+                  marginTop: 6,
+                  position: 'relative',
+                  zIndex: 1
+                }} />
+
+                {/* Event Card */}
+                <div 
+                  className="bo-card"
+                  style={{ 
+                    flex: 1, 
+                    padding: 20,
+                    border: `1px solid ${getTypeColor(item.type)}20`,
+                    borderLeft: `4px solid ${getTypeColor(item.type)}`
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ color: getTypeColor(item.type) }}>
+                          {getTypeIcon(item.type)}
+                        </span>
+                        <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--bo-text-primary)', margin: 0 }}>
+                          {item.title}
+                        </h4>
+                        <span style={{ 
+                          padding: '2px 8px', 
+                          borderRadius: 8, 
+                          fontSize: 11, 
+                          fontWeight: 600,
+                          background: `${getTypeColor(item.type)}15`,
+                          color: getTypeColor(item.type)
+                        }}>
+                          {item.type}
+                        </span>
+                      </div>
+                      {item.courseName && (
+                        <p style={{ fontSize: 14, color: 'var(--bo-text-secondary)', margin: 0, marginBottom: 8 }}>
+                          📚 {item.courseName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {item.description && (
+                    <p style={{ fontSize: 14, color: 'var(--bo-text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 24, fontSize: 13, color: 'var(--bo-text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock size={14} />
+                      {new Date(item.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - {new Date(item.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    {item.location && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <AlertCircle size={14} />
+                        {item.location}
+                      </div>
+                    )}
+                    {item.instructor && (
+                      <div>
+                        👨‍🏫 {item.instructor}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </StudentLayout>
+  );
+};
+
+export default StudentSchedule;

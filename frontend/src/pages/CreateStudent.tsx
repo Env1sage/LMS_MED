@@ -258,8 +258,8 @@ const CreateStudent: React.FC = () => {
                 >
                   <option value="YEAR_1">Year 1</option>
                   <option value="YEAR_2">Year 2</option>
-                  <option value="YEAR_3_MINOR">Year 3 Minor</option>
-                  <option value="YEAR_3_MAJOR">Year 3 Major</option>
+                  <option value="YEAR_3_MINOR">Year 3 (Part 1)</option>
+                  <option value="YEAR_3_MAJOR">Year 3 (Part 2)</option>
                   <option value="INTERNSHIP">Internship</option>
                 </select>
               </div>

@@ -79,7 +79,6 @@ const StudentTracking: React.FC = () => {
       VIDEO: { class: 'badge-video', icon: '🎬' },
       BOOK: { class: 'badge-book', icon: '📚' },
       MCQ: { class: 'badge-mcq', icon: '❓' },
-      NOTES: { class: 'badge-notes', icon: '📝' },
     };
     const badge = badges[type] || { class: 'badge-secondary', icon: '📄' };
     return <span className={`badge ${badge.class}`}>{badge.icon} {type}</span>;

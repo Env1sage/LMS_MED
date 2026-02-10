@@ -40,7 +40,7 @@ const SelfPacedContentManager: React.FC = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    resourceType: 'NOTE',
+    resourceType: 'VIDEO',
     content: '',
     subject: '',
     academicYear: '',
@@ -147,7 +147,7 @@ const SelfPacedContentManager: React.FC = () => {
       setFormData({
         title: '',
         description: '',
-        resourceType: 'NOTE',
+        resourceType: 'VIDEO',
         content: '',
         subject: '',
         academicYear: '',
@@ -242,7 +242,7 @@ const SelfPacedContentManager: React.FC = () => {
                 setFormData({
                   title: '',
                   description: '',
-                  resourceType: 'NOTE',
+                  resourceType: 'VIDEO',
                   content: '',
                   subject: '',
                   academicYear: '',
@@ -288,7 +288,6 @@ const SelfPacedContentManager: React.FC = () => {
                     value={formData.resourceType}
                     onChange={(e) => setFormData({ ...formData, resourceType: e.target.value })}
                   >
-                    <option value="NOTE">📝 Note</option>
                     <option value="VIDEO">🎥 Video</option>
                     <option value="DOCUMENT">📄 Document</option>
                     <option value="IMAGE">🖼️ Image / Diagram</option>
@@ -296,7 +295,6 @@ const SelfPacedContentManager: React.FC = () => {
                     <option value="PRACTICE">✏️ Practice Exercise</option>
                     <option value="MCQ">✅ MCQ Bank</option>
                     <option value="HANDBOOK">📖 Handbook</option>
-                    <option value="LECTURE_NOTES">📋 Lecture Notes</option>
                     <option value="CASE_STUDY">🏥 Case Study</option>
                     <option value="PRESENTATION">📊 Presentation</option>
                     <option value="AUDIO">🎵 Audio Recording</option>
@@ -312,8 +310,8 @@ const SelfPacedContentManager: React.FC = () => {
                     <option value="">All Years</option>
                     <option value="YEAR_1">Year 1</option>
                     <option value="YEAR_2">Year 2</option>
-                    <option value="PART_1">3 Year Part 1</option>
-                    <option value="PART_2">3 Year Part 2</option>
+                    <option value="YEAR_3_MINOR">Year 3 (Part 1)</option>
+                    <option value="YEAR_3_MAJOR">Year 3 (Part 2)</option>
                     <option value="YEAR_4">Year 4</option>
                   </select>
                 </div>
@@ -419,7 +417,7 @@ const SelfPacedContentManager: React.FC = () => {
                 </div>
               )}
 
-              {(formData.resourceType === 'NOTE' || formData.resourceType === 'REFERENCE') && (
+              {(formData.resourceType === 'DOCUMENT' || formData.resourceType === 'REFERENCE') && (
                 <div className="form-group">
                   <label>Content</label>
                   <textarea
@@ -519,7 +517,7 @@ const SelfPacedContentManager: React.FC = () => {
                 setFormData({
                   title: '',
                   description: '',
-                  resourceType: 'NOTE',
+                  resourceType: 'VIDEO',
                   content: '',
                   subject: '',
                   academicYear: '',
@@ -536,7 +534,7 @@ const SelfPacedContentManager: React.FC = () => {
           resources.map((resource) => (
             <div key={resource.id} className="resource-card">
               <div className="resource-header">
-                <span className={`badge badge-${resource.resourceType === 'NOTE' ? 'info' : resource.resourceType === 'VIDEO' ? 'success' : resource.resourceType === 'DOCUMENT' ? 'warning' : 'secondary'}`}>
+                <span className={`badge badge-${resource.resourceType === 'VIDEO' ? 'success' : resource.resourceType === 'DOCUMENT' ? 'warning' : resource.resourceType === 'MCQ' ? 'info' : 'secondary'}`}>
                   {resource.resourceType}
                 </span>
                 <div className="resource-actions">

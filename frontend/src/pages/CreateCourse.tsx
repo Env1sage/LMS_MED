@@ -101,8 +101,6 @@ const CreateCourse: React.FC = () => {
         return { videoMinWatchPercent: 80 };
       case 'BOOK':
         return { bookMinReadDuration: 300 };
-      case 'NOTES':
-        return { requiredScrollPercent: 90 };
       default:
         return {};
     }

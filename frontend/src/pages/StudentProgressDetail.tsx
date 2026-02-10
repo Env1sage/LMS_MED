@@ -65,7 +65,6 @@ const StudentProgressDetailPage: React.FC = () => {
       VIDEO: '🎬',
       BOOK: '📚',
       MCQ: '❓',
-      NOTES: '📝',
     };
     return icons[type] || '📄';
   };

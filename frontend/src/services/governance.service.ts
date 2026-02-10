@@ -8,7 +8,13 @@ export interface Department {
   description?: string;
   status: 'ACTIVE' | 'INACTIVE';
   hodUserId?: string;
+  hodId?: string;
   hodUser?: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
+  hod?: {
     id: string;
     fullName: string;
     email: string;
@@ -18,7 +24,8 @@ export interface Department {
   updatedAt: string;
   _count?: {
     faculty_assignments: number;
-    students: number;
+    student_departments?: number;
+    students?: number;
   };
 }
 
@@ -176,7 +183,7 @@ const governanceService = {
   assignHod: async (departmentId: string, hodUserId: string): Promise<Department> => {
     const response = await apiService.put<Department>(
       `/governance/departments/${departmentId}/assign-hod`,
-      { hodUserId }
+      { hodId: hodUserId }
     );
     return response.data;
   },

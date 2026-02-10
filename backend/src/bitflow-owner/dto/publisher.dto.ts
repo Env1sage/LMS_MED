@@ -97,7 +97,6 @@ export class PublisherDetailResponseDto extends PublisherResponseDto {
     books: number;
     videos: number;
     mcqs: number;
-    notes: number;
   };
   competencyMappingStats: {
     complete: number;

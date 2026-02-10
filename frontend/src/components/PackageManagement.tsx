@@ -43,7 +43,7 @@ const PackageManagement: React.FC<PackageManagementProps> = ({ publishers, colle
     'Ophthalmology', 'ENT', 'Psychiatry', 'Dermatology & Leprosy'
   ];
 
-  const contentTypes = ['BOOK', 'VIDEO', 'MCQ', 'NOTES'];
+  const contentTypes = ['BOOK', 'VIDEO', 'MCQ'];
 
   useEffect(() => {
     loadData();

@@ -12,7 +12,8 @@ import { CollegeProfileService } from './college-profile.service';
 import { CollegeProfileController } from './college-profile.controller';
 import { CourseAnalyticsService } from './course-analytics.service';
 import { CourseAnalyticsController } from './course-analytics.controller';
-// Notification module removed per CBME spec (No notifications module)
+import { NotificationService } from './notification.service';
+import { NotificationController } from './notification.controller';
 import { GovernanceGuard } from './guards/governance.guard';
 import { AuditModule } from '../audit/audit.module';
 
@@ -25,7 +26,7 @@ import { AuditModule } from '../audit/audit.module';
     FacultyUserController,
     CollegeProfileController,
     CourseAnalyticsController,
-    // NotificationController removed per spec
+    NotificationController,
   ],
   providers: [
     DepartmentService,
@@ -34,7 +35,7 @@ import { AuditModule } from '../audit/audit.module';
     FacultyUserService,
     CollegeProfileService,
     CourseAnalyticsService,
-    // NotificationService removed per spec
+    NotificationService,
     GovernanceGuard,
   ],
   exports: [
@@ -44,7 +45,7 @@ import { AuditModule } from '../audit/audit.module';
     FacultyUserService,
     CollegeProfileService,
     CourseAnalyticsService,
-    // NotificationService removed per spec
+    NotificationService,
     GovernanceGuard,
   ],
 })

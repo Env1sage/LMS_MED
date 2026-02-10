@@ -163,12 +163,12 @@ export class StepCompletionService {
         }
         break;
 
-      case 'NOTES':
+      case 'MCQ':
         const requiredScrollPercent = criteria.requiredScrollPercent || 90;
-        completionPercent = completionData.scrollPercent || 0;
+        completionPercent = completionData.scrollPercent || 100;
         isComplete = completionPercent >= requiredScrollPercent;
         if (!isComplete) {
-          reason = `Must scroll through at least ${requiredScrollPercent}% of the content`;
+          reason = `Must complete at least ${requiredScrollPercent}% of the content`;
         }
         break;
 

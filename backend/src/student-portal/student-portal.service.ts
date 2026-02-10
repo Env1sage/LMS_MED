@@ -965,9 +965,9 @@ export class StudentPortalService {
         };
 
         const unitType = unit.type as string;
-        if (unitType === 'BOOK' || unitType === 'NOTES') library.ebooks.push(item);
+        if (unitType === 'BOOK') library.ebooks.push(item);
         else if (unitType === 'VIDEO') library.videos.push(item);
-        else if (unitType === 'MCQ') library.interactives.push(item);
+        else if (unitType === 'MCQ' || unitType === 'NOTES') library.interactives.push(item);
       });
     });
 
@@ -1170,6 +1170,505 @@ export class StudentPortalService {
     ].sort((a, b) => new Date(a.startTime!).getTime() - new Date(b.startTime!).getTime());
 
     return { schedule };
+  }
+
+  /**
+   * Get comprehensive weekly calendar with all events, assignments, deadlines, notifications
+   */
+  async getWeekCalendar(userId: string, targetDate: Date) {
+    const student = await this.getStudentByUserId(userId);
+    
+    // Calculate week boundaries (Monday to Sunday)
+    const date = new Date(targetDate);
+    const dayOfWeek = date.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const weekStart = new Date(date);
+    weekStart.setDate(date.getDate() + mondayOffset);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    weekEnd.setHours(0, 0, 0, 0);
+
+    // 1. Schedule events (classes, college events)
+    const scheduleEvents = await this.prisma.schedule_events.findMany({
+      where: {
+        collegeId: student.collegeId,
+        OR: [
+          { studentId: null },
+          { studentId: student.id },
+        ],
+        startTime: { gte: weekStart, lt: weekEnd },
+      },
+      orderBy: { startTime: 'asc' },
+    });
+
+    // 2. Upcoming tests / assignments with deadlines
+    const testAssignments = await this.prisma.test_assignments.findMany({
+      where: {
+        studentId: student.id,
+        test: {
+          OR: [
+            { scheduledStartTime: { gte: weekStart, lt: weekEnd } },
+            { scheduledEndTime: { gte: weekStart, lt: weekEnd } },
+          ],
+        },
+      },
+      include: {
+        test: {
+          select: {
+            id: true,
+            title: true,
+            subject: true,
+            type: true,
+            status: true,
+            totalMarks: true,
+            durationMinutes: true,
+            scheduledStartTime: true,
+            scheduledEndTime: true,
+            course: { select: { title: true } },
+          },
+        },
+      },
+    });
+
+    // 3. Course assignment deadlines
+    const courseAssignments = await this.prisma.course_assignments.findMany({
+      where: {
+        studentId: student.id,
+        OR: [
+          { assignedAt: { gte: weekStart, lt: weekEnd } },
+          { dueDate: { gte: weekStart, lt: weekEnd } },
+        ],
+      },
+      include: {
+        courses: { select: { title: true, courseCode: true } },
+      },
+    });
+
+    // 4. Recent notifications for this week
+    const notifications = await this.prisma.notifications.findMany({
+      where: {
+        collegeId: student.collegeId,
+        isActive: true,
+        createdAt: { gte: weekStart, lt: weekEnd },
+        OR: [
+          { audience: 'ALL' },
+          { audience: 'STUDENTS' },
+          { audience: 'BATCH', academicYear: student.currentAcademicYear },
+        ],
+      },
+      include: {
+        creator: { select: { fullName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Build unified calendar items
+    const calendarItems: Array<{
+      id: string;
+      date: string;
+      time: string | null;
+      endTime: string | null;
+      title: string;
+      description: string | null;
+      type: string;
+      priority: string;
+      courseName: string | null;
+      actionUrl: string | null;
+      testId: string | null;
+      isDeadline: boolean;
+    }> = [];
+
+    // Add schedule events
+    scheduleEvents.forEach(e => {
+      calendarItems.push({
+        id: e.id,
+        date: e.startTime.toISOString().split('T')[0],
+        time: e.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        endTime: e.endTime ? e.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
+        title: e.title,
+        description: e.description,
+        type: e.eventType,
+        priority: 'NORMAL',
+        courseName: null,
+        actionUrl: null,
+        testId: null,
+        isDeadline: false,
+      });
+    });
+
+    // Add test events
+    testAssignments.forEach(ta => {
+      const t = ta.test;
+      if (t.scheduledStartTime) {
+        calendarItems.push({
+          id: `test-${t.id}`,
+          date: t.scheduledStartTime.toISOString().split('T')[0],
+          time: t.scheduledStartTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          endTime: t.scheduledEndTime ? t.scheduledEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : null,
+          title: t.type === 'ASSIGNMENT' ? `📝 ${t.title}` : `📋 ${t.title}`,
+          description: `${t.subject || ''} • ${t.totalMarks} marks • ${t.durationMinutes} mins`,
+          type: t.type === 'ASSIGNMENT' ? 'ASSIGNMENT' : 'TEST',
+          priority: t.status === 'ACTIVE' ? 'HIGH' : 'NORMAL',
+          courseName: t.course?.title || null,
+          actionUrl: `/student/assignments/${t.id}`,
+          testId: t.id,
+          isDeadline: false,
+        });
+      }
+      // Add deadline marker if end time is in this week
+      if (t.scheduledEndTime && t.scheduledEndTime >= weekStart && t.scheduledEndTime < weekEnd) {
+        calendarItems.push({
+          id: `deadline-${t.id}`,
+          date: t.scheduledEndTime.toISOString().split('T')[0],
+          time: t.scheduledEndTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          endTime: null,
+          title: `⏰ Deadline: ${t.title}`,
+          description: `Last date to submit`,
+          type: 'DEADLINE',
+          priority: 'URGENT',
+          courseName: t.course?.title || null,
+          actionUrl: `/student/assignments/${t.id}`,
+          testId: t.id,
+          isDeadline: true,
+        });
+      }
+    });
+
+    // Add course assignment deadlines
+    courseAssignments.forEach(ca => {
+      if (ca.dueDate && ca.dueDate >= weekStart && ca.dueDate < weekEnd) {
+        calendarItems.push({
+          id: `course-deadline-${ca.courseId}`,
+          date: ca.dueDate.toISOString().split('T')[0],
+          time: ca.dueDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          endTime: null,
+          title: `📚 Course Deadline: ${ca.courses.title}`,
+          description: `Complete course by this date`,
+          type: 'COURSE_DEADLINE',
+          priority: 'HIGH',
+          courseName: ca.courses.title,
+          actionUrl: `/student/courses/${ca.courseId}`,
+          testId: null,
+          isDeadline: true,
+        });
+      }
+    });
+
+    // Add notification items
+    notifications.forEach(n => {
+      calendarItems.push({
+        id: `notif-${n.id}`,
+        date: n.createdAt.toISOString().split('T')[0],
+        time: n.createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        endTime: null,
+        title: `📢 ${n.title}`,
+        description: n.message,
+        type: 'NOTIFICATION',
+        priority: n.priority,
+        courseName: null,
+        actionUrl: '/student/notifications',
+        testId: null,
+        isDeadline: false,
+      });
+    });
+
+    // Sort by date and time
+    calendarItems.sort((a, b) => {
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      if (!a.time) return 1;
+      if (!b.time) return -1;
+      return a.time.localeCompare(b.time);
+    });
+
+    // Group by date
+    const days: Array<{ date: string; dayName: string; isToday: boolean; events: typeof calendarItems }> = [];
+    const today = new Date().toISOString().split('T')[0];
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+      days.push({
+        date: dateStr,
+        dayName: dayNames[d.getDay()],
+        isToday: dateStr === today,
+        events: calendarItems.filter(e => e.date === dateStr),
+      });
+    }
+
+    return {
+      weekStart: weekStart.toISOString(),
+      weekEnd: weekEnd.toISOString(),
+      days,
+      totalEvents: calendarItems.length,
+      upcomingDeadlines: calendarItems.filter(e => e.isDeadline).length,
+    };
+  }
+
+  /**
+   * Get student notifications (governance + auto-generated)
+   */
+  async getStudentNotifications(userId: string) {
+    const student = await this.getStudentByUserId(userId);
+
+    // Get governance notifications
+    const notifications = await this.prisma.notifications.findMany({
+      where: {
+        collegeId: student.collegeId,
+        isActive: true,
+        OR: [
+          { audience: 'ALL' },
+          { audience: 'STUDENTS' },
+          { audience: 'BATCH', academicYear: student.currentAcademicYear },
+        ],
+      },
+      include: {
+        creator: { select: { fullName: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Get read notification IDs
+    const readReceipts = await this.prisma.notification_reads.findMany({
+      where: { userId },
+      select: { notificationId: true },
+    });
+    const readIds = new Set(readReceipts.map(r => r.notificationId));
+
+    // Get upcoming assignment/test deadlines to auto-generate reminders
+    const now = new Date();
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    
+    const upcomingDeadlines = await this.prisma.test_assignments.findMany({
+      where: {
+        studentId: student.id,
+        test: {
+          status: { in: [TestStatus.SCHEDULED, TestStatus.ACTIVE] },
+          scheduledEndTime: { gte: now, lte: threeDaysFromNow },
+        },
+      },
+      include: {
+        test: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            scheduledEndTime: true,
+            course: { select: { title: true } },
+          },
+        },
+      },
+    });
+
+    // Get recently assigned courses (last 7 days)
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const recentCourseAssignments = await this.prisma.course_assignments.findMany({
+      where: {
+        studentId: student.id,
+        assignedAt: { gte: weekAgo },
+      },
+      include: {
+        courses: {
+          select: { title: true, courseCode: true },
+        },
+      },
+      orderBy: { assignedAt: 'desc' },
+    });
+
+    // Build unified notification list
+    const allNotifications: Array<{
+      id: string;
+      type: string;
+      priority: string;
+      title: string;
+      message: string;
+      createdAt: Date;
+      isRead: boolean;
+      senderName: string | null;
+      actionUrl: string | null;
+      category: string;
+    }> = [];
+
+    // Add governance notifications
+    notifications.forEach(n => {
+      allNotifications.push({
+        id: n.id,
+        type: n.type,
+        priority: n.priority,
+        title: n.title,
+        message: n.message,
+        createdAt: n.createdAt,
+        isRead: readIds.has(n.id),
+        senderName: n.creator?.fullName || null,
+        actionUrl: null,
+        category: 'ANNOUNCEMENT',
+      });
+    });
+
+    // Add auto-generated deadline reminders
+    upcomingDeadlines.forEach(d => {
+      const hoursLeft = Math.round((d.test.scheduledEndTime!.getTime() - now.getTime()) / (1000 * 60 * 60));
+      const isUrgent = hoursLeft <= 24;
+      allNotifications.push({
+        id: `deadline-${d.testId}`,
+        type: 'DEADLINE_REMINDER',
+        priority: isUrgent ? 'URGENT' : 'HIGH',
+        title: isUrgent
+          ? `⚠️ ${d.test.type === 'ASSIGNMENT' ? 'Assignment' : 'Test'} due in ${hoursLeft}h!`
+          : `⏰ ${d.test.type === 'ASSIGNMENT' ? 'Assignment' : 'Test'} deadline approaching`,
+        message: `"${d.test.title}" ${d.test.course ? `(${d.test.course.title})` : ''} is due ${d.test.scheduledEndTime!.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+        createdAt: now,
+        isRead: false,
+        senderName: 'System',
+        actionUrl: `/student/assignments/${d.testId}`,
+        category: 'DEADLINE',
+      });
+    });
+
+    // Add course assignment notifications
+    recentCourseAssignments.forEach(ca => {
+      allNotifications.push({
+        id: `course-assign-${ca.courseId}`,
+        type: 'COURSE_ASSIGNED',
+        priority: 'NORMAL',
+        title: `📚 New Course Assigned: ${ca.courses.title}`,
+        message: `You have been enrolled in "${ca.courses.title}" (${ca.courses.courseCode || ''})`,
+        createdAt: ca.assignedAt,
+        isRead: false,
+        senderName: 'System',
+        actionUrl: `/student/courses/${ca.courseId}`,
+        category: 'COURSE',
+      });
+    });
+
+    // Sort by date (newest first), urgents first
+    allNotifications.sort((a, b) => {
+      if (a.priority === 'URGENT' && b.priority !== 'URGENT') return -1;
+      if (b.priority === 'URGENT' && a.priority !== 'URGENT') return 1;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+
+    return {
+      notifications: allNotifications,
+      unreadCount: allNotifications.filter(n => !n.isRead).length,
+      totalCount: allNotifications.length,
+    };
+  }
+
+  /**
+   * Get unread notification count
+   */
+  async getUnreadNotificationCount(userId: string) {
+    const student = await this.getStudentByUserId(userId);
+
+    const notifications = await this.prisma.notifications.findMany({
+      where: {
+        collegeId: student.collegeId,
+        isActive: true,
+        OR: [
+          { audience: 'ALL' },
+          { audience: 'STUDENTS' },
+          { audience: 'BATCH', academicYear: student.currentAcademicYear },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const readIds = await this.prisma.notification_reads.findMany({
+      where: { userId },
+      select: { notificationId: true },
+    });
+    const readSet = new Set(readIds.map(r => r.notificationId));
+
+    // Count upcoming deadlines (within 3 days)
+    const now = new Date();
+    const threeDays = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const deadlineCount = await this.prisma.test_assignments.count({
+      where: {
+        studentId: student.id,
+        test: {
+          status: { in: [TestStatus.SCHEDULED, TestStatus.ACTIVE] },
+          scheduledEndTime: { gte: now, lte: threeDays },
+        },
+      },
+    });
+
+    const unreadNotifications = notifications.filter(n => !readSet.has(n.id)).length;
+
+    return {
+      unreadCount: unreadNotifications + deadlineCount,
+      notificationCount: unreadNotifications,
+      deadlineCount,
+    };
+  }
+
+  /**
+   * Mark a notification as read
+   */
+  async markNotificationRead(userId: string, notificationId: string) {
+    // Only mark governance notifications (auto-generated ones can't be marked)
+    if (notificationId.startsWith('deadline-') || notificationId.startsWith('course-assign-')) {
+      return { success: true };
+    }
+
+    await this.prisma.notification_reads.upsert({
+      where: {
+        notificationId_userId: { notificationId, userId },
+      },
+      create: {
+        id: uuidv4(),
+        notificationId,
+        userId,
+      },
+      update: {},
+    });
+
+    return { success: true };
+  }
+
+  /**
+   * Mark all notifications as read
+   */
+  async markAllNotificationsRead(userId: string) {
+    const student = await this.getStudentByUserId(userId);
+
+    const notifications = await this.prisma.notifications.findMany({
+      where: {
+        collegeId: student.collegeId,
+        isActive: true,
+        OR: [
+          { audience: 'ALL' },
+          { audience: 'STUDENTS' },
+          { audience: 'BATCH', academicYear: student.currentAcademicYear },
+        ],
+      },
+      select: { id: true },
+    });
+
+    const readIds = await this.prisma.notification_reads.findMany({
+      where: { userId },
+      select: { notificationId: true },
+    });
+    const alreadyRead = new Set(readIds.map(r => r.notificationId));
+
+    const unread = notifications.filter(n => !alreadyRead.has(n.id));
+
+    if (unread.length > 0) {
+      await this.prisma.notification_reads.createMany({
+        data: unread.map(n => ({
+          id: uuidv4(),
+          notificationId: n.id,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return { success: true, markedCount: unread.length };
   }
 
   // Helper methods

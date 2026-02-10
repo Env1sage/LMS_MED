@@ -1,0 +1,383 @@
+  const navItems = [
+    { id: 'list', icon: <ClipboardIcon />, label: 'MCQ List', onClick: () => { setTab('list'); resetForm(); } },
+    { id: 'create', icon: <PlusIcon />, label: 'Create New', onClick: () => { setTab('create'); resetForm(); } },
+    { id: 'bulk', icon: <UploadIcon />, label: 'Bulk Upload', onClick: () => { setTab('bulk'); resetForm(); } },
+    { id: 'stats', icon: <ChartBarIcon />, label: 'Statistics', onClick: () => setTab('stats') },
+    { id: 'dashboard', icon: <ArrowLeftIcon />, label: 'Back to Dashboard', onClick: () => navigate('/publisher-admin') },
+  ];
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
+  return (
+    <PageWrapper>
+      <GlassSidebar
+        title="Publisher Studio"
+        subtitle="MCQ Management"
+        navItems={navItems}
+        activeTab={tab}
+        userName={user?.fullName}
+        userRole="Publisher Admin"
+        onLogout={handleLogout}
+      />
+
+      <GlassContentArea>
+        <GlassContentHeader 
+          title="MCQ Management"
+          subtitle="Create and manage Multiple Choice Questions"
+        />
+
+        {error && (
+          <div className="error-banner">
+            {error}
+            <button onClick={() => setError(null)}>×</button>
+          </div>
+        )}
+        {success && (
+          <div className="success-banner">
+            {success}
+            <button onClick={() => setSuccess(null)}>×</button>
+          </div>
+        )}
+
+        {tab === 'stats' && stats && (
+          <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+            <GlassStatCard
+              icon={<ClipboardIcon size={28} />}
+              label="Total MCQs"
+              value={stats.total}
+              trend="neutral"
+            />
+            <GlassStatCard
+              icon={<CheckCircleIcon size={28} />}
+              label="Published"
+              value={stats.published}
+              trend="positive"
+            />
+            <GlassStatCard
+              icon={<DocumentTextIcon size={28} />}
+              label="Draft"
+              value={stats.draft}
+              trend="neutral"
+            />
+            <GlassStatCard
+              icon={<TargetIcon size={28} />}
+              label="Average Difficulty"
+              value={stats.averageDifficultyLevel || 'N/A'}
+              trend="neutral"
+            />
+          </div>
+        )}
+
+        {tab === 'list' && (
+          <div className="glass-card">
+            <div className="glass-card-header">
+              <h3 className="glass-card-title">MCQ List ({filteredMcqs.length})</h3>
+            </div>
+
+            <div className="form-grid" style={{ marginBottom: '20px' }}>
+              <div className="form-group">
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Search questions..."
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <select
+                  className="form-input"
+                  value={filters.subject}
+                  onChange={(e) => setFilters({ ...filters, subject: e.target.value })}
+                >
+                  <option value="">All Subjects</option>
+                  {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <select
+                  className="form-input"
+                  value={filters.status}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                >
+                  <option value="">All Status</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="PUBLISHED">Published</option>
+                </select>
+              </div>
+            </div>
+
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                Loading MCQs...
+              </div>
+            ) : filteredMcqs.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                No MCQs found. Create your first MCQ!
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {filteredMcqs.map((mcq) => (
+                  <div
+                    key={mcq.id}
+                    style={{
+                      padding: '16px 20px',
+                      background: 'rgba(0, 107, 92, 0.05)',
+                      border: '1px solid rgba(0, 107, 92, 0.15)',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onClick={() => handleEdit(mcq)}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, marginBottom: '8px' }}>{mcq.question}</div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                          {mcq.subject} • {mcq.topic} • {mcq.difficultyLevel}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span className={`status-badge status-${mcq.status.toLowerCase()}`}>
+                          {mcq.status}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(mcq.id);
+                          }}
+                          className="btn-secondary"
+                          style={{ padding: '6px 12px', fontSize: '12px' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === 'bulk' && (
+          <div className="glass-card">
+            <div className="glass-card-header">
+              <UploadIcon size={24} />
+              <div style={{ marginLeft: '12px' }}>
+                <h3 className="glass-card-title">Bulk MCQ Upload</h3>
+                <p className="glass-card-subtitle">Upload multiple MCQs using CSV format</p>
+              </div>
+            </div>
+
+            <BulkMcqUpload onUploadComplete={loadData} />
+          </div>
+        )}
+
+        {tab === 'create' && (
+          <form onSubmit={handleSubmit}>
+            <div className="glass-card" style={{ marginBottom: '24px' }}>
+              <div className="glass-card-header">
+                <ClipboardIcon size={24} />
+                <div style={{ marginLeft: '12px' }}>
+                  <h3 className="glass-card-title">{selectedMcq ? 'Edit MCQ' : 'Create New MCQ'}</h3>
+                  <p className="glass-card-subtitle">Enter question details and competency mappings</p>
+                </div>
+              </div>
+
+              <div className="form-grid">
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label">Question *</label>
+                  <textarea
+                    className="form-input"
+                    style={{ minHeight: '100px' }}
+                    value={formData.question}
+                    onChange={(e) => setFormData({ ...formData, question: e.target.value })}
+                    required
+                    placeholder="Enter the MCQ question..."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Option A *</label>
+                  <input
+                    className="form-input"
+                    value={formData.optionA}
+                    onChange={(e) => setFormData({ ...formData, optionA: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Option B *</label>
+                  <input
+                    className="form-input"
+                    value={formData.optionB}
+                    onChange={(e) => setFormData({ ...formData, optionB: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Option C *</label>
+                  <input
+                    className="form-input"
+                    value={formData.optionC}
+                    onChange={(e) => setFormData({ ...formData, optionC: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Option D *</label>
+                  <input
+                    className="form-input"
+                    value={formData.optionD}
+                    onChange={(e) => setFormData({ ...formData, optionD: e.target.value })}
+                    required
+                  />
+                </div>
+
+                {showOptionalFields.optionE && (
+                  <div className="form-group">
+                    <label className="form-label">Option E (Optional)</label>
+                    <input
+                      className="form-input"
+                      value={formData.optionE || ''}
+                      onChange={(e) => setFormData({ ...formData, optionE: e.target.value })}
+                    />
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Correct Answer *</label>
+                  <select
+                    className="form-input"
+                    value={formData.correctAnswer}
+                    onChange={(e) => setFormData({ ...formData, correctAnswer: e.target.value as any })}
+                    required
+                  >
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                    {showOptionalFields.optionE && <option value="E">E</option>}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Subject *</label>
+                  <select
+                    className="form-input"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    required
+                  >
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Topic * (Search & Select)</label>
+                  <TopicSearch
+                    onTopicSelect={(topic) => {
+                      if (topic) {
+                        setSelectedTopic(topic);
+                        setFormData({ ...formData, topicId: topic.id, topic: topic.name, subject: topic.subject });
+                      } else {
+                        setSelectedTopic(null);
+                        setTopicCompetencies([]);
+                        setFormData({ ...formData, topicId: '', topic: '', competencyIds: [] });
+                      }
+                    }}
+                    onCompetenciesLoad={(comps) => {
+                      setTopicCompetencies(comps);
+                      if (comps.length > 0) {
+                        setFormData(prev => ({ ...prev, competencyIds: comps.map(c => c.id) }));
+                      }
+                    }}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Difficulty Level *</label>
+                  <select
+                    className="form-input"
+                    value={formData.difficultyLevel}
+                    onChange={(e) => setFormData({ ...formData, difficultyLevel: e.target.value as any })}
+                    required
+                  >
+                    <option value="K">K - Knows</option>
+                    <option value="KH">KH - Knows How</option>
+                    <option value="SH">SH - Shows How</option>
+                    <option value="D">D - Does</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label">Explanation</label>
+                  <textarea
+                    className="form-input"
+                    style={{ minHeight: '80px' }}
+                    value={formData.explanation}
+                    onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
+                    placeholder="Explain why the correct answer is right..."
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ marginRight: '8px' }}
+                  onClick={() => setShowOptionalFields({ ...showOptionalFields, optionE: !showOptionalFields.optionE })}
+                >
+                  {showOptionalFields.optionE ? 'Remove' : 'Add'} Option E
+                </button>
+              </div>
+            </div>
+
+            <div className="glass-card" style={{ marginBottom: '24px' }}>
+              <div className="glass-card-header">
+                <TargetIcon size={24} />
+                <div style={{ marginLeft: '12px' }}>
+                  <h3 className="glass-card-title">Competency Mapping *</h3>
+                  <p className="glass-card-subtitle">Link this MCQ to medical competencies</p>
+                </div>
+              </div>
+
+              <CompetencySearch
+                selectedCompetencies={formData.competencyIds}
+                onSelectionChange={(ids) => setFormData({ ...formData, competencyIds: ids })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => { setTab('list'); resetForm(); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={loading}
+              >
+                {loading ? 'Saving...' : selectedMcq ? 'Update MCQ' : 'Create MCQ'}
+              </button>
+            </div>
+          </form>
+        )}
+      </GlassContentArea>
+    </PageWrapper>
+  );
+};
+
+export default McqManagement;

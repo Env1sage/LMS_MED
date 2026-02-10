@@ -14,6 +14,18 @@ export class GetAuditLogsDto {
   @IsOptional()
   action?: AuditAction;
 
+  @IsString()
+  @IsOptional()
+  userRole?: string;
+
+  @IsString()
+  @IsOptional()
+  entityType?: string;
+
+  @IsString()
+  @IsOptional()
+  search?: string;
+
   @IsDateString()
   @IsOptional()
   startDate?: string;
@@ -33,6 +45,7 @@ export class AuditLogResponseDto {
   id: string;
   userId: string | null;
   userEmail?: string;
+  userRole?: string;
   collegeId: string | null;
   collegeName?: string;
   publisherId: string | null;

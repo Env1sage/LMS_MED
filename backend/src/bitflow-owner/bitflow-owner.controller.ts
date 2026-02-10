@@ -4,6 +4,7 @@ import {
   Post, 
   Patch, 
   Put,
+  Delete,
   Body, 
   Param, 
   Query,
@@ -95,6 +96,14 @@ export class BitflowOwnerController {
     return this.bitflowOwnerService.resendPublisherCredentials(id, userId);
   }
 
+  @Delete('publishers/:id')
+  async deletePublisher(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.bitflowOwnerService.deletePublisher(id, userId);
+  }
+
   // ========================================================================
   // COLLEGE LIFECYCLE
   // ========================================================================
@@ -136,12 +145,25 @@ export class BitflowOwnerController {
     return this.bitflowOwnerService.resendCollegeCredentials(id, body.role, userId);
   }
 
+  @Delete('colleges/:id')
+  async deleteCollege(
+    @Param('id') id: string,
+    @CurrentUser('userId') userId: string,
+  ): Promise<{ success: boolean; message: string }> {
+    return this.bitflowOwnerService.deleteCollege(id, userId);
+  }
+
   // ========================================================================
   // SECURITY POLICY & FEATURE FLAGS
   // ========================================================================
 
   @Get('security-policy')
   async getSecurityPolicy(): Promise<SecurityPolicyResponseDto> {
+    return this.bitflowOwnerService.getSecurityPolicy();
+  }
+
+  @Get('feature-flags')
+  async getFeatureFlags(): Promise<SecurityPolicyResponseDto> {
     return this.bitflowOwnerService.getSecurityPolicy();
   }
 
@@ -249,6 +271,55 @@ export class BitflowOwnerController {
   @Get('analytics/assessment-participation')
   async getAssessmentParticipation() {
     return this.bitflowOwnerService.getAssessmentParticipation();
+  }
+
+  // ========================================================================
+  // STUDENT & TEACHER PERFORMANCE + COLLEGE COMPARISON
+  // ========================================================================
+
+  @Get('analytics/student-performance')
+  async getStudentPerformance(
+    @Query('collegeId') collegeId?: string,
+    @Query('courseId') courseId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.bitflowOwnerService.getStudentPerformance({
+      collegeId, courseId, limit: limit ? parseInt(limit) : 50,
+    });
+  }
+
+  @Get('analytics/teacher-performance')
+  async getTeacherPerformance(
+    @Query('collegeId') collegeId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.bitflowOwnerService.getTeacherPerformance({
+      collegeId, limit: limit ? parseInt(limit) : 50,
+    });
+  }
+
+  @Get('analytics/course-performance')
+  async getCoursePerformance(
+    @Query('collegeId') collegeId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.bitflowOwnerService.getCoursePerformance({
+      collegeId, limit: limit ? parseInt(limit) : 50,
+    });
+  }
+
+  @Get('analytics/college-comparison')
+  async getCollegeComparison() {
+    return this.bitflowOwnerService.getCollegeComparison();
+  }
+
+  @Get('analytics/export/:reportType')
+  async getExportData(
+    @Param('reportType') reportType: string,
+    @Query('collegeId') collegeId?: string,
+    @Query('format') format?: string,
+  ) {
+    return this.bitflowOwnerService.getExportData(reportType, { collegeId, format });
   }
 
   // ========================================================================

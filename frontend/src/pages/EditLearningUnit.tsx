@@ -1,533 +1,360 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
-import learningUnitService from '../services/learning-unit.service';
-import { API_BASE_URL } from '../config/api';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import PublisherLayout from '../components/publisher/PublisherLayout';
+import TopicSearch from '../components/TopicSearch';
+import CompetencySearch from '../components/common/CompetencySearch';
+import FileUploadButton from '../components/publisher/FileUploadButton';
+import learningUnitService, { UpdateLearningUnitDto } from '../services/learning-unit.service';
 import { LearningUnit, LearningUnitType, DeliveryType, DifficultyLevel } from '../types';
+import { Topic } from '../services/topics.service';
+import { Save, ArrowLeft, BookOpen, Video, FileText } from 'lucide-react';
+import '../styles/bitflow-owner.css';
+import '../styles/loading-screen.css';
+
+interface TopicCompetency {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  domain: string;
+  academicLevel: string;
+  subject: string;
+}
 
 const EditLearningUnit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [unit, setUnit] = useState<LearningUnit | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
-  const [dragActive, setDragActive] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [original, setOriginal] = useState<LearningUnit | null>(null);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    secureAccessUrl: '',
-    deliveryType: DeliveryType.EMBED,
-    watermarkEnabled: true,
-    sessionExpiryMinutes: 30,
-    difficultyLevel: DifficultyLevel.K,
-    estimatedDuration: 30,
-  });
+  // Form fields
+  const [type, setType] = useState<LearningUnitType>(LearningUnitType.BOOK);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [subject, setSubject] = useState('');
+  const [topic, setTopic] = useState('');
+  const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>();
+  const [subTopic, setSubTopic] = useState('');
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel>(DifficultyLevel.K);
+  const [estimatedDuration, setEstimatedDuration] = useState(30);
+  const [secureAccessUrl, setSecureAccessUrl] = useState('');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>(DeliveryType.EMBED);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
+  const [sessionExpiryMinutes, setSessionExpiryMinutes] = useState(30);
+  const [tags, setTags] = useState('');
+
+  // Competencies
+  const [availableCompetencies, setAvailableCompetencies] = useState<TopicCompetency[]>([]);
+  const [selectedCompetencyIds, setSelectedCompetencyIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (id) {
-      loadUnit();
-    }
+    if (id) loadUnit();
   }, [id]);
 
   const loadUnit = async () => {
     try {
       setLoading(true);
-      const data = await learningUnitService.getById(id!);
-      setUnit(data);
-      setFormData({
-        title: data.title,
-        description: data.description,
-        secureAccessUrl: data.secureAccessUrl || '',
-        deliveryType: data.deliveryType,
-        watermarkEnabled: data.watermarkEnabled,
-        sessionExpiryMinutes: data.sessionExpiryMinutes || 30,
-        difficultyLevel: data.difficultyLevel,
-        estimatedDuration: data.estimatedDuration,
-      });
-      if (data.secureAccessUrl) {
-        setUploadedFile({ name: 'Current content', url: data.secureAccessUrl });
-      }
+      const unit = await learningUnitService.getById(id!);
+      setOriginal(unit);
+      // Populate form
+      setType(unit.type);
+      setTitle(unit.title);
+      setDescription(unit.description);
+      setSubject(unit.subject);
+      setTopic(unit.topic);
+      setSubTopic(unit.subTopic || '');
+      setDifficultyLevel(unit.difficultyLevel);
+      setEstimatedDuration(unit.estimatedDuration);
+      setSecureAccessUrl(unit.secureAccessUrl);
+      setDeliveryType(unit.deliveryType);
+      setWatermarkEnabled(unit.watermarkEnabled);
+      setSessionExpiryMinutes(unit.sessionExpiryMinutes);
+      setTags(unit.tags?.join(', ') || '');
+      setSelectedCompetencyIds(unit.competencyIds || []);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load learning unit');
+      setError(err?.response?.data?.message || 'Failed to load learning unit');
     } finally {
       setLoading(false);
     }
   };
 
-  const getFileType = (): 'book' | 'video' | 'note' | 'image' => {
-    switch (unit?.type) {
-      case LearningUnitType.VIDEO: return 'video';
-      case LearningUnitType.NOTES: return 'note';
-      default: return 'book';
+  const handleTopicSelect = (t: Topic | null) => {
+    if (t) {
+      setSubject(t.subject);
+      setTopic(t.name);
+      setSelectedTopicId(t.id);
+    } else {
+      setTopic('');
+      setSelectedTopicId(undefined);
     }
   };
 
-  const handleFileUpload = async (file: File) => {
-    setUploading(true);
-    setError(null);
-    
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-    
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await axios.post(
-        `${API_BASE_URL}/learning-units/upload?type=${getFileType()}`,
-        formDataUpload,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`,
-          }
-        }
-      );
-      const url = response.data.url;
-      setUploadedFile({ name: file.name, url });
-      setFormData(prev => ({ ...prev, secureAccessUrl: url }));
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'File upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      handleFileUpload(files[0]);
-    }
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
-  };
-
-  const removeUploadedFile = () => {
-    setUploadedFile(null);
-    setFormData(prev => ({ ...prev, secureAccessUrl: '' }));
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleCompetenciesLoad = (comps: TopicCompetency[]) => {
+    setAvailableCompetencies(comps);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
-    setError(null);
+    setError('');
+    setSuccess('');
 
-    if (formData.description.length < 20) {
-      setError('Description must be at least 20 characters');
-      setSaving(false);
-      return;
-    }
+    if (title.length < 5) { setError('Title must be at least 5 characters'); return; }
+    if (description.length < 20) { setError('Description must be at least 20 characters'); return; }
 
     try {
-      await learningUnitService.update(id!, formData);
-      setSuccess(true);
+      setSaving(true);
+      const dto: UpdateLearningUnitDto = {
+        title,
+        description,
+        subject,
+        topic,
+        subTopic: subTopic || undefined,
+        difficultyLevel,
+        estimatedDuration,
+        competencyIds: selectedCompetencyIds,
+        deliveryType,
+        watermarkEnabled,
+        sessionExpiryMinutes,
+        tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      };
+
+      // Only include secureAccessUrl if changed
+      if (secureAccessUrl !== original?.secureAccessUrl) {
+        dto.secureAccessUrl = secureAccessUrl;
+      }
+
+      await learningUnitService.update(id!, dto);
+      setSuccess('Learning unit updated successfully!');
       setTimeout(() => navigate(`/publisher-admin/view/${id}`), 1500);
     } catch (err: any) {
-      const msg = err.response?.data?.message;
+      const msg = err?.response?.data?.message;
       setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to update');
     } finally {
       setSaving(false);
     }
   };
 
-  const styles: Record<string, React.CSSProperties> = {
-    container: {
-      minHeight: '100vh',
-      backgroundColor: '#0f172a',
-      color: '#e2e8f0',
-      padding: '24px',
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '32px',
-    },
-    title: {
-      fontSize: '28px',
-      fontWeight: '600',
-      color: '#f8fafc',
-      margin: 0,
-    },
-    backButton: {
-      padding: '8px 16px',
-      background: 'transparent',
-      border: '1px solid #475569',
-      borderRadius: '8px',
-      color: '#94a3b8',
-      cursor: 'pointer',
-      fontSize: '14px',
-    },
-    form: {
-      maxWidth: '800px',
-      margin: '0 auto',
-    },
-    card: {
-      background: '#1e293b',
-      borderRadius: '12px',
-      padding: '24px',
-      marginBottom: '24px',
-    },
-    sectionTitle: {
-      fontSize: '18px',
-      fontWeight: '600',
-      color: '#f8fafc',
-      marginBottom: '16px',
-      paddingBottom: '12px',
-      borderBottom: '1px solid #334155',
-    },
-    formGroup: {
-      marginBottom: '20px',
-    },
-    label: {
-      display: 'block',
-      marginBottom: '8px',
-      fontWeight: '500',
-      color: '#cbd5e1',
-    },
-    input: {
-      width: '100%',
-      padding: '12px',
-      backgroundColor: '#0f172a',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      color: '#e2e8f0',
-      fontSize: '14px',
-    },
-    textarea: {
-      width: '100%',
-      padding: '12px',
-      backgroundColor: '#0f172a',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      color: '#e2e8f0',
-      fontSize: '14px',
-      minHeight: '100px',
-      resize: 'vertical' as const,
-    },
-    select: {
-      width: '100%',
-      padding: '12px',
-      backgroundColor: '#0f172a',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      color: '#e2e8f0',
-      fontSize: '14px',
-    },
-    dropzone: {
-      border: '2px dashed',
-      borderColor: dragActive ? '#c47335' : '#475569',
-      borderRadius: '12px',
-      padding: '32px',
-      textAlign: 'center' as const,
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-      backgroundColor: dragActive ? 'rgba(196, 115, 53, 0.1)' : 'transparent',
-    },
-    uploadedFile: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '12px 16px',
-      backgroundColor: 'rgba(196, 115, 53, 0.1)',
-      border: '1px solid rgba(196, 115, 53, 0.3)',
-      borderRadius: '8px',
-      marginTop: '12px',
-    },
-    removeButton: {
-      padding: '4px 8px',
-      background: '#ef4444',
-      border: 'none',
-      borderRadius: '4px',
-      color: 'white',
-      cursor: 'pointer',
-      fontSize: '12px',
-    },
-    error: {
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      border: '1px solid rgba(239, 68, 68, 0.3)',
-      color: '#fca5a5',
-      padding: '12px 16px',
-      borderRadius: '8px',
-      marginBottom: '24px',
-    },
-    success: {
-      backgroundColor: 'rgba(34, 197, 94, 0.1)',
-      border: '1px solid rgba(34, 197, 94, 0.3)',
-      color: '#86efac',
-      padding: '12px 16px',
-      borderRadius: '8px',
-      marginBottom: '24px',
-    },
-    submitButton: {
-      width: '100%',
-      padding: '14px',
-      background: 'linear-gradient(135deg, #c47335 0%, #a65d28 100%)',
-      border: 'none',
-      borderRadius: '8px',
-      color: 'white',
-      fontSize: '16px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      marginTop: '8px',
-    },
-    row: {
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '16px',
-    },
-    info: {
-      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-      border: '1px solid rgba(59, 130, 246, 0.3)',
-      borderRadius: '8px',
-      padding: '12px 16px',
-      fontSize: '13px',
-      color: '#93c5fd',
-      marginBottom: '16px',
-    },
-    checkbox: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-    },
+  const fileTypeMap: Record<LearningUnitType, 'book' | 'video'> = {
+    BOOK: 'book', VIDEO: 'video',
   };
 
-  if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={{ textAlign: 'center', padding: '60px' }}>Loading...</div>
-      </div>
-    );
-  }
+  const diffLabels: Record<string, string> = {
+    K: 'Knows (Knowledge recall)', KH: 'Knows How (Applied knowledge)',
+    S: 'Shows (Demonstrates)', SH: 'Shows How (Performance)', P: 'Performs (Independent practice)',
+  };
 
-  if (!unit) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.error}>Learning unit not found</div>
-        <button onClick={() => navigate('/publisher-admin')} style={styles.backButton}>
-          ← Back to Dashboard
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 12px', borderRadius: 8,
+    border: '1px solid var(--bo-border)', fontSize: 14,
+    background: 'var(--bo-bg)', color: 'var(--bo-text)',
+  };
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 13, fontWeight: 600,
+    color: 'var(--bo-text-secondary)', marginBottom: 6,
+  };
+
+  if (loading) return (
+    <PublisherLayout>
+      <div className="page-loading-screen">
+        <div className="loading-rings">
+          <div className="loading-ring loading-ring-1"></div>
+          <div className="loading-ring loading-ring-2"></div>
+          <div className="loading-ring loading-ring-3"></div>
+        </div>
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
+        <div className="loading-title">Loading Editor</div>
+        <div className="loading-bar-track">
+          <div className="loading-bar-fill"></div>
+        </div>
+      </div>
+    </PublisherLayout>
+  );
+
+  if (error && !original) return (
+    <PublisherLayout>
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <div style={{ fontSize: 16, color: 'var(--bo-danger)', marginBottom: 12 }}>{error}</div>
+        <button className="bo-btn bo-btn-outline" onClick={() => navigate('/publisher-admin/content')}>
+          <ArrowLeft size={16} /> Back
         </button>
       </div>
-    );
-  }
+    </PublisherLayout>
+  );
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Edit Learning Unit</h1>
-        <button 
-          onClick={() => navigate(`/publisher-admin/view/${id}`)} 
-          style={styles.backButton}
-        >
-          ← Cancel
-        </button>
-      </div>
-
-      <form style={styles.form} onSubmit={handleSubmit}>
-        {error && <div style={styles.error}>❌ {error}</div>}
-        {success && <div style={styles.success}>✅ Updated successfully! Redirecting...</div>}
-
-        {/* Basic Info */}
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>Basic Information</h2>
-          
-          <div style={styles.info}>
-            <strong>Type:</strong> {unit.type} | <strong>Subject:</strong> {unit.subject} | <strong>Topic:</strong> {unit.topic}
-            <br/><small>These fields cannot be changed after creation.</small>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Title *</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              style={styles.input}
-              required
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Description * (min 20 characters)</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              style={styles.textarea}
-              required
-            />
-          </div>
-
-          <div style={styles.row}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Difficulty Level</label>
-              <select
-                value={formData.difficultyLevel}
-                onChange={(e) => setFormData(prev => ({ ...prev, difficultyLevel: e.target.value as DifficultyLevel }))}
-                style={styles.select}
-              >
-                {Object.values(DifficultyLevel).map(level => (
-                  <option key={level} value={level}>{level}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Estimated Duration (minutes)</label>
-              <input
-                type="number"
-                value={formData.estimatedDuration}
-                onChange={(e) => setFormData(prev => ({ ...prev, estimatedDuration: parseInt(e.target.value) || 30 }))}
-                style={styles.input}
-                min={1}
-              />
-            </div>
+    <PublisherLayout>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <button className="bo-btn bo-btn-outline" style={{ padding: '6px 10px' }}
+            onClick={() => navigate(`/publisher-admin/view/${id}`)}>
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--bo-text)' }}>Edit Learning Unit</h1>
+            <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginTop: 2 }}>
+              Editing: {original?.title}
+            </p>
           </div>
         </div>
 
-        {/* Content Upload */}
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>📎 Content File / URL</h2>
-          
-          <div 
-            style={styles.dropzone}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileInputChange}
-              style={{ display: 'none' }}
-              accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.webm,.mov,.avi,.jpg,.jpeg,.png,.gif"
-            />
-            {uploading ? (
+        {error && (
+          <div style={{ padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', fontSize: 14, marginBottom: 16 }}>{error}</div>
+        )}
+        {success && (
+          <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, color: '#16A34A', fontSize: 14, marginBottom: 16 }}>{success}</div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Content Type (read-only) */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>Content Type</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: 'var(--bo-bg)', borderRadius: 8 }}>
+              {type === 'BOOK' && <BookOpen size={20} style={{ color: '#3B82F6' }} />}
+              {type === 'VIDEO' && <Video size={20} style={{ color: '#8B5CF6' }} />}
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{type === 'BOOK' ? 'E-Book' : type}</span>
+              <span style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>(cannot be changed)</span>
+            </div>
+          </div>
+
+          {/* Basic Info */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Basic Information</h3>
+            <div style={{ display: 'grid', gap: 16 }}>
               <div>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>⏳</div>
-                <div>Uploading...</div>
+                <label style={labelStyle}>Title *</label>
+                <input style={inputStyle} value={title} onChange={e => setTitle(e.target.value)}
+                  required minLength={5} />
               </div>
-            ) : (
-              <>
-                <div style={{ fontSize: '32px', marginBottom: '8px' }}>📤</div>
-                <div style={{ fontWeight: '500', marginBottom: '4px' }}>
-                  Drop file here or click to upload
+              <div>
+                <label style={labelStyle}>Description *</label>
+                <textarea style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }} value={description}
+                  onChange={e => setDescription(e.target.value)} required minLength={20} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Difficulty Level</label>
+                  <select style={inputStyle} value={difficultyLevel}
+                    onChange={e => setDifficultyLevel(e.target.value as DifficultyLevel)}>
+                    {Object.entries(diffLabels).map(([k, v]) => (
+                      <option key={k} value={k}>{k} - {v}</option>
+                    ))}
+                  </select>
                 </div>
-                <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-                  Supports PDF, DOC, PPT, MP4, images
+                <div>
+                  <label style={labelStyle}>Duration (minutes)</label>
+                  <input type="number" style={inputStyle} value={estimatedDuration}
+                    onChange={e => setEstimatedDuration(Number(e.target.value))} min={1} />
                 </div>
-              </>
+              </div>
+              <div>
+                <label style={labelStyle}>Tags (comma-separated)</label>
+                <input style={inputStyle} value={tags} onChange={e => setTags(e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* Topic & Competency */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Subject, Topic & Competencies</h3>
+            <div style={{ marginBottom: 12, padding: 10, background: 'var(--bo-bg)', borderRadius: 8, fontSize: 13 }}>
+              Current: <strong>{subject}</strong> → <strong>{topic}</strong>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Change Topic (search below)</label>
+              <TopicSearch
+                selectedTopicId={selectedTopicId}
+                selectedSubject={subject}
+                onTopicSelect={handleTopicSelect}
+                onSubjectSelect={s => setSubject(s)}
+                onCompetenciesLoad={handleCompetenciesLoad}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Sub-Topic</label>
+              <input style={inputStyle} value={subTopic} onChange={e => setSubTopic(e.target.value)} />
+            </div>
+            {availableCompetencies.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <CompetencySearch
+                  competencies={availableCompetencies}
+                  selectedIds={selectedCompetencyIds}
+                  onChange={setSelectedCompetencyIds}
+                  label="Competency Mapping"
+                />
+              </div>
+            )}
+            {selectedCompetencyIds.length > 0 && availableCompetencies.length === 0 && (
+              <div style={{ marginTop: 12, fontSize: 13, color: 'var(--bo-text-muted)' }}>
+                {selectedCompetencyIds.length} competencies currently mapped. Select a topic above to manage mappings.
+              </div>
             )}
           </div>
 
-          {uploadedFile && (
-            <div style={styles.uploadedFile}>
-              <div>
-                <strong>📄 {uploadedFile.name}</strong>
-                <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>
-                  {uploadedFile.url}
-                </div>
+          {/* File Upload */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Content File</h3>
+            {secureAccessUrl && (
+              <div style={{ padding: 12, background: 'var(--bo-bg)', borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
+                Current file: <span style={{ color: 'var(--bo-primary)', wordBreak: 'break-all' }}>{secureAccessUrl}</span>
               </div>
-              <button type="button" onClick={removeUploadedFile} style={styles.removeButton}>
-                ✕ Remove
-              </button>
-            </div>
-          )}
-
-          <div style={{ margin: '16px 0', textAlign: 'center', color: '#64748b' }}>— OR —</div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>External Content URL</label>
-            <input
-              type="url"
-              value={formData.secureAccessUrl}
-              onChange={(e) => setFormData(prev => ({ ...prev, secureAccessUrl: e.target.value }))}
-              style={styles.input}
-              placeholder="https://example.com/content.pdf"
+            )}
+            <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 12 }}>
+              Upload a new file to replace the current one, or leave as is.
+            </p>
+            <FileUploadButton
+              fileType={fileTypeMap[type]}
+              onUploadComplete={url => { if (url) setSecureAccessUrl(url); }}
+              label="Upload Replacement File"
             />
           </div>
-        </div>
 
-        {/* Delivery Settings */}
-        <div style={styles.card}>
-          <h2 style={styles.sectionTitle}>⚙️ Delivery Settings</h2>
-
-          <div style={styles.row}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Delivery Type</label>
-              <select
-                value={formData.deliveryType}
-                onChange={(e) => setFormData(prev => ({ ...prev, deliveryType: e.target.value as DeliveryType }))}
-                style={styles.select}
-              >
-                <option value={DeliveryType.EMBED}>Embed (iframe)</option>
-                <option value={DeliveryType.REDIRECT}>Redirect (new tab)</option>
-                <option value={DeliveryType.STREAM}>Stream (video)</option>
-              </select>
+          {/* Delivery */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Delivery & Security</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Delivery Type</label>
+                <select style={inputStyle} value={deliveryType}
+                  onChange={e => setDeliveryType(e.target.value as DeliveryType)}>
+                  <option value="EMBED">Embed</option>
+                  <option value="REDIRECT">Redirect</option>
+                  <option value="STREAM">Stream</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Session Expiry (min)</label>
+                <input type="number" style={inputStyle} value={sessionExpiryMinutes}
+                  onChange={e => setSessionExpiryMinutes(Number(e.target.value))} min={5} />
+              </div>
             </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Session Expiry (minutes)</label>
-              <input
-                type="number"
-                value={formData.sessionExpiryMinutes}
-                onChange={(e) => setFormData(prev => ({ ...prev, sessionExpiryMinutes: parseInt(e.target.value) || 30 }))}
-                style={styles.input}
-                min={5}
-                max={480}
-              />
+            <div style={{ marginTop: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={watermarkEnabled}
+                  onChange={e => setWatermarkEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
+                <span style={{ fontSize: 14 }}>Enable watermark</span>
+              </label>
             </div>
           </div>
 
-          <div style={styles.formGroup}>
-            <label style={styles.checkbox}>
-              <input
-                type="checkbox"
-                checked={formData.watermarkEnabled}
-                onChange={(e) => setFormData(prev => ({ ...prev, watermarkEnabled: e.target.checked }))}
-              />
-              Enable Watermark for Preview
-            </label>
+          {/* Submit */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <button type="button" className="bo-btn bo-btn-outline"
+              onClick={() => navigate(`/publisher-admin/view/${id}`)}>Cancel</button>
+            <button type="submit" className="bo-btn bo-btn-primary" disabled={saving}
+              style={{ padding: '10px 24px' }}>
+              <Save size={16} /> {saving ? 'Saving...' : 'Save Changes'}
+            </button>
           </div>
-        </div>
-
-        {/* Submit */}
-        <button 
-          type="submit" 
-          style={{
-            ...styles.submitButton,
-            opacity: saving ? 0.6 : 1,
-            cursor: saving ? 'not-allowed' : 'pointer',
-          }}
-          disabled={saving}
-        >
-          {saving ? '⏳ Saving...' : '💾 Save Changes'}
-        </button>
-      </form>
-    </div>
+        </form>
+      </div>
+    </PublisherLayout>
   );
 };
 

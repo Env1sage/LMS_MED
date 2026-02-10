@@ -91,7 +91,6 @@ export enum RatingType {
 export enum LearningUnitType {
   BOOK = 'BOOK',
   VIDEO = 'VIDEO',
-  NOTES = 'NOTES',
 }
 
 export enum DeliveryType {
@@ -224,7 +223,6 @@ export interface DashboardOverview {
   contentByType: {
     books: number;
     videos: number;
-    notes: number;
     mcqs: number;
   };
   dailyActiveUsers: number;

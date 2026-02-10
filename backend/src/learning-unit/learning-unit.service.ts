@@ -502,7 +502,7 @@ export class LearningUnitService {
         }
 
         // Validate type
-        const validTypes = ['BOOK', 'VIDEO', 'MCQ', 'NOTES'];
+        const validTypes = ['BOOK', 'VIDEO', 'MCQ'];
         if (!validTypes.includes(row.type.toUpperCase())) {
           throw new Error(`Invalid type: ${row.type}. Must be one of: ${validTypes.join(', ')}`);
         }
@@ -665,7 +665,7 @@ export class LearningUnitService {
         // Determine file type for upload
         let fileType: 'book' | 'video' | 'note' | 'image' = 'book';
         if (meta.type.toUpperCase() === 'VIDEO') fileType = 'video';
-        else if (meta.type.toUpperCase() === 'NOTES') fileType = 'note';
+        else if (meta.type.toUpperCase() === 'MCQ') fileType = 'note';
 
         // Upload file
         const fileUrl = await this.fileUploadService.uploadFile(file, fileType);

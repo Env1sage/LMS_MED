@@ -69,6 +69,9 @@ export class AuthService {
       }
     }
 
+    // Validate password against security policy
+    await this.validatePasswordPolicy(dto.password);
+
     // Hash password
     const passwordHash = await bcrypt.hash(dto.password, 12);
 
@@ -106,9 +109,17 @@ export class AuthService {
 
   /**
    * Login with email and password
-   * Backend validates credentials and tenant isolation
+   * Enforces security policies: lockout, max attempts, maintenance mode
    */
   async login(dto: LoginDto, requestContext?: any): Promise<AuthResponse> {
+    // Load security policy for enforcement
+    const policy = await this.prisma.security_policies.findFirst();
+
+    // Check maintenance mode
+    if (policy?.maintenanceMode) {
+      throw new ForbiddenException('Platform is in maintenance mode. Please try again later.');
+    }
+
     const user = await this.prisma.users.findUnique({
       where: { email: dto.email },
       include: {
@@ -140,30 +151,64 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    // Validate tenant status (skip validation for now, colleges/publishers relations may not be properly set up)
-    // The user status check above is sufficient for login
-
-    // Verify password
-    console.log('DEBUG: Attempting login for', dto.email);
-    console.log('DEBUG: Password provided:', dto.password);
-    console.log('DEBUG: Hash in DB:', user.passwordHash?.substring(0, 20) + '...');
-    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    console.log('DEBUG: Password valid:', isPasswordValid);
-    if (!isPasswordValid) {
+    // Check if account is locked out
+    if (user.lockedUntil && new Date() < new Date(user.lockedUntil)) {
+      const minutesLeft = Math.ceil((new Date(user.lockedUntil).getTime() - Date.now()) / 60000);
       await this.auditService.log({
         userId: user.id,
         action: AuditAction.LOGIN_FAILED,
-        description: 'Invalid password',
+        description: `Login blocked - account locked for ${minutesLeft} more minutes`,
         ipAddress: requestContext?.ip,
         userAgent: requestContext?.userAgent,
       });
+      throw new UnauthorizedException(`Account is locked. Try again in ${minutesLeft} minute(s).`);
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!isPasswordValid) {
+      // Increment failed attempts
+      const newFailedAttempts = (user.failedLoginAttempts || 0) + 1;
+      const maxAttempts = policy?.maxLoginAttempts || 5;
+      const lockoutMinutes = policy?.lockoutDurationMinutes || 30;
+
+      const updateData: any = { failedLoginAttempts: newFailedAttempts };
+
+      // Lock account if max attempts exceeded
+      if (newFailedAttempts >= maxAttempts) {
+        updateData.lockedUntil = new Date(Date.now() + lockoutMinutes * 60 * 1000);
+        updateData.failedLoginAttempts = 0;
+      }
+
+      await this.prisma.users.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+
+      await this.auditService.log({
+        userId: user.id,
+        action: AuditAction.LOGIN_FAILED,
+        description: newFailedAttempts >= maxAttempts
+          ? `Account locked after ${maxAttempts} failed attempts`
+          : `Invalid password (attempt ${newFailedAttempts}/${maxAttempts})`,
+        ipAddress: requestContext?.ip,
+        userAgent: requestContext?.userAgent,
+      });
+
+      if (newFailedAttempts >= maxAttempts) {
+        throw new UnauthorizedException(`Account locked for ${lockoutMinutes} minutes after ${maxAttempts} failed attempts.`);
+      }
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Update last login
+    // Successful login — reset failed attempts and update last login
     await this.prisma.users.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
     });
 
     // Log successful login
@@ -177,13 +222,21 @@ export class AuthService {
       userAgent: requestContext?.userAgent,
     });
 
-    return this.generateTokens(user);
+    return this.generateTokens(user, policy);
   }
 
   /**
    * Generate JWT access and refresh tokens
+   * Uses security policy settings for expiry durations
    */
-  private async generateTokens(user: any): Promise<AuthResponse> {
+  private async generateTokens(user: any, policy?: any): Promise<AuthResponse> {
+    if (!policy) {
+      policy = await this.prisma.security_policies.findFirst();
+    }
+
+    const tokenExpiryMinutes = policy?.tokenExpiryMinutes || 15;
+    const refreshTokenExpiryDays = policy?.refreshTokenExpiryDays || 30;
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
@@ -193,14 +246,12 @@ export class AuthService {
     };
 
     const accessToken = this.jwtService.sign(payload as any, {
-      expiresIn: '15m',
+      expiresIn: tokenExpiryMinutes * 60,
     });
 
     const refreshToken = uuidv4();
     const refreshTokenExpiry = new Date();
-    refreshTokenExpiry.setDate(
-      refreshTokenExpiry.getDate() + parseInt(process.env.JWT_REFRESH_TOKEN_EXPIRY || '30'),
-    );
+    refreshTokenExpiry.setDate(refreshTokenExpiry.getDate() + refreshTokenExpiryDays);
 
     // Store refresh token
     await this.prisma.refresh_tokens.create({
@@ -251,8 +302,12 @@ export class AuthService {
       publisherId: tokenRecord.users.publisherId || undefined,
     };
 
+    // Load policy for token expiry
+    const policy = await this.prisma.security_policies.findFirst();
+    const tokenExpirySeconds = (policy?.tokenExpiryMinutes || 15) * 60;
+
     const accessToken = this.jwtService.sign(payload as any, {
-      expiresIn: '15m',
+      expiresIn: tokenExpirySeconds,
     });
 
     await this.auditService.log({
@@ -286,7 +341,7 @@ export class AuthService {
   }
 
   /**
-   * Change password
+   * Change password — validates against security policy
    */
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
     const user = await this.prisma.users.findUnique({
@@ -301,6 +356,9 @@ export class AuthService {
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('Current password is incorrect');
     }
+
+    // Validate new password against security policy
+    await this.validatePasswordPolicy(dto.newPassword);
 
     const newPasswordHash = await bcrypt.hash(dto.newPassword, 12);
 
@@ -320,6 +378,33 @@ export class AuthService {
       action: AuditAction.PASSWORD_CHANGED,
       description: 'Password changed successfully',
     });
+  }
+
+  /**
+   * Validate a password against the current security policy
+   */
+  private async validatePasswordPolicy(password: string): Promise<void> {
+    const policy = await this.prisma.security_policies.findFirst();
+    if (!policy) return;
+
+    const errors: string[] = [];
+
+    if (password.length < policy.passwordMinLength) {
+      errors.push(`Password must be at least ${policy.passwordMinLength} characters`);
+    }
+    if (policy.passwordRequireUppercase && !/[A-Z]/.test(password)) {
+      errors.push('Password must contain at least one uppercase letter');
+    }
+    if (policy.passwordRequireNumbers && !/[0-9]/.test(password)) {
+      errors.push('Password must contain at least one number');
+    }
+    if (policy.passwordRequireSpecialChars && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+      errors.push('Password must contain at least one special character');
+    }
+
+    if (errors.length > 0) {
+      throw new ForbiddenException(errors.join('. '));
+    }
   }
 
   /**

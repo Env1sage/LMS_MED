@@ -1,0 +1,433 @@
+import React, { useEffect, useState } from 'react';
+import { BarChart3, Users, BookOpen, Award, Activity, Building2, Globe2, LogIn, ShieldAlert } from 'lucide-react';
+import apiService from '../services/api.service';
+import MainLayout from '../components/MainLayout';
+import '../styles/bitflow-owner.css';
+
+/* ====== Interfaces matching actual API responses ====== */
+interface PlatformAnalytics {
+  activeColleges: number;
+  suspendedColleges: number;
+  activePublishers: number;
+  suspendedPublishers: number;
+  expiredPublishers: number;
+  totalUsers: number;
+  activeUsers: number;
+  totalLogins: number;
+  failedLoginAttempts: number;
+  dailyActiveUsers: { date: string; count: number }[];
+  usersByRole: { role: string; count: number }[];
+}
+
+interface DashboardData {
+  totalColleges: number;
+  totalPublishers: number;
+  totalUsers: number;
+  studentCount: number;
+  facultyCount: number;
+  contentByType: { books: number; videos: number; mcqs: number };
+  dailyActiveUsers: number;
+  monthlyActiveUsers: number;
+}
+
+interface SubjectPopularityItem {
+  subject: string;
+  contentCount: number;
+  accessCount: number;
+  competencyCount: number;
+}
+
+interface CourseCompletionData {
+  overallCompletionRate: number;
+  completionByCollege: { collegeId: string; collegeName: string; completionRate: number; totalCourses: number; completedCourses: number }[];
+}
+
+interface AssessmentData {
+  totalAssessments: number;
+  totalAttempts: number;
+  participationRate: number;
+  assessmentsByType: { type: string; count: number; attempts: number; participationRate: number }[];
+  participationByCollege: { collegeId: string; collegeName: string; totalAssignments: number; attempted: number; participationRate: number }[];
+}
+
+const AnalyticsDashboard: React.FC = () => {
+  const [analytics, setAnalytics] = useState<PlatformAnalytics | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [subjects, setSubjects] = useState<SubjectPopularityItem[]>([]);
+  const [courseCompletion, setCourseCompletion] = useState<CourseCompletionData | null>(null);
+  const [assessment, setAssessment] = useState<AssessmentData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'subjects' | 'courses' | 'assessments'>('overview');
+
+  useEffect(() => { fetchAll(); }, []);
+
+  const fetchAll = async () => {
+    setLoading(true);
+    try {
+      const [analyticsRes, dashRes, subjectRes, courseRes, assessmentRes] = await Promise.allSettled([
+        apiService.get('/bitflow-owner/analytics'),
+        apiService.get('/bitflow-owner/dashboard'),
+        apiService.get('/bitflow-owner/analytics/subject-popularity'),
+        apiService.get('/bitflow-owner/analytics/course-completion'),
+        apiService.get('/bitflow-owner/analytics/assessment-participation'),
+      ]);
+
+      if (analyticsRes.status === 'fulfilled') setAnalytics(analyticsRes.value.data);
+      if (dashRes.status === 'fulfilled') setDashboard(dashRes.value.data);
+      if (subjectRes.status === 'fulfilled') {
+        const d = subjectRes.value.data;
+        setSubjects(d?.subjects || []);
+      }
+      if (courseRes.status === 'fulfilled') setCourseCompletion(courseRes.value.data);
+      if (assessmentRes.status === 'fulfilled') setAssessment(assessmentRes.value.data);
+    } catch (err) {
+      console.error('Error fetching analytics:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ProgressBar: React.FC<{ value: number; color?: string }> = ({ value, color = 'var(--bo-accent)' }) => (
+    <div style={{ width: '100%', height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+      <div style={{ width: `${Math.min(value, 100)}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.5s ease' }} />
+    </div>
+  );
+
+  const totalContent = dashboard?.contentByType
+    ? dashboard.contentByType.books + dashboard.contentByType.videos + dashboard.contentByType.mcqs
+    : 0;
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="bo-page">
+          <div className="bo-loading"><div className="bo-spinner" /> Loading analytics...</div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  return (
+    <MainLayout>
+      <div className="bo-page">
+        <div className="bo-page-header">
+          <div>
+            <h1 className="bo-page-title">Analytics</h1>
+            <p className="bo-page-subtitle">Platform performance metrics and insights</p>
+          </div>
+          <button className="bo-btn bo-btn-secondary" onClick={fetchAll}>
+            <Activity size={16} /> Refresh
+          </button>
+        </div>
+
+        {/* ── Primary Stats ── */}
+        <div className="bo-stats-grid" style={{ marginBottom: 24 }}>
+          <div className="bo-stat-card">
+            <div className="bo-stat-icon" style={{ background: 'var(--bo-accent-light)', color: 'var(--bo-accent)' }}><Users size={20} /></div>
+            <div className="bo-stat-value">{analytics?.totalUsers ?? dashboard?.totalUsers ?? 0}</div>
+            <div className="bo-stat-label">Total Users</div>
+            {analytics?.activeUsers != null && <div style={{ fontSize: 12, color: 'var(--bo-success)', marginTop: 4 }}>{analytics.activeUsers} active</div>}
+          </div>
+          <div className="bo-stat-card">
+            <div className="bo-stat-icon" style={{ background: 'var(--bo-success-light)', color: 'var(--bo-success)' }}><Building2 size={20} /></div>
+            <div className="bo-stat-value">{analytics?.activeColleges ?? dashboard?.totalColleges ?? 0}</div>
+            <div className="bo-stat-label">Active Colleges</div>
+            {(analytics?.suspendedColleges ?? 0) > 0 && <div style={{ fontSize: 12, color: 'var(--bo-warning)', marginTop: 4 }}>{analytics!.suspendedColleges} suspended</div>}
+          </div>
+          <div className="bo-stat-card">
+            <div className="bo-stat-icon" style={{ background: '#FEF3C7', color: '#F59E0B' }}><Globe2 size={20} /></div>
+            <div className="bo-stat-value">{analytics?.activePublishers ?? dashboard?.totalPublishers ?? 0}</div>
+            <div className="bo-stat-label">Active Publishers</div>
+          </div>
+          <div className="bo-stat-card">
+            <div className="bo-stat-icon" style={{ background: '#EDE9FE', color: '#8B5CF6' }}><BookOpen size={20} /></div>
+            <div className="bo-stat-value">{totalContent}</div>
+            <div className="bo-stat-label">Total Content</div>
+          </div>
+          <div className="bo-stat-card">
+            <div className="bo-stat-icon" style={{ background: 'var(--bo-info-light)', color: 'var(--bo-info)' }}><LogIn size={20} /></div>
+            <div className="bo-stat-value">{analytics?.totalLogins ?? 0}</div>
+            <div className="bo-stat-label">Total Logins</div>
+          </div>
+          <div className="bo-stat-card">
+            <div className="bo-stat-icon" style={{ background: 'var(--bo-danger-light)', color: 'var(--bo-danger)' }}><ShieldAlert size={20} /></div>
+            <div className="bo-stat-value">{analytics?.failedLoginAttempts ?? 0}</div>
+            <div className="bo-stat-label">Failed Logins</div>
+          </div>
+        </div>
+
+        {/* ── Tabs ── */}
+        <div className="bo-tabs" style={{ marginBottom: 20 }}>
+          {(['overview', 'subjects', 'courses', 'assessments'] as const).map(tab => (
+            <button key={tab} className={`bo-tab ${activeTab === tab ? 'bo-tab-active' : ''}`} onClick={() => setActiveTab(tab)}>
+              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Overview Tab ── */}
+        {activeTab === 'overview' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* Content Breakdown */}
+            <div className="bo-card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Content Breakdown</h3>
+              {dashboard?.contentByType ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    { label: 'E-Books', count: dashboard.contentByType.books, color: 'var(--bo-accent)' },
+                    { label: 'Videos', count: dashboard.contentByType.videos, color: 'var(--bo-success)' },
+                    { label: 'MCQs', count: dashboard.contentByType.mcqs, color: '#F59E0B' },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                        <span style={{ fontWeight: 500 }}>{item.label}</span>
+                        <span style={{ color: 'var(--bo-text-muted)' }}>{item.count}</span>
+                      </div>
+                      <ProgressBar value={totalContent ? (item.count / totalContent) * 100 : 0} color={item.color} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: 'var(--bo-text-muted)', fontSize: 14, padding: 20, textAlign: 'center' }}>No content data</div>
+              )}
+            </div>
+
+            {/* User Breakdown */}
+            <div className="bo-card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>User Distribution</h3>
+              {analytics?.usersByRole && analytics.usersByRole.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {analytics.usersByRole.map((r, i) => {
+                    const maxCount = Math.max(...analytics.usersByRole.map(u => u.count));
+                    const colors = ['var(--bo-accent)', 'var(--bo-success)', 'var(--bo-info)', '#F59E0B', '#8B5CF6', 'var(--bo-danger)'];
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                          <span style={{ fontWeight: 500 }}>{r.role.replace(/_/g, ' ')}</span>
+                          <span style={{ color: 'var(--bo-text-muted)' }}>{r.count} users</span>
+                        </div>
+                        <ProgressBar value={maxCount ? (r.count / maxCount) * 100 : 0} color={colors[i % colors.length]} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {[
+                    { label: 'Students', count: dashboard?.studentCount ?? 0, color: 'var(--bo-accent)' },
+                    { label: 'Faculty', count: dashboard?.facultyCount ?? 0, color: 'var(--bo-success)' },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                        <span style={{ fontWeight: 500 }}>{item.label}</span>
+                        <span style={{ color: 'var(--bo-text-muted)' }}>{item.count}</span>
+                      </div>
+                      <ProgressBar value={(dashboard?.totalUsers ?? 1) ? (item.count / (dashboard?.totalUsers ?? 1)) * 100 : 0} color={item.color} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Top Subjects */}
+            <div className="bo-card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Top Subjects by Competencies</h3>
+              {subjects.length === 0 ? (
+                <div style={{ color: 'var(--bo-text-muted)', fontSize: 14, padding: 20, textAlign: 'center' }}>No subject data available</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {subjects.slice(0, 5).map((s, i) => {
+                    const maxComp = Math.max(...subjects.slice(0, 5).map(x => x.competencyCount));
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                          <span style={{ fontWeight: 500 }}>{s.subject}</span>
+                          <span style={{ color: 'var(--bo-text-muted)' }}>{s.competencyCount} competencies</span>
+                        </div>
+                        <ProgressBar value={maxComp ? (s.competencyCount / maxComp) * 100 : 0} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Assessment Overview */}
+            <div className="bo-card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Assessment Overview</h3>
+              {assessment ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 8 }}>
+                    <div style={{ textAlign: 'center', padding: 12, background: 'var(--bo-accent-light)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--bo-accent)' }}>{assessment.totalAssessments}</div>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 2 }}>Total</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: 12, background: 'var(--bo-success-light)', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--bo-success)' }}>{assessment.totalAttempts}</div>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 2 }}>Attempts</div>
+                    </div>
+                    <div style={{ textAlign: 'center', padding: 12, background: '#FEF3C7', borderRadius: 8 }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: '#F59E0B' }}>{assessment.participationRate}%</div>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 2 }}>Participation</div>
+                    </div>
+                  </div>
+                  {assessment.assessmentsByType.map((t, i) => (
+                    <div key={i}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontSize: 13 }}>
+                        <span style={{ fontWeight: 500 }}>{t.type}</span>
+                        <span style={{ color: 'var(--bo-text-muted)' }}>{t.count} items</span>
+                      </div>
+                      <ProgressBar
+                        value={assessment.totalAssessments ? (t.count / assessment.totalAssessments) * 100 : 0}
+                        color={t.type === 'BOOK' ? 'var(--bo-accent)' : t.type === 'VIDEO' ? 'var(--bo-success)' : 'var(--bo-info)'}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ color: 'var(--bo-text-muted)', fontSize: 14, padding: 20, textAlign: 'center' }}>No assessment data</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Subjects Tab ── */}
+        {activeTab === 'subjects' && (
+          <div className="bo-card">
+            {subjects.length === 0 ? (
+              <div className="bo-empty">
+                <BarChart3 size={44} className="bo-empty-icon" />
+                <h3>No Subject Data</h3>
+                <p>Subject analytics will appear as data is collected</p>
+              </div>
+            ) : (
+              <div className="bo-table-wrap">
+                <table className="bo-table">
+                  <thead>
+                    <tr><th>Subject</th><th>Competencies</th><th>Content Items</th><th>Distribution</th></tr>
+                  </thead>
+                  <tbody>
+                    {subjects.map((s, i) => {
+                      const maxComp = Math.max(...subjects.map(x => x.competencyCount));
+                      return (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 600, fontSize: 14 }}>{s.subject}</td>
+                          <td>{s.competencyCount}</td>
+                          <td>{s.contentCount}</td>
+                          <td style={{ width: '35%' }}>
+                            <ProgressBar value={maxComp ? (s.competencyCount / maxComp) * 100 : 0} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Courses Tab ── */}
+        {activeTab === 'courses' && (
+          <div className="bo-card">
+            {!courseCompletion || courseCompletion.completionByCollege.length === 0 ? (
+              <div className="bo-empty">
+                <BookOpen size={44} className="bo-empty-icon" />
+                <h3>No Course Data</h3>
+                <p>Course analytics will appear once students start enrolling</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--bo-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 14, color: 'var(--bo-text-secondary)' }}>Overall Completion Rate:</span>
+                  <span className="bo-badge bo-badge-success" style={{ fontSize: 14 }}>{courseCompletion.overallCompletionRate}%</span>
+                </div>
+                <div className="bo-table-wrap">
+                  <table className="bo-table">
+                    <thead>
+                      <tr><th>College</th><th>Total Courses</th><th>Completed</th><th>Completion Rate</th></tr>
+                    </thead>
+                    <tbody>
+                      {courseCompletion.completionByCollege.map((c, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 600, fontSize: 14 }}>{c.collegeName}</td>
+                          <td>{c.totalCourses}</td>
+                          <td>{c.completedCourses}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 100 }}><ProgressBar value={c.completionRate} color="var(--bo-success)" /></div>
+                              <span style={{ fontSize: 13, fontWeight: 600 }}>{c.completionRate}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── Assessments Tab ── */}
+        {activeTab === 'assessments' && (
+          <div className="bo-card">
+            {!assessment ? (
+              <div className="bo-empty">
+                <Award size={44} className="bo-empty-icon" />
+                <h3>No Assessment Data</h3>
+                <p>Assessment analytics will appear once students complete tests</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--bo-border)', display: 'flex', gap: 24 }}>
+                  <div><span style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>Total Assessments:</span> <strong>{assessment.totalAssessments}</strong></div>
+                  <div><span style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>Attempts:</span> <strong>{assessment.totalAttempts}</strong></div>
+                  <div><span style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>Overall Participation:</span> <strong>{assessment.participationRate}%</strong></div>
+                </div>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--bo-border)' }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>By Content Type</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+                    {assessment.assessmentsByType.map((t, i) => (
+                      <div key={i} style={{ padding: 14, background: 'var(--bo-bg)', borderRadius: 8, border: '1px solid var(--bo-border-light)' }}>
+                        <div style={{ fontSize: 13, color: 'var(--bo-text-secondary)', marginBottom: 4 }}>{t.type}</div>
+                        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--bo-text-primary)' }}>{t.count}</div>
+                        <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginTop: 2 }}>{t.attempts} attempts · {t.participationRate}% participation</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bo-table-wrap">
+                  <table className="bo-table">
+                    <thead>
+                      <tr><th>College</th><th>Assignments</th><th>Attempted</th><th>Participation</th></tr>
+                    </thead>
+                    <tbody>
+                      {assessment.participationByCollege.map((c, i) => (
+                        <tr key={i}>
+                          <td style={{ fontWeight: 600, fontSize: 14 }}>{c.collegeName}</td>
+                          <td>{c.totalAssignments}</td>
+                          <td>{c.attempted}</td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ width: 80 }}>
+                                <ProgressBar value={c.participationRate} color={c.participationRate >= 70 ? 'var(--bo-success)' : c.participationRate >= 40 ? 'var(--bo-warning)' : 'var(--bo-danger)'} />
+                              </div>
+                              <span style={{ fontSize: 13, fontWeight: 500 }}>{c.participationRate}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </MainLayout>
+  );
+};
+
+export default AnalyticsDashboard;

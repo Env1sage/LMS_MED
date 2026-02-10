@@ -1,416 +1,378 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import learningUnitService from '../services/learning-unit.service';
-import { LearningUnit, DeliveryType, LearningUnitStatus } from '../types';
+import PublisherLayout from '../components/publisher/PublisherLayout';
 import SecurePdfViewer from '../components/SecurePdfViewer';
-import '../styles/ViewLearningUnit.css';
-
-// Backend API URL for serving files with authentication
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
-
-// Helper to get full content URL
-const getFullContentUrl = (url: string | undefined): string => {
-  if (!url) {
-    console.warn('No URL provided to getFullContentUrl');
-    return '';
-  }
-  // If it's already a full URL, return as is
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    console.log('Full URL detected:', url);
-    return url;
-  }
-  // If it's a relative path starting with /uploads, prepend API_URL
-  if (url.startsWith('/uploads/')) {
-    const fullUrl = `${API_URL}${url}`;
-    console.log('Built full URL:', fullUrl, 'from:', url);
-    return fullUrl;
-  }
-  // For other relative paths, construct the URL
-  const fullUrl = `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-  console.log('Built full URL:', fullUrl, 'from:', url);
-  return fullUrl;
-};
+import learningUnitService from '../services/learning-unit.service';
+import { LearningUnit } from '../types';
+import { API_BASE_URL } from '../config/api';
+import {
+  ArrowLeft, BookOpen, Video, FileText, Edit2, ToggleLeft, ToggleRight,
+  Clock, Shield, Eye, Tag, Award, Calendar, ExternalLink
+} from 'lucide-react';
+import '../styles/bitflow-owner.css';
+import '../styles/loading-screen.css';
 
 const ViewLearningUnit: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [unit, setUnit] = useState<LearningUnit | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [iframeError, setIframeError] = useState(false);
+  const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [securityWarning, setSecurityWarning] = useState<string | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  // ===== SECURITY: Block keyboard shortcuts =====
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    // Block Print Screen
-    if (e.key === 'PrintScreen') {
-      e.preventDefault();
-      setSecurityWarning('Screenshots are not allowed');
-      setTimeout(() => setSecurityWarning(null), 3000);
-      return false;
-    }
-    
-    // Block Ctrl/Cmd + P (Print)
-    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-      e.preventDefault();
-      setSecurityWarning('Printing is not allowed');
-      setTimeout(() => setSecurityWarning(null), 3000);
-      return false;
-    }
-    
-    // Block Ctrl/Cmd + S (Save)
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      e.preventDefault();
-      setSecurityWarning('Saving is not allowed');
-      setTimeout(() => setSecurityWarning(null), 3000);
-      return false;
-    }
-    
-    // Block Ctrl/Cmd + C (Copy)
-    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-      e.preventDefault();
-      setSecurityWarning('Copying is not allowed');
-      setTimeout(() => setSecurityWarning(null), 3000);
-      return false;
-    }
-    
-    // Block Ctrl/Cmd + Shift + I (Dev Tools)
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'I') {
-      e.preventDefault();
-      return false;
-    }
-    
-    // Block Ctrl/Cmd + U (View Source)
-    if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
-      e.preventDefault();
-      return false;
-    }
-    
-    // Block F12 (Dev Tools)
-    if (e.key === 'F12') {
-      e.preventDefault();
-      return false;
-    }
-  }, []);
-
-  // ===== SECURITY: Block right-click context menu =====
-  const handleContextMenu = useCallback((e: MouseEvent) => {
-    e.preventDefault();
-    setSecurityWarning('Right-click is disabled for security');
-    setTimeout(() => setSecurityWarning(null), 2000);
-    return false;
-  }, []);
-
-  // ===== SECURITY: Block drag events =====
-  const handleDragStart = useCallback((e: DragEvent) => {
-    e.preventDefault();
-    return false;
-  }, []);
-
-  // ===== SECURITY: Setup and cleanup event listeners =====
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('dragstart', handleDragStart);
-    
-    // Disable text selection via CSS (backup)
-    document.body.style.userSelect = 'none';
-    (document.body.style as any).webkitUserSelect = 'none';
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('dragstart', handleDragStart);
-      document.body.style.userSelect = '';
-      (document.body.style as any).webkitUserSelect = '';
-    };
-  }, [handleKeyDown, handleContextMenu, handleDragStart]);
+  const [showViewer, setShowViewer] = useState(true);
 
   useEffect(() => {
-    loadUnit();
+    if (id) loadUnit();
   }, [id]);
 
   const loadUnit = async () => {
-    if (!id) return;
-    
     try {
       setLoading(true);
-      const data = await learningUnitService.getById(id);
+      const data = await learningUnitService.getById(id!);
       setUnit(data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load learning unit');
+      setError(err?.response?.data?.message || 'Failed to load learning unit');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRedirect = () => {
-    if (unit?.secureAccessUrl) {
-      window.open(unit.secureAccessUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
-
-  const handleActivate = async () => {
-    if (!id || !unit) return;
-    
-    // Check if competencies are mapped
-    if (!unit.competencyIds || unit.competencyIds.length === 0) {
-      setActionMessage({ type: 'error', text: 'Cannot activate: No competencies mapped. Please map at least one competency first.' });
-      return;
-    }
-
-    setActionLoading(true);
-    setActionMessage(null);
+  const handleToggleStatus = async () => {
+    if (!unit) return;
     try {
-      const updated = await learningUnitService.activateContent(id);
-      setUnit(updated);
-      setActionMessage({ type: 'success', text: 'Content activated successfully! It is now visible to colleges and teachers.' });
+      setActionLoading(true);
+      if (unit.status === 'ACTIVE') {
+        await learningUnitService.deactivateContent(unit.id, 'Deactivated by publisher');
+      } else {
+        await learningUnitService.activateContent(unit.id);
+      }
+      loadUnit();
     } catch (err: any) {
-      setActionMessage({ type: 'error', text: err.response?.data?.message || 'Failed to activate content' });
+      alert(err?.response?.data?.message || 'Failed to update status');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleDeactivate = async () => {
-    if (!id) return;
-    
-    const reason = prompt('Reason for deactivation (optional):');
-    
-    setActionLoading(true);
-    setActionMessage(null);
-    try {
-      const updated = await learningUnitService.deactivateContent(id, reason || undefined);
-      setUnit(updated);
-      setActionMessage({ type: 'success', text: 'Content deactivated successfully. It is now hidden from colleges and teachers.' });
-    } catch (err: any) {
-      setActionMessage({ type: 'error', text: err.response?.data?.message || 'Failed to deactivate content' });
-    } finally {
-      setActionLoading(false);
-    }
+  const typeIcon = (type: string) => {
+    if (type === 'VIDEO') return <Video size={20} style={{ color: '#8B5CF6' }} />;
+    if (type === 'BOOK') return <BookOpen size={20} style={{ color: '#3B82F6' }} />;
+    return <FileText size={20} style={{ color: '#10B981' }} />;
   };
 
-  if (loading) {
+  const statusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      ACTIVE: '#10B981', DRAFT: '#F59E0B', PENDING_MAPPING: '#6366F1',
+      INACTIVE: '#6B7280', SUSPENDED: '#EF4444',
+    };
+    const c = colors[status] || '#6B7280';
     return (
-      <div className="view-learning-unit">
-        <div className="loading">Loading content...</div>
-      </div>
+      <span style={{
+        padding: '4px 14px', borderRadius: 16, fontSize: 13, fontWeight: 600,
+        background: `${c}15`, color: c,
+      }}>
+        {status?.replace(/_/g, ' ')}
+      </span>
     );
-  }
+  };
 
-  if (error || !unit) {
-    return (
-      <div className="view-learning-unit">
-        <div className="error-box">
-          <h2>Error</h2>
-          <p>{error || 'Learning unit not found'}</p>
-          <button onClick={() => navigate('/publisher-admin')} className="btn-back">
-            ← Back to Dashboard
-          </button>
+  const diffLabel: Record<string, string> = {
+    K: 'Knows', KH: 'Knows How', S: 'Shows', SH: 'Shows How', P: 'Performs'
+  };
+
+  // Build the full file URL for the content viewer
+  const getFileUrl = (url: string | undefined) => {
+    if (!url) return '';
+    // If it starts with /uploads/, it's a local file — prefix with API base URL
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL.replace('/api', '')}${'/api'}${url}`;
+    }
+    // External URL (e.g., YouTube)
+    return url;
+  };
+
+  const isLocalFile = (url: string | undefined) => url?.startsWith('/uploads/');
+  const isPdf = (url: string | undefined) => url?.toLowerCase().endsWith('.pdf');
+  const isVideo = (url: string | undefined) => {
+    if (!url) return false;
+    // Check for video file extensions
+    if (/\.(mp4|webm|ogg|mov)$/i.test(url)) return true;
+    // Check for YouTube/Vimeo URLs
+    if (/youtube\.com|youtu\.be|vimeo\.com/i.test(url)) return true;
+    return false;
+  };
+
+  const getYouTubeEmbedUrl = (url: string) => {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+    if (match) return `https://www.youtube.com/embed/${match[1]}`;
+    return url;
+  };
+
+  if (loading) return (
+    <PublisherLayout>
+      <div className="page-loading-screen">
+        <div className="loading-rings">
+          <div className="loading-ring loading-ring-1"></div>
+          <div className="loading-ring loading-ring-2"></div>
+          <div className="loading-ring loading-ring-3"></div>
+        </div>
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
+        <div className="loading-title">Loading Learning Unit</div>
+        <div className="loading-bar-track">
+          <div className="loading-bar-fill"></div>
         </div>
       </div>
-    );
-  }
+    </PublisherLayout>
+  );
 
-  const contentUrl = getFullContentUrl(unit.secureAccessUrl);
+  if (error || !unit) return (
+    <PublisherLayout>
+      <div style={{ textAlign: 'center', padding: 60 }}>
+        <div style={{ fontSize: 18, color: 'var(--bo-danger)', marginBottom: 12 }}>{error || 'Not found'}</div>
+        <button className="bo-btn bo-btn-outline" onClick={() => navigate('/publisher-admin/content')}>
+          <ArrowLeft size={16} /> Back to Content
+        </button>
+      </div>
+    </PublisherLayout>
+  );
+
+  const infoRow = (label: string, value: React.ReactNode) => (
+    <div style={{ display: 'flex', padding: '10px 0', borderBottom: '1px solid var(--bo-border)' }}>
+      <div style={{ width: 180, fontSize: 13, color: 'var(--bo-text-muted)', fontWeight: 500, flexShrink: 0 }}>{label}</div>
+      <div style={{ fontSize: 14, color: 'var(--bo-text)', flex: 1 }}>{value || '—'}</div>
+    </div>
+  );
 
   return (
-    <div className="view-learning-unit secure-viewer">
-      {/* Security Warning Toast */}
-      {securityWarning && (
-        <div className="security-warning-toast">
-          🔒 {securityWarning}
-        </div>
-      )}
-
-      <div className="viewer-header">
-        <div>
-          <button onClick={() => navigate('/publisher-admin')} className="btn-back">
-            ← Back
-          </button>
-          <h1>{unit.title}</h1>
-          <p className="unit-meta">
-            {unit.subject} • {unit.topic} • {unit.type} • {unit.difficultyLevel}
-          </p>
-        </div>
-        <div className="viewer-actions">
-          {/* Edit Button */}
-          <button 
-            onClick={() => navigate(`/publisher-admin/learning-units/${id}/edit`)} 
-            className="btn-edit"
-          >
-            ✏️ Edit
-          </button>
-          {/* Activate/Deactivate Buttons */}
-          {unit.status !== LearningUnitStatus.ACTIVE && unit.status !== LearningUnitStatus.SUSPENDED && (
-            <button 
-              onClick={handleActivate} 
-              className="btn-activate"
-              disabled={actionLoading}
-              title={unit.competencyIds?.length === 0 ? 'Map competencies first to activate' : 'Activate content'}
-            >
-              {actionLoading ? '⏳' : '✅'} Activate
+    <PublisherLayout>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="bo-btn bo-btn-outline" style={{ padding: '6px 10px' }}
+              onClick={() => navigate('/publisher-admin/content')}>
+              <ArrowLeft size={16} />
             </button>
-          )}
-          {unit.status === LearningUnitStatus.ACTIVE && (
-            <button 
-              onClick={handleDeactivate} 
-              className="btn-deactivate"
-              disabled={actionLoading}
-            >
-              {actionLoading ? '⏳' : '⏸️'} Deactivate
-            </button>
-          )}
-          {unit.deliveryType === DeliveryType.REDIRECT && (
-            <button onClick={handleRedirect} className="btn-redirect">
-              🔗 Open in New Tab
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Action Message */}
-      {actionMessage && (
-        <div className={`action-message ${actionMessage.type}`}>
-          {actionMessage.type === 'success' ? '✅' : '❌'} {actionMessage.text}
-        </div>
-      )}
-
-      {/* Security Badge */}
-      <div className="security-badge">
-        🔒 Secure View Mode: Copy, Print, Download & Screenshots Disabled
-      </div>
-
-      {/* SECURE CONTENT AREA */}
-      <div 
-        className="content-area secure-content" 
-        ref={contentRef}
-        onCopy={(e) => e.preventDefault()}
-        onCut={(e) => e.preventDefault()}
-        onPaste={(e) => e.preventDefault()}
-        onDragStart={(e) => e.preventDefault()}
-      >
-        {!unit.secureAccessUrl ? (
-          <div className="no-content-warning">
-            <div className="warning-content">
-              <h2>⚠️ No Content URL Configured</h2>
-              <p>This learning unit doesn't have a content URL set. Please edit the learning unit and provide a valid URL.</p>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                {typeIcon(unit.type)}
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--bo-text)' }}>{unit.title}</h1>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {statusBadge(unit.status)}
+                <span style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>
+                  Created {new Date(unit.createdAt).toLocaleDateString()}
+                </span>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="secure-embed-container">
-            {/* Multiple Watermark Overlays - only for non-PDF content */}
-            {!unit.secureAccessUrl.match(/\.(pdf)$/i) && (
-              <div className="watermark-overlay">
-                <div className="watermark-grid">
-                  {[...Array(20)].map((_, i) => (
-                    <span key={i} className="watermark-text">
-                      {unit.publisherId} • View Only
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/publisher-admin/edit/${unit.id}`)}>
+              <Edit2 size={14} /> Edit
+            </button>
+            <button className="bo-btn bo-btn-outline" onClick={handleToggleStatus} disabled={actionLoading}>
+              {unit.status === 'ACTIVE' ? <><ToggleRight size={14} /> Deactivate</> : <><ToggleLeft size={14} /> Activate</>}
+            </button>
+          </div>
+        </div>
 
-            {/* PDF: Use SecurePdfViewer - renders as canvas, NO DOWNLOAD possible */}
-            {unit.secureAccessUrl.match(/\.(pdf)$/i) ? (
-              <SecurePdfViewer 
-                url={contentUrl} 
-                watermarkText={`${unit.publisherId} • View Only`}
-              />
-            ) : unit.secureAccessUrl.match(/\.(mp4|webm|ogg)$/i) ? (
-              <video 
-                className="secure-video"
-                controls
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
-                onContextMenu={(e) => e.preventDefault()}
+        {/* Content Viewer */}
+        {unit.secureAccessUrl && (
+          <div className="bo-card" style={{ padding: 0, marginBottom: 16, overflow: 'hidden' }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '14px 20px', borderBottom: '1px solid var(--bo-border)', background: 'var(--bo-bg)',
+            }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                <Eye size={16} style={{ color: 'var(--bo-primary)' }} />
+                Content Preview
+              </h3>
+              <button
+                className="bo-btn bo-btn-outline"
+                style={{ fontSize: 12, padding: '4px 14px' }}
+                onClick={() => setShowViewer(!showViewer)}
               >
-                <source src={contentUrl} />
-                Your browser does not support the video tag.
-              </video>
-            ) : unit.secureAccessUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-              <div className="secure-image-container">
-                <img 
-                  src={contentUrl} 
-                  alt={unit.title} 
-                  className="secure-image"
-                  draggable={false}
-                  onContextMenu={(e) => e.preventDefault()}
-                  onDragStart={(e) => e.preventDefault()}
-                />
-              </div>
-            ) : contentUrl.includes('youtube.com') || contentUrl.includes('youtu.be') ? (
-              <iframe
-                src={contentUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                title={unit.title}
-                className="secure-iframe"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                onError={() => setIframeError(true)}
-              />
-            ) : (
-              <iframe
-                src={contentUrl}
-                title={unit.title}
-                className="secure-iframe"
-                sandbox="allow-same-origin allow-scripts allow-forms"
-                onError={() => setIframeError(true)}
-              />
-            )}
+                {showViewer ? 'Hide' : 'Show'} Viewer
+              </button>
+            </div>
+            {showViewer && (
+              <div style={{ padding: 0 }}>
+                {/* PDF Viewer */}
+                {isPdf(unit.secureAccessUrl) && isLocalFile(unit.secureAccessUrl) && (
+                  <SecurePdfViewer
+                    url={getFileUrl(unit.secureAccessUrl)}
+                    watermarkText={unit.watermarkEnabled ? `${unit.title} - View Only` : ''}
+                  />
+                )}
 
-            {iframeError && (
-              <div className="iframe-error-overlay">
-                <div className="error-content">
-                  <h2>⚠️ Cannot Display Content</h2>
-                  <p>The content cannot be loaded in secure view mode.</p>
-                  <button onClick={() => setIframeError(false)} className="btn-retry">
-                    🔄 Retry
-                  </button>
-                </div>
+                {/* Video Player - local files */}
+                {isVideo(unit.secureAccessUrl) && isLocalFile(unit.secureAccessUrl) && (
+                  <div style={{ background: '#000', padding: 0 }}>
+                    <video
+                      controls
+                      controlsList="nodownload"
+                      style={{ width: '100%', maxHeight: 600, display: 'block' }}
+                      onContextMenu={(e) => e.preventDefault()}
+                    >
+                      <source
+                        src={(() => {
+                          const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+                          return `${getFileUrl(unit.secureAccessUrl)}?token=${token}`;
+                        })()}
+                        type="video/mp4"
+                      />
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                )}
+
+                {/* YouTube / External Video */}
+                {isVideo(unit.secureAccessUrl) && !isLocalFile(unit.secureAccessUrl) && (
+                  <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0 }}>
+                    <iframe
+                      src={getYouTubeEmbedUrl(unit.secureAccessUrl)}
+                      title={unit.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      style={{
+                        position: 'absolute', top: 0, left: 0,
+                        width: '100%', height: '100%', border: 'none',
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* External link fallback (not PDF, not video) */}
+                {!isPdf(unit.secureAccessUrl) && !isVideo(unit.secureAccessUrl) && (
+                  <div style={{
+                    padding: 40, textAlign: 'center', color: 'var(--bo-text-muted)',
+                  }}>
+                    <ExternalLink size={32} style={{ marginBottom: 12, color: 'var(--bo-primary)' }} />
+                    <div style={{ fontSize: 14, marginBottom: 16 }}>
+                      This content type cannot be previewed inline.
+                    </div>
+                    <a
+                      href={unit.secureAccessUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bo-btn bo-btn-primary"
+                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    >
+                      <ExternalLink size={14} /> Open Content
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
-      </div>
 
-      <div className="content-info">
-        <div className="info-section">
-          <h3>Description</h3>
-          <p>{unit.description}</p>
+        {/* Details */}
+        <div className="bo-card" style={{ padding: 24, marginBottom: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Content Details</h3>
+          {infoRow('Type', <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{typeIcon(unit.type)} {unit.type}</span>)}
+          {infoRow('Description', unit.description)}
+          {infoRow('Subject', unit.subject)}
+          {infoRow('Topic', unit.topic)}
+          {unit.subTopic && infoRow('Sub-Topic', unit.subTopic)}
+          {infoRow('Difficulty Level', `${unit.difficultyLevel} — ${diffLabel[unit.difficultyLevel] || unit.difficultyLevel}`)}
+          {infoRow('Estimated Duration', `${unit.estimatedDuration} minutes`)}
         </div>
-        
-        <div className="info-grid">
-          <div className="info-item">
-            <span className="label">Duration:</span>
-            <span className="value">⏱️ Learn in {unit.estimatedDuration} minutes</span>
+
+        {/* Delivery & Security */}
+        <div className="bo-card" style={{ padding: 24, marginBottom: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Delivery & Security</h3>
+          {infoRow('Delivery Type', unit.deliveryType)}
+          {infoRow('Watermark', unit.watermarkEnabled ? '✅ Enabled' : '❌ Disabled')}
+          {infoRow('Session Expiry', `${unit.sessionExpiryMinutes} minutes`)}
+          {infoRow('Download Allowed', unit.downloadAllowed ? 'Yes' : 'No')}
+          {infoRow('View Only', unit.viewOnly ? 'Yes' : 'No')}
+          {infoRow('File URL', unit.secureAccessUrl ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, color: 'var(--bo-primary)', wordBreak: 'break-all', flex: 1 }}>
+                {unit.secureAccessUrl}
+              </span>
+              {isLocalFile(unit.secureAccessUrl) && (
+                <button
+                  className="bo-btn bo-btn-outline"
+                  style={{ fontSize: 11, padding: '2px 10px', flexShrink: 0 }}
+                  onClick={() => {
+                    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+                    window.open(`${getFileUrl(unit.secureAccessUrl)}?token=${token}`, '_blank');
+                  }}
+                >
+                  <ExternalLink size={12} /> Open
+                </button>
+              )}
+            </div>
+          ) : '—')}
+        </div>
+
+        {/* Competencies */}
+        <div className="bo-card" style={{ padding: 24, marginBottom: 16 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>
+            Competency Mapping
+            <span style={{ fontSize: 12, color: 'var(--bo-text-muted)', fontWeight: 400, marginLeft: 8 }}>
+              ({unit.competencyIds?.length || 0} mapped)
+            </span>
+          </h3>
+          {infoRow('Mapping Status', statusBadge(unit.competencyMappingStatus || 'PENDING'))}
+          {unit.competencyIds && unit.competencyIds.length > 0 ? (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 8 }}>Mapped Competency IDs:</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {unit.competencyIds.map(cid => (
+                  <span key={cid} style={{
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11,
+                    background: 'var(--bo-primary-light)', color: 'var(--bo-primary)',
+                    fontFamily: 'monospace',
+                  }}>
+                    {cid.substring(0, 8)}...
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ padding: 16, textAlign: 'center', color: 'var(--bo-text-muted)', fontSize: 13 }}>
+              No competencies mapped. <button className="bo-btn bo-btn-outline" style={{ fontSize: 12, padding: '2px 10px', marginLeft: 8 }}
+                onClick={() => navigate(`/publisher-admin/edit/${unit.id}`)}>Add Competencies</button>
+            </div>
+          )}
+        </div>
+
+        {/* Tags & Metadata */}
+        {(unit.tags && unit.tags.length > 0) && (
+          <div className="bo-card" style={{ padding: 24, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Tags</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {unit.tags.map((tag, i) => (
+                <span key={i} style={{
+                  padding: '4px 12px', borderRadius: 16, fontSize: 12,
+                  background: 'var(--bo-bg)', border: '1px solid var(--bo-border)',
+                  color: 'var(--bo-text-secondary)',
+                }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="info-item">
-            <span className="label">Delivery Type:</span>
-            <span className="value">{unit.deliveryType}</span>
-          </div>
-          <div className="info-item">
-            <span className="label">Watermark:</span>
-            <span className="value">{unit.watermarkEnabled ? 'Enabled' : 'Disabled'}</span>
-          </div>
-          <div className="info-item">
-            <span className="label">Session Expiry:</span>
-            <span className="value">{unit.sessionExpiryMinutes} minutes</span>
-          </div>
-          <div className="info-item">
-            <span className="label">Competencies:</span>
-            <span className="value">{unit.competencyIds.length} mapped</span>
-          </div>
-          <div className="info-item">
-            <span className="label">Status:</span>
-            <span className="value status-badge">{unit.status}</span>
-          </div>
+        )}
+
+        {/* Status History */}
+        <div className="bo-card" style={{ padding: 24 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Status History</h3>
+          {infoRow('Current Status', statusBadge(unit.status))}
+          {infoRow('Created', new Date(unit.createdAt).toLocaleString())}
+          {infoRow('Last Updated', new Date(unit.updatedAt).toLocaleString())}
+          {unit.activatedAt && infoRow('Activated', new Date(unit.activatedAt).toLocaleString())}
+          {unit.deactivatedAt && infoRow('Deactivated', `${new Date(unit.deactivatedAt).toLocaleString()} — ${unit.deactivationReason || 'No reason'}`)}
         </div>
       </div>
-    </div>
+    </PublisherLayout>
   );
 };
 

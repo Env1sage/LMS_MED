@@ -1,82 +1,12 @@
-/* ============================================
-   BITFLOW MEDICAL LMS - DESIGN SYSTEM
-   Concept: "Laboratory Console"
-   
-   Typography: Libre Baskerville (editorial serif) 
-             + IBM Plex Mono (utilitarian mono)
-   
-   Palette: Deep petroleum teal base, oxidized copper accent
-   Inspiration: Vintage scientific instruments, 
-                medical journals, laboratory panels
-   ============================================ */
+/* Medical LMS - Clean Light Theme */
 
-:root {
-  /* === PRIMARY PALETTE === */
-  --color-base: #0a2e36;           /* Deep petroleum teal */
-  --color-base-light: #124a56;     /* Lighter teal */
-  --color-base-dark: #051a1f;      /* Near-black teal */
-  
-  /* === SURFACE COLORS === */
-  --color-surface: #0f3840;        /* Card/panel backgrounds */
-  --color-surface-raised: #174550; /* Elevated elements */
-  --color-surface-sunken: #082228; /* Inset/recessed areas */
-  
-  /* === ACCENT PALETTE === */
-  --color-accent: #c47335;         /* Oxidized copper/amber */
-  --color-accent-bright: #e88a3c;  /* Bright copper */
-  --color-accent-muted: #8b5a2b;   /* Muted copper */
-  
-  /* === TEXT HIERARCHY === */
-  --color-text-primary: #f4f1eb;   /* Cream white */
-  --color-text-secondary: #a8b5b8; /* Muted sage */
-  --color-text-tertiary: #6b7c7f;  /* Dim text */
-  --color-text-inverse: #0a2e36;   /* For light backgrounds */
-  
-  /* === SEMANTIC COLORS === */
-  --color-success: #4a9d7c;        /* Verdigris green */
-  --color-warning: #d4a84b;        /* Aged gold */
-  --color-danger: #c45c4d;         /* Oxidized red */
-  --color-error: #c45c4d;          /* Alias for danger */
-  --color-info: #5b8fa8;           /* Patina blue */
-  
-  /* === CREAM/LIGHT MODE SURFACES === */
-  --color-cream: #f4f1eb;          /* Paper cream */
-  --color-cream-dark: #e8e3d9;     /* Aged paper */
-  --color-cream-darker: #d4cfc3;   /* Well-used paper */
-  
-  /* === TYPOGRAPHY === */
-  --font-display: 'Libre Baskerville', Georgia, serif;
-  --font-ui: 'IBM Plex Mono', 'Consolas', monospace;
-  
-  /* === SPACING SCALE === */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-  
-  /* === BORDERS & RADII === */
-  --radius-sm: 2px;
-  --radius-md: 4px;
-  --radius-lg: 8px;
-  --radius-full: 9999px;
-  --border-subtle: 1px solid rgba(244, 241, 235, 0.08);
-  --border-accent: 2px solid var(--color-accent);
-  
-  /* === SHADOWS === */
-  --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-floating: 0 8px 32px rgba(0, 0, 0, 0.5);
-  
-  /* === TRANSITIONS === */
-  --transition-fast: 120ms ease-out;
-  --transition-base: 200ms ease-out;
-  --transition-slow: 400ms ease-out;
-}
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* === GLOBAL RESET & BASE === */
+/* Import Light Design System */
+@import './styles/bitflow-owner.css';
+
+/* Global Reset & Light Base */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -90,168 +20,19 @@ html {
 }
 
 body {
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.6;
-  color: var(--color-text-primary);
-  background: var(--color-base);
-  
-  /* Subtle paper texture via noise */
-  background-image: 
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"),
-    linear-gradient(180deg, var(--color-base) 0%, var(--color-base-dark) 100%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #111827;
+  background: #F8F9FC;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-/* === TYPOGRAPHY STYLES === */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-  color: var(--color-text-primary);
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #F3F4F6; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-h1 { font-size: 2.5rem; }
-h2 { font-size: 1.875rem; }
-h3 { font-size: 1.5rem; }
-h4 { font-size: 1.25rem; }
-h5 { font-size: 1rem; }
-h6 { font-size: 0.875rem; }
-
-code, pre, kbd, samp {
-  font-family: var(--font-ui);
-}
-
-/* === LINK STYLES === */
-a {
-  color: var(--color-accent);
-  text-decoration: none;
-  transition: color var(--transition-fast);
-}
-
-a:hover {
-  color: var(--color-accent-bright);
-}
-
-/* === SELECTION === */
-::selection {
-  background: var(--color-accent);
-  color: var(--color-base-dark);
-}
-
-/* === SCROLLBAR STYLING === */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--color-surface-sunken);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-base-light);
-  border-radius: var(--radius-sm);
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-accent-muted);
-}
-
-/* === FOCUS STATES === */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-/* === ANIMATIONS === */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideInLeft {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-/* Stagger animation utility classes */
-.stagger-1 { animation-delay: 50ms; }
-.stagger-2 { animation-delay: 100ms; }
-.stagger-3 { animation-delay: 150ms; }
-.stagger-4 { animation-delay: 200ms; }
-.stagger-5 { animation-delay: 250ms; }
-.stagger-6 { animation-delay: 300ms; }
-
-/* === UTILITY CLASSES === */
-.animate-fadeIn {
-  animation: fadeIn var(--transition-slow) ease-out forwards;
-}
-
-.animate-fadeInUp {
-  animation: fadeInUp var(--transition-slow) ease-out forwards;
-}
-
-.animate-slideInLeft {
-  animation: slideInLeft var(--transition-slow) ease-out forwards;
-}
-
-.font-display {
-  font-family: var(--font-display);
-}
-
-.font-mono {
-  font-family: var(--font-ui);
-}
-
-.text-accent {
-  color: var(--color-accent);
-}
-
-.text-muted {
-  color: var(--color-text-secondary);
-}
-
-.text-danger {
-  color: var(--color-danger) !important;
-}
-
-.text-success {
-  color: var(--color-success) !important;
-}
-
-.text-warning {
-  color: var(--color-warning) !important;
-}
-
-.bg-surface {
-  background: var(--color-surface);
-}
+::selection { background: #6366F1; color: white; }

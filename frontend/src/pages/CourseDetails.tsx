@@ -114,10 +114,6 @@ const CourseDetails: React.FC = () => {
         return criteria.minTimeSeconds 
           ? `Read for ${Math.floor(criteria.minTimeSeconds / 60)} minutes` 
           : 'Complete reading';
-      case 'NOTES':
-        return criteria.minCompletionPercentage 
-          ? `Read ${criteria.minCompletionPercentage}% of notes` 
-          : 'Read notes';
       case 'MCQ':
         return criteria.minScore 
           ? `Score at least ${criteria.minScore}%` 

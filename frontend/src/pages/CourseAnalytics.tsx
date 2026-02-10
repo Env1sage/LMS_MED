@@ -125,7 +125,7 @@ const CourseAnalytics: React.FC = () => {
       <div className="analytics-header">
         <div>
           <h1>Course Analytics</h1>
-          <p className="course-title">{course?.title} - {course?.academicYear}</p>
+          <p className="course-title">{course?.title} - {({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3':'Year 3','YEAR_3_MINOR':'Year 3 (Part 1)','YEAR_3_MAJOR':'Year 3 (Part 2)','YEAR_4':'Year 4','YEAR_5':'Year 5','FIRST_YEAR':'1st Year','SECOND_YEAR':'2nd Year','THIRD_YEAR':'3rd Year','FOURTH_YEAR':'4th Year','FIFTH_YEAR':'5th Year','INTERNSHIP':'Internship','PART_1':'Part 1','PART_2':'Part 2'} as Record<string,string>)[course?.academicYear || ''] || course?.academicYear}</p>
         </div>
         <button onClick={() => navigate('/faculty')} className="btn btn-secondary">Back to Dashboard</button>
       </div>

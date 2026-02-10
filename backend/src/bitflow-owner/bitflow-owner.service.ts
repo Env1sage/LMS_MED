@@ -224,8 +224,7 @@ export class BitflowOwnerService {
     const contentStats = {
       books: publisher.learning_units.filter(lu => lu.type === 'BOOK').length,
       videos: publisher.learning_units.filter(lu => lu.type === 'VIDEO').length,
-      mcqs: publisher._count.mcqs,
-      notes: publisher.learning_units.filter(lu => lu.type === 'NOTES').length,
+      mcqs: publisher.learning_units.filter(lu => lu.type === 'MCQ').length + (publisher._count.mcqs || 0),
     };
 
     // Calculate competency mapping stats
@@ -830,6 +829,21 @@ export class BitflowOwnerService {
     if (dto.collegeId) where.collegeId = dto.collegeId;
     if (dto.publisherId) where.publisherId = dto.publisherId;
     if (dto.action) where.action = dto.action;
+    if (dto.entityType) where.entityType = dto.entityType;
+
+    // Filter by user role via the related users table
+    if (dto.userRole) {
+      where.users = { role: dto.userRole };
+    }
+
+    // Full-text search across description, entityType, and related user email
+    if (dto.search) {
+      where.OR = [
+        { description: { contains: dto.search, mode: 'insensitive' } },
+        { entityType: { contains: dto.search, mode: 'insensitive' } },
+        { users: { email: { contains: dto.search, mode: 'insensitive' } } },
+      ];
+    }
 
     if (dto.startDate || dto.endDate) {
       where.timestamp = {};
@@ -875,6 +889,96 @@ export class BitflowOwnerService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  // ========================================================================
+  // DELETE PUBLISHER & COLLEGE
+  // ========================================================================
+
+  async deletePublisher(publisherId: string, bitflowOwnerId: string): Promise<{ success: boolean; message: string }> {
+    const publisher = await this.prisma.publishers.findUnique({
+      where: { id: publisherId },
+      include: { _count: { select: { packages: true, users: true } } },
+    });
+
+    if (!publisher) {
+      throw new NotFoundException(`Publisher with ID '${publisherId}' not found`);
+    }
+
+    // Soft-delete: set status to INACTIVE and remove associated users
+    await this.prisma.$transaction(async (tx) => {
+      // Deactivate all associated users
+      await tx.users.updateMany({
+        where: { publisherId },
+        data: { status: 'INACTIVE' },
+      });
+
+      // Deactivate all packages
+      await tx.packages.updateMany({
+        where: { publisherId },
+        data: { status: 'INACTIVE' },
+      });
+
+      // Deactivate publisher
+      await tx.publishers.update({
+        where: { id: publisherId },
+        data: { status: 'INACTIVE' },
+      });
+    });
+
+    await this.auditService.log({
+      userId: bitflowOwnerId,
+      action: AuditAction.PUBLISHER_UPDATED,
+      entityType: 'Publisher',
+      entityId: publisherId,
+      description: `Publisher '${publisher.name}' deleted (deactivated). ${publisher._count.packages} packages and ${publisher._count.users} users deactivated.`,
+      publisherId,
+    });
+
+    return { success: true, message: `Publisher '${publisher.name}' and all associated data has been deactivated` };
+  }
+
+  async deleteCollege(collegeId: string, bitflowOwnerId: string): Promise<{ success: boolean; message: string }> {
+    const college = await this.prisma.colleges.findUnique({
+      where: { id: collegeId },
+      include: { _count: { select: { users: true, students: true } } },
+    });
+
+    if (!college) {
+      throw new NotFoundException(`College with ID '${collegeId}' not found`);
+    }
+
+    // Soft-delete: deactivate everything
+    await this.prisma.$transaction(async (tx) => {
+      // Deactivate all users
+      await tx.users.updateMany({
+        where: { collegeId },
+        data: { status: 'INACTIVE' },
+      });
+
+      // Cancel all package assignments
+      await tx.college_packages.updateMany({
+        where: { collegeId },
+        data: { status: 'CANCELLED' },
+      });
+
+      // Deactivate college
+      await tx.colleges.update({
+        where: { id: collegeId },
+        data: { status: 'INACTIVE' },
+      });
+    });
+
+    await this.auditService.log({
+      userId: bitflowOwnerId,
+      action: AuditAction.COLLEGE_UPDATED,
+      entityType: 'College',
+      entityId: collegeId,
+      description: `College '${college.name}' deleted (deactivated). ${college._count.users} users and ${college._count.students} students affected.`,
+      collegeId,
+    });
+
+    return { success: true, message: `College '${college.name}' and all associated data has been deactivated` };
   }
 
   // ========================================================================
@@ -1103,8 +1207,7 @@ export class BitflowOwnerService {
     const contentTypeCounts = {
       books: contentByType.find(c => c.type === 'BOOK')?._count || 0,
       videos: contentByType.find(c => c.type === 'VIDEO')?._count || 0,
-      notes: contentByType.find(c => c.type === 'NOTES')?._count || 0,
-      mcqs: mcqCount,
+      mcqs: (contentByType.find(c => c.type === 'MCQ')?._count || 0) + mcqCount,
     };
 
     // Transform peak usage hours
@@ -1937,6 +2040,467 @@ export class BitflowOwnerService {
       publisher: mcq.publisher,
       competencies,
     };
+  }
+
+  // ========================================================================
+  // STUDENT PERFORMANCE ANALYTICS
+  // ========================================================================
+
+  async getStudentPerformance(query: { collegeId?: string; courseId?: string; limit?: number }) {
+    const { collegeId, courseId, limit = 50 } = query;
+
+    const where: any = {};
+    if (courseId) where.courseId = courseId;
+
+    // Get student progress data
+    const progress = await this.prisma.student_progress.findMany({
+      where,
+      include: {
+        students: {
+          select: {
+            id: true, fullName: true, userId: true, collegeId: true,
+            user: { select: { id: true, fullName: true, email: true } },
+            college: { select: { id: true, name: true } },
+          },
+        },
+        courses: {
+          select: { id: true, title: true, collegeId: true },
+        },
+      },
+      take: 500,
+    });
+
+    // Filter by college if specified
+    const filteredProgress = collegeId
+      ? progress.filter(p => p.students?.collegeId === collegeId || p.courses?.collegeId === collegeId)
+      : progress;
+
+    // Aggregate by student
+    const studentMap = new Map<string, {
+      studentId: string;
+      studentName: string;
+      email: string;
+      collegeName: string;
+      totalCourses: number;
+      completedCourses: number;
+      inProgressCourses: number;
+      completionRate: number;
+      avgScore: number;
+    }>();
+
+    for (const p of filteredProgress) {
+      if (!p.students) continue;
+      const key = p.students.id;
+      if (!studentMap.has(key)) {
+        studentMap.set(key, {
+          studentId: p.students.id,
+          studentName: p.students.fullName || p.students.user?.fullName || 'Unknown',
+          email: p.students.user?.email || '',
+          collegeName: p.students.college?.name || '',
+          totalCourses: 0,
+          completedCourses: 0,
+          inProgressCourses: 0,
+          completionRate: 0,
+          avgScore: 0,
+        });
+      }
+      const s = studentMap.get(key)!;
+      s.totalCourses++;
+      if (p.status === 'COMPLETED') s.completedCourses++;
+      else s.inProgressCourses++;
+    }
+
+    // Calculate rates
+    const students = Array.from(studentMap.values()).map(s => ({
+      ...s,
+      completionRate: s.totalCourses > 0 ? Math.round((s.completedCourses / s.totalCourses) * 100) : 0,
+    }));
+
+    // Get practice session stats
+    const practiceStats = await this.prisma.practice_sessions.groupBy({
+      by: ['studentId'],
+      _avg: { correctAnswers: true, totalQuestions: true },
+      _sum: { totalQuestions: true, correctAnswers: true, timeSpentSeconds: true },
+      _count: true,
+    });
+
+    const practiceMap = new Map(practiceStats.map(p => [p.studentId, {
+      totalPractice: p._count,
+      totalQuestions: p._sum.totalQuestions || 0,
+      totalCorrect: p._sum.correctAnswers || 0,
+      accuracy: (p._sum.totalQuestions && p._sum.totalQuestions > 0) 
+        ? Math.round(((p._sum.correctAnswers || 0) / p._sum.totalQuestions) * 100) : 0,
+      totalTimeSpent: p._sum.timeSpentSeconds || 0,
+    }]));
+
+    const enrichedStudents = students.map(s => ({
+      ...s,
+      practiceStats: practiceMap.get(s.studentId) || {
+        totalPractice: 0, totalQuestions: 0, totalCorrect: 0, accuracy: 0, totalTimeSpent: 0,
+      },
+    }));
+
+    enrichedStudents.sort((a, b) => b.completionRate - a.completionRate);
+
+    // Overall stats
+    const totalStudents = enrichedStudents.length;
+    const avgCompletionRate = totalStudents > 0 
+      ? Math.round(enrichedStudents.reduce((s, st) => s + st.completionRate, 0) / totalStudents) : 0;
+    const avgAccuracy = totalStudents > 0
+      ? Math.round(enrichedStudents.reduce((s, st) => s + st.practiceStats.accuracy, 0) / totalStudents) : 0;
+
+    return {
+      summary: {
+        totalStudents,
+        avgCompletionRate,
+        avgAccuracy,
+        topPerformers: enrichedStudents.filter(s => s.completionRate >= 80).length,
+        atRisk: enrichedStudents.filter(s => s.completionRate < 30 && s.totalCourses > 0).length,
+      },
+      students: enrichedStudents.slice(0, limit),
+    };
+  }
+
+  // ========================================================================
+  // TEACHER PERFORMANCE ANALYTICS
+  // ========================================================================
+
+  async getTeacherPerformance(query: { collegeId?: string; limit?: number }) {
+    const { collegeId, limit = 50 } = query;
+
+    const where: any = { role: UserRole.FACULTY };
+    if (collegeId) where.collegeId = collegeId;
+
+    const faculty = await this.prisma.users.findMany({
+      where,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        collegeId: true,
+        lastLoginAt: true,
+      },
+      take: limit,
+    });
+
+    // Get courses created by each faculty
+    const facultyIds = faculty.map(f => f.id);
+    const courses = await this.prisma.courses.findMany({
+      where: { facultyId: { in: facultyIds } },
+      select: {
+        id: true,
+        title: true,
+        facultyId: true,
+        status: true,
+        _count: {
+          select: {
+            course_assignments: true,
+            student_progress: true,
+            learning_flow_steps: true,
+          },
+        },
+      },
+    });
+
+    // Get student progress for these courses
+    const courseIds = courses.map(c => c.id);
+    const studentProgress = await this.prisma.student_progress.findMany({
+      where: { courseId: { in: courseIds } },
+      select: { courseId: true, status: true },
+    });
+
+    // Group courses by faculty
+    const facultyCourseMap = new Map<string, typeof courses>();
+    courses.forEach(c => {
+      if (!facultyCourseMap.has(c.facultyId)) facultyCourseMap.set(c.facultyId, []);
+      facultyCourseMap.get(c.facultyId)!.push(c);
+    });
+
+    // Group progress by course
+    const courseProgressMap = new Map<string, { total: number; completed: number }>();
+    studentProgress.forEach(p => {
+      if (!courseProgressMap.has(p.courseId)) courseProgressMap.set(p.courseId, { total: 0, completed: 0 });
+      const cp = courseProgressMap.get(p.courseId)!;
+      cp.total++;
+      if (p.status === 'COMPLETED') cp.completed++;
+    });
+
+    // Get college names
+    const collegeIds = [...new Set(faculty.map(f => f.collegeId).filter(Boolean))] as string[];
+    const colleges = await this.prisma.colleges.findMany({
+      where: { id: { in: collegeIds } },
+      select: { id: true, name: true },
+    });
+    const collegeNameMap = new Map(colleges.map(c => [c.id, c.name]));
+
+    // Get ratings for faculty
+    const ratings = await this.prisma.ratings.findMany({
+      where: {
+        ratingType: 'TEACHER',
+        entityId: { in: facultyIds },
+      },
+      select: { entityId: true, rating: true },
+    });
+
+    const ratingMap = new Map<string, { total: number; count: number }>();
+    ratings.forEach(r => {
+      if (!ratingMap.has(r.entityId)) ratingMap.set(r.entityId, { total: 0, count: 0 });
+      const rm = ratingMap.get(r.entityId)!;
+      rm.total += r.rating;
+      rm.count++;
+    });
+
+    const teachers = faculty.map(f => {
+      const fCourses = facultyCourseMap.get(f.id) || [];
+      let totalStudents = 0;
+      let completedStudents = 0;
+
+      fCourses.forEach(c => {
+        const cp = courseProgressMap.get(c.id);
+        if (cp) {
+          totalStudents += cp.total;
+          completedStudents += cp.completed;
+        }
+      });
+
+      const ratingData = ratingMap.get(f.id);
+      const avgRating = ratingData && ratingData.count > 0 
+        ? Math.round((ratingData.total / ratingData.count) * 10) / 10 : 0;
+
+      return {
+        teacherId: f.id,
+        teacherName: f.fullName,
+        email: f.email,
+        collegeName: f.collegeId ? (collegeNameMap.get(f.collegeId) || 'Unknown') : 'Unknown',
+        totalCourses: fCourses.length,
+        activeCourses: fCourses.filter(c => c.status === 'PUBLISHED').length,
+        totalStudents,
+        completedStudents,
+        studentCompletionRate: totalStudents > 0 ? Math.round((completedStudents / totalStudents) * 100) : 0,
+        avgRating,
+        totalRatings: ratingData?.count || 0,
+        lastActive: f.lastLoginAt,
+      };
+    });
+
+    teachers.sort((a, b) => b.studentCompletionRate - a.studentCompletionRate);
+
+    const totalTeachers = teachers.length;
+    const avgCompletionRate = totalTeachers > 0
+      ? Math.round(teachers.reduce((s, t) => s + t.studentCompletionRate, 0) / totalTeachers) : 0;
+
+    return {
+      summary: {
+        totalTeachers,
+        avgCompletionRate,
+        totalCourses: courses.length,
+        avgCoursesPerTeacher: totalTeachers > 0 ? Math.round(courses.length / totalTeachers * 10) / 10 : 0,
+        avgRating: totalTeachers > 0 
+          ? Math.round(teachers.reduce((s, t) => s + t.avgRating, 0) / totalTeachers * 10) / 10 : 0,
+      },
+      teachers,
+    };
+  }
+
+  // ========================================================================
+  // COURSE PERFORMANCE ANALYTICS
+  // ========================================================================
+
+  async getCoursePerformance(query: { collegeId?: string; limit?: number }) {
+    const { collegeId, limit = 50 } = query;
+
+    const where: any = {};
+    if (collegeId) where.collegeId = collegeId;
+
+    const courses = await this.prisma.courses.findMany({
+      where,
+      include: {
+        colleges: { select: { id: true, name: true } },
+        users: { select: { id: true, fullName: true } },
+        _count: {
+          select: {
+            course_assignments: true,
+            student_progress: true,
+            learning_flow_steps: true,
+          },
+        },
+      },
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const courseIds = courses.map(c => c.id);
+    const progress = await this.prisma.student_progress.findMany({
+      where: { courseId: { in: courseIds } },
+      select: { courseId: true, status: true },
+    });
+
+    const progressMap = new Map<string, { total: number; completed: number; inProgress: number }>();
+    progress.forEach(p => {
+      if (!progressMap.has(p.courseId)) progressMap.set(p.courseId, { total: 0, completed: 0, inProgress: 0 });
+      const cp = progressMap.get(p.courseId)!;
+      cp.total++;
+      if (p.status === 'COMPLETED') cp.completed++;
+      else cp.inProgress++;
+    });
+
+    // Get ratings for courses
+    const courseRatings = await this.prisma.ratings.findMany({
+      where: { ratingType: 'COURSE', entityId: { in: courseIds } },
+      select: { entityId: true, rating: true },
+    });
+
+    const ratingMap = new Map<string, { total: number; count: number }>();
+    courseRatings.forEach(r => {
+      if (!ratingMap.has(r.entityId)) ratingMap.set(r.entityId, { total: 0, count: 0 });
+      const rm = ratingMap.get(r.entityId)!;
+      rm.total += r.rating;
+      rm.count++;
+    });
+
+    const courseData = courses.map(c => {
+      const cp = progressMap.get(c.id) || { total: 0, completed: 0, inProgress: 0 };
+      const rd = ratingMap.get(c.id);
+      return {
+        courseId: c.id,
+        courseTitle: c.title,
+        collegeName: c.colleges?.name || 'Unknown',
+        facultyName: c.users?.fullName || 'Unknown',
+        status: c.status,
+        totalSteps: c._count.learning_flow_steps,
+        enrolledStudents: cp.total,
+        completedStudents: cp.completed,
+        inProgressStudents: cp.inProgress,
+        completionRate: cp.total > 0 ? Math.round((cp.completed / cp.total) * 100) : 0,
+        avgRating: rd && rd.count > 0 ? Math.round((rd.total / rd.count) * 10) / 10 : 0,
+        totalRatings: rd?.count || 0,
+      };
+    });
+
+    courseData.sort((a, b) => b.completionRate - a.completionRate);
+
+    return {
+      summary: {
+        totalCourses: courseData.length,
+        avgCompletionRate: courseData.length > 0
+          ? Math.round(courseData.reduce((s, c) => s + c.completionRate, 0) / courseData.length) : 0,
+        totalEnrollments: courseData.reduce((s, c) => s + c.enrolledStudents, 0),
+        totalCompletions: courseData.reduce((s, c) => s + c.completedStudents, 0),
+      },
+      courses: courseData,
+    };
+  }
+
+  // ========================================================================
+  // COLLEGE COMPARISON ANALYTICS
+  // ========================================================================
+
+  async getCollegeComparison() {
+    const colleges = await this.prisma.colleges.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, name: true, code: true },
+    });
+
+    const results = await Promise.all(colleges.map(async (college) => {
+      const [
+        studentCount,
+        facultyCount,
+        courseCount,
+        progressData,
+        practiceData,
+        loginCount,
+        packageCount,
+      ] = await Promise.all([
+        this.prisma.users.count({ where: { collegeId: college.id, role: UserRole.STUDENT } }),
+        this.prisma.users.count({ where: { collegeId: college.id, role: UserRole.FACULTY } }),
+        this.prisma.courses.count({ where: { collegeId: college.id } }),
+        this.prisma.student_progress.findMany({
+          where: { courses: { collegeId: college.id } },
+          select: { status: true },
+        }),
+        this.prisma.practice_sessions.findMany({
+          where: { student: { user: { collegeId: college.id } } },
+          select: { correctAnswers: true, totalQuestions: true, timeSpentSeconds: true },
+        }),
+        this.prisma.audit_logs.count({
+          where: { collegeId: college.id, action: AuditAction.LOGIN_SUCCESS },
+        }),
+        this.prisma.college_packages.count({
+          where: { collegeId: college.id, status: 'ACTIVE' },
+        }),
+      ]);
+
+      const totalEnrollments = progressData.length;
+      const completedEnrollments = progressData.filter(p => p.status === 'COMPLETED').length;
+      const completionRate = totalEnrollments > 0 ? Math.round((completedEnrollments / totalEnrollments) * 100) : 0;
+
+      const totalQuestions = practiceData.reduce((s, p) => s + p.totalQuestions, 0);
+      const totalCorrect = practiceData.reduce((s, p) => s + p.correctAnswers, 0);
+      const avgAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+      const totalPracticeTime = practiceData.reduce((s, p) => s + p.timeSpentSeconds, 0);
+
+      return {
+        collegeId: college.id,
+        collegeName: college.name,
+        collegeCode: college.code,
+        studentCount,
+        facultyCount,
+        courseCount,
+        packageCount,
+        totalEnrollments,
+        completedEnrollments,
+        completionRate,
+        avgAccuracy,
+        totalPracticeTime,
+        totalPracticeSessions: practiceData.length,
+        loginCount,
+        engagementScore: Math.round(
+          (completionRate * 0.4) + (avgAccuracy * 0.3) + 
+          (Math.min(loginCount / Math.max(studentCount, 1), 100) * 0.3)
+        ),
+      };
+    }));
+
+    results.sort((a, b) => b.engagementScore - a.engagementScore);
+
+    return {
+      colleges: results,
+      summary: {
+        totalColleges: results.length,
+        avgCompletionRate: results.length > 0 
+          ? Math.round(results.reduce((s, c) => s + c.completionRate, 0) / results.length) : 0,
+        avgAccuracy: results.length > 0
+          ? Math.round(results.reduce((s, c) => s + c.avgAccuracy, 0) / results.length) : 0,
+        topCollege: results[0]?.collegeName || 'N/A',
+        totalStudents: results.reduce((s, c) => s + c.studentCount, 0),
+        totalFaculty: results.reduce((s, c) => s + c.facultyCount, 0),
+      },
+    };
+  }
+
+  // ========================================================================
+  // EXPORT DATA
+  // ========================================================================
+
+  async getExportData(reportType: string, options: { collegeId?: string; format?: string }) {
+    switch (reportType) {
+      case 'student-performance':
+        return this.getStudentPerformance({ collegeId: options.collegeId, limit: 10000 });
+      case 'teacher-performance':
+        return this.getTeacherPerformance({ collegeId: options.collegeId, limit: 10000 });
+      case 'course-performance':
+        return this.getCoursePerformance({ collegeId: options.collegeId, limit: 10000 });
+      case 'college-comparison':
+        return this.getCollegeComparison();
+      case 'subject-popularity':
+        return this.getSubjectPopularity();
+      case 'course-completion':
+        return this.getCourseCompletionStats();
+      case 'assessment-participation':
+        return this.getAssessmentParticipation();
+      default:
+        throw new NotFoundException(`Report type '${reportType}' not found`);
+    }
   }
 }
 

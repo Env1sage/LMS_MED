@@ -53,7 +53,8 @@ const BulkLearningUnitUpload: React.FC<BulkLearningUnitUploadProps> = ({ onSucce
     const csvContent = `type,title,description,subject,topic,subTopic,difficultyLevel,estimatedDuration,secureAccessUrl,deliveryType,watermarkEnabled,sessionExpiryMinutes,competencyCodes
 BOOK,Cardiovascular Anatomy,Comprehensive guide to heart structure and function covering all major components,Anatomy,Cardiovascular System,,INTERMEDIATE,45,https://cdn.example.com/book1.pdf,REDIRECT,true,30,"AN1.1,AN1.2"
 VIDEO,Heart Function Video,Educational video explaining how the heart pumps blood through the body,Physiology,Cardiac Function,,BEGINNER,30,https://cdn.example.com/video1.mp4,STREAM,true,60,PY2.1
-NOTES,Quick Reference Notes,Summary notes for cardiovascular system review and exam preparation,Anatomy,Cardiovascular System,,INTERMEDIATE,15,https://cdn.example.com/notes1.pdf,EMBED,false,30,`;
+MCQ,Cardiovascular System Quiz,Assessment questions on cardiovascular anatomy and function,Anatomy,Cardiovascular System,,INTERMEDIATE,20,,EMBED,false,30,"AN1.1,AN1.2"`;
+
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -317,7 +318,7 @@ NOTES,Quick Reference Notes,Summary notes for cardiovascular system review and e
         <div style={styles.templateColumns}>
           <strong>Required:</strong> type, title, description (min 20 chars), subject, topic, secureAccessUrl<br />
           <strong>Optional:</strong> subTopic, difficultyLevel (BEGINNER|INTERMEDIATE|ADVANCED), estimatedDuration, deliveryType (REDIRECT|EMBED|STREAM), watermarkEnabled (true|false), sessionExpiryMinutes, competencyIds (comma-separated)<br />
-          <strong>Types:</strong> BOOK, VIDEO, MCQ, NOTES
+          <strong>Types:</strong> BOOK, VIDEO, MCQ
         </div>
       </div>
     </div>

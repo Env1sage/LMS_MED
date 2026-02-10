@@ -9,10 +9,23 @@ import bitflowOwnerService, {
   McqListResponse 
 } from '../services/bitflow-owner.service';
 import { Publisher } from '../types';
-import '../styles/Dashboard.css';
+import { 
+  PageWrapper, 
+  GlassSidebar, 
+  GlassContentArea, 
+  GlassContentHeader,
+  GlassStatCard,
+  ChartBarIcon,
+  BookOpenIcon,
+  VideoCameraIcon,
+  DocumentTextIcon,
+  CheckCircleIcon,
+  ArrowLeftIcon
+} from '../components/ui';
+import '../styles/BitflowPremium.css';
 
-type ContentType = 'BOOK' | 'VIDEO' | 'NOTES' | 'MCQ' | 'all';
-type ContentTab = 'overview' | 'books' | 'videos' | 'notes' | 'mcqs';
+type ContentType = 'BOOK' | 'VIDEO' | 'MCQ' | 'all';
+type ContentTab = 'overview' | 'books' | 'videos' | 'mcqs';
 
 const ContentManagement: React.FC = () => {
   const { user, logout } = useAuth();
@@ -81,7 +94,6 @@ const ContentManagement: React.FC = () => {
       const typeMap: Record<ContentTab, string> = {
         books: 'BOOK',
         videos: 'VIDEO',
-        notes: 'NOTES',
         mcqs: 'MCQ',
         overview: '',
       };
@@ -180,11 +192,10 @@ const ContentManagement: React.FC = () => {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'BOOK': return '📚';
-      case 'VIDEO': return '🎥';
-      case 'NOTES': return '📝';
-      case 'MCQ': return '✅';
-      default: return '📄';
+      case 'BOOK': return <BookOpenIcon size={28} />;
+      case 'VIDEO': return <VideoCameraIcon size={28} />;
+      case 'MCQ': return <CheckCircleIcon size={28} />;
+      default: return <DocumentTextIcon size={28} />;
     }
   };
 
@@ -198,57 +209,45 @@ const ContentManagement: React.FC = () => {
     }
   };
 
+  const navItems = [
+    { id: 'overview', icon: <ChartBarIcon />, label: 'Overview' },
+    { id: 'books', icon: <BookOpenIcon />, label: 'E-Books' },
+    { id: 'videos', icon: <VideoCameraIcon />, label: 'Videos' },
+    { id: 'mcqs', icon: <CheckCircleIcon />, label: 'MCQs' },
+  ];
+
+  const getTabTitle = () => {
+    const labels: Record<string, string> = { overview: 'Content Overview', books: 'E-Books', videos: 'Videos', mcqs: 'MCQs' };
+    return labels[activeTab];
+  };
+
   return (
-    <div className="dashboard-container">
-      {/* Sidebar */}
-      <div className="sidebar">
-        <div className="sidebar-header">
-          <h2>Content Library</h2>
-          <p>Platform Content</p>
+    <PageWrapper>
+      <GlassSidebar
+        title="Content Library"
+        subtitle="Platform Content"
+        navItems={navItems.map(item => ({
+          ...item,
+          onClick: () => { setActiveTab(item.id as ContentTab); setCurrentPage(1); }
+        }))}
+        activeTab={activeTab}
+        userName={user?.fullName}
+        userRole={user?.role}
+        onLogout={handleLogout}
+      >
+        <div className="glass-sidebar-divider">
+          <button 
+            onClick={() => navigate('/dashboard')} 
+            className="glass-nav-item glass-nav-item-small"
+          >
+            <span className="glass-nav-icon"><ArrowLeftIcon size={16} /></span>
+            <span className="glass-nav-label">Back to Dashboard</span>
+          </button>
         </div>
-        
-        <nav className="sidebar-nav">
-          <button className={activeTab === 'overview' ? 'active' : ''} onClick={() => { setActiveTab('overview'); setCurrentPage(1); }}>
-            📊 Overview
-          </button>
-          <button className={activeTab === 'books' ? 'active' : ''} onClick={() => { setActiveTab('books'); setCurrentPage(1); }}>
-            📚 Books
-          </button>
-          <button className={activeTab === 'videos' ? 'active' : ''} onClick={() => { setActiveTab('videos'); setCurrentPage(1); }}>
-            🎥 Videos
-          </button>
-          <button className={activeTab === 'notes' ? 'active' : ''} onClick={() => { setActiveTab('notes'); setCurrentPage(1); }}>
-            📝 Notes
-          </button>
-          <button className={activeTab === 'mcqs' ? 'active' : ''} onClick={() => { setActiveTab('mcqs'); setCurrentPage(1); }}>
-            ✅ MCQs
-          </button>
-          <div className="nav-divider" />
-          <button onClick={() => navigate('/dashboard')} className="nav-special">
-            ← Back to Dashboard
-          </button>
-        </nav>
+      </GlassSidebar>
 
-        <div className="sidebar-footer">
-          <div className="user-info">
-            <strong>{user?.fullName}</strong>
-            <small>{user?.role}</small>
-          </div>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="main-content">
-        <div className="content-header">
-          <h1>
-            {activeTab === 'overview' && '📊 Content Overview'}
-            {activeTab === 'books' && '📚 Books'}
-            {activeTab === 'videos' && '🎥 Videos'}
-            {activeTab === 'notes' && '📝 Notes'}
-            {activeTab === 'mcqs' && '✅ MCQs'}
-          </h1>
-        </div>
+      <GlassContentArea>
+        <GlassContentHeader title={getTabTitle()} />
 
         {loading ? (
           <div className="loading">Loading...</div>
@@ -260,15 +259,14 @@ const ContentManagement: React.FC = () => {
                 {/* Stats by Type */}
                 <div className="overview-grid">
                   {contentStats.byType.map(item => (
-                    <div 
+                    <GlassStatCard
                       key={item.type}
-                      className="stat-card stat-card--clickable"
+                      icon={getTypeIcon(item.type)}
+                      value={item.count}
+                      label={item.type}
+                      badge={{ text: 'View All →', variant: 'success' }}
                       onClick={() => setActiveTab(item.type.toLowerCase() + 's' as ContentTab)}
-                    >
-                      <h3>{getTypeIcon(item.type)} {item.type}</h3>
-                      <div className="stat-value">{item.count}</div>
-                      <span className="card-link">View All →</span>
-                    </div>
+                    />
                   ))}
                 </div>
 
@@ -353,8 +351,8 @@ const ContentManagement: React.FC = () => {
               </div>
             )}
 
-            {/* Content List (Books, Videos, Notes) */}
-            {(activeTab === 'books' || activeTab === 'videos' || activeTab === 'notes') && (
+            {/* Content List (E-Books, Videos, MCQs) */}
+            {(activeTab === 'books' || activeTab === 'videos') && (
               <div className="tab-content">
                 {/* Filters */}
                 <div className="filters-bar" style={{ 
@@ -810,8 +808,8 @@ const ContentManagement: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </GlassContentArea>
+    </PageWrapper>
   );
 };
 

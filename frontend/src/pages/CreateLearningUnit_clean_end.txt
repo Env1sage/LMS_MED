@@ -1,0 +1,297 @@
+          </div>
+
+          {/* File Upload */}
+          <div className="glass-card" style={{ marginBottom: '24px' }}>
+            <div className="glass-card-header">
+              <UploadIcon size={24} />
+              <div style={{ marginLeft: '12px' }}>
+                <h3 className="glass-card-title">Content Upload</h3>
+                <p className="glass-card-subtitle">Upload your learning material or provide external URL</p>
+              </div>
+            </div>
+
+            {!uploadedFile ? (
+              <>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    border: `2px dashed ${dragActive ? 'var(--accent-teal)' : 'rgba(0, 107, 92, 0.3)'}`,
+                    borderRadius: '12px',
+                    padding: '40px 20px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: dragActive ? 'rgba(0, 107, 92, 0.1)' : 'rgba(0, 107, 92, 0.05)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <UploadIcon size={48} />
+                  <div style={{ marginTop: '16px', fontSize: '16px', fontWeight: 600 }}>
+                    {uploading ? 'Uploading...' : 'Drag & drop your file here'}
+                  </div>
+                  <div style={{ marginTop: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    or click to browse
+                  </div>
+                  {!uploading && (
+                    <button type="button" className="btn-secondary" style={{ marginTop: '16px' }}>
+                      Browse Files
+                    </button>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                    accept={formData.type === LearningUnitType.VIDEO ? 'video/*' : 'application/pdf'}
+                  />
+                </div>
+
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  margin: '20px 0', 
+                  color: 'var(--text-secondary)',
+                  fontSize: '13px' 
+                }}>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(0, 107, 92, 0.15)' }}></div>
+                  <span style={{ padding: '0 15px' }}>OR</span>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(0, 107, 92, 0.15)' }}></div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">External Content URL</label>
+                  <input
+                    className="form-input"
+                    type="url"
+                    value={formData.secureAccessUrl}
+                    onChange={(e) => setFormData({ ...formData, secureAccessUrl: e.target.value })}
+                    placeholder="https://example.com/content"
+                  />
+                </div>
+              </>
+            ) : (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 20px',
+                background: 'rgba(5, 150, 105, 0.1)',
+                border: '1px solid rgba(5, 150, 105, 0.3)',
+                borderRadius: '10px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <CheckCircleIcon size={20} />
+                  <span>{uploadedFile.name}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={removeFile}
+                  className="btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Competency Mapping */}
+          <div className="glass-card" style={{ marginBottom: '24px' }}>
+            <div className="glass-card-header">
+              <TargetIcon size={24} />
+              <div style={{ marginLeft: '12px' }}>
+                <h3 className="glass-card-title">Competency Mapping *</h3>
+                <p className="glass-card-subtitle">Link this content to medical competencies</p>
+              </div>
+            </div>
+
+            <div className="info-banner" style={{
+              padding: '12px 16px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              fontSize: '13px',
+            }}>
+              At least one competency mapping is required per CBME specification
+            </div>
+
+            <div className="form-group" style={{ position: 'relative' }}>
+              <label className="form-label">Search Competencies</label>
+              <input
+                className="form-input"
+                type="text"
+                value={competencySearch}
+                onChange={(e) => {
+                  setCompetencySearch(e.target.value);
+                  setShowCompetencyDropdown(true);
+                }}
+                onFocus={() => setShowCompetencyDropdown(true)}
+                placeholder="Type to search competencies..."
+              />
+              {showCompetencyDropdown && competencySearch && filteredCompetencies.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  background: 'rgba(30, 41, 59, 0.98)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(0, 107, 92, 0.2)',
+                  borderRadius: '8px',
+                  marginTop: '5px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  zIndex: 100,
+                }}>
+                  {filteredCompetencies.map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => toggleCompetency(c.id)}
+                      style={{
+                        padding: '10px 15px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid rgba(0, 107, 92, 0.1)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: formData.competencyIds.includes(c.id) ? 'rgba(0, 107, 92, 0.15)' : 'transparent',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--accent-teal)', fontSize: '12px' }}>
+                          {c.code}
+                        </div>
+                        <div style={{ fontSize: '13px', marginTop: '2px' }}>
+                          {c.title}
+                        </div>
+                      </div>
+                      {formData.competencyIds.includes(c.id) && <CheckCircleIcon size={16} />}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {selectedCompetencies.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '16px' }}>
+                {selectedCompetencies.map(c => (
+                  <span
+                    key={c.id}
+                    className="status-badge status-active"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => toggleCompetency(c.id)}
+                  >
+                    {c.code}
+                    <span style={{ marginLeft: '6px', opacity: 0.8' }}>×</span>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '12px' }}>
+              {competencies.length > 0
+                ? `${formData.competencyIds.length} selected from ${competencies.length} available competencies`
+                : 'Loading competencies...'
+              }
+            </div>
+          </div>
+
+          {/* Advanced Settings */}
+          <div className="glass-card" style={{ marginBottom: '24px' }}>
+            <div className="glass-card-header">
+              <CogIcon size={24} />
+              <div style={{ marginLeft: '12px' }}>
+                <h3 className="glass-card-title">Advanced Settings</h3>
+                <p className="glass-card-subtitle">Configure delivery and security options</p>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label className="form-label">Delivery Type</label>
+                <select
+                  className="form-input"
+                  value={formData.deliveryType}
+                  onChange={(e) => setFormData({ ...formData, deliveryType: e.target.value as DeliveryType })}
+                >
+                  <option value={DeliveryType.REDIRECT}>Redirect</option>
+                  <option value={DeliveryType.EMBED}>Embed</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Session Expiry (minutes)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={formData.sessionExpiryMinutes}
+                  onChange={(e) => setFormData({ ...formData, sessionExpiryMinutes: parseInt(e.target.value) })}
+                  min="1"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Max Attempts (optional)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={formData.maxAttempts || ''}
+                  onChange={(e) => setFormData({ ...formData, maxAttempts: e.target.value ? parseInt(e.target.value) : undefined })}
+                  placeholder="Unlimited"
+                  min="1"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Time Limit (minutes, optional)</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  value={formData.timeLimit || ''}
+                  onChange={(e) => setFormData({ ...formData, timeLimit: e.target.value ? parseInt(e.target.value) : undefined })}
+                  placeholder="No limit"
+                  min="1"
+                />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.watermarkEnabled}
+                    onChange={(e) => setFormData({ ...formData, watermarkEnabled: e.target.checked })}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  <span className="form-label" style={{ margin: 0 }}>Enable Watermark Protection</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => navigate('/publisher-admin')}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={loading}
+            >
+              {loading ? 'Creating...' : 'Create Learning Unit'}
+            </button>
+          </div>
+        </form>
+      </GlassContentArea>
+    </PageWrapper>
+  );
+};
+
+export default CreateLearningUnit;

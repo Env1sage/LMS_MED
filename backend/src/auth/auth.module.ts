@@ -19,7 +19,7 @@ import { RolesGuard } from './guards/roles.guard';
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',
       signOptions: {
-        expiresIn: '15m',
+        expiresIn: '24h',
       },
     }),
   ],

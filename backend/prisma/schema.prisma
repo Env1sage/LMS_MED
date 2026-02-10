@@ -502,12 +502,25 @@ model security_policies {
   tokenExpiryMinutes     Int      @default(15)
   refreshTokenExpiryDays Int      @default(30)
   maxConcurrentSessions  Int      @default(3)
+  maxLoginAttempts       Int      @default(5)
+  lockoutDurationMinutes Int      @default(30)
+  passwordMinLength      Int      @default(8)
+  passwordRequireUppercase Boolean @default(true)
+  passwordRequireNumbers   Boolean @default(true)
+  passwordRequireSpecialChars Boolean @default(false)
+  mfaEnabled             Boolean  @default(false)
   watermarkEnabled       Boolean  @default(true)
   screenshotPrevention   Boolean  @default(true)
   publisherPortalEnabled Boolean  @default(true)
   facultyPortalEnabled   Boolean  @default(true)
   studentPortalEnabled   Boolean  @default(true)
   mobileAppEnabled       Boolean  @default(true)
+  enablePublisherSelfRegistration Boolean @default(false)
+  enableStudentSelfRegistration   Boolean @default(false)
+  enableContentAutoApproval       Boolean @default(false)
+  enableAnalyticsDashboard        Boolean @default(true)
+  enableAuditLogs                 Boolean @default(true)
+  maintenanceMode                 Boolean @default(false)
   createdAt              DateTime @default(now())
   updatedAt              DateTime
 }
@@ -585,6 +598,8 @@ model users {
   publisherId          String?
   departmentId         String?
   lastLoginAt          DateTime?
+  failedLoginAttempts  Int                    @default(0)
+  lockedUntil          DateTime?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime
   audit_logs           audit_logs[]
@@ -1062,6 +1077,7 @@ enum LearningUnitType {
   BOOK
   VIDEO
   NOTES
+  MCQ
 }
 
 enum McqStatus {

@@ -66,7 +66,6 @@ export class DashboardOverviewDto {
   // Content metrics (aggregated by type)
   contentByType: {
     books: number;
-    notes: number;
     mcqs: number;
     videos: number;
   };

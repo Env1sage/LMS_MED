@@ -114,8 +114,6 @@ const EditCourse: React.FC = () => {
         return { videoMinWatchPercent: 80 };
       case 'BOOK':
         return { bookMinReadDuration: 300 };
-      case 'NOTES':
-        return { requiredScrollPercent: 90 };
       case 'MCQ':
         return {};
       default:
@@ -127,7 +125,7 @@ const EditCourse: React.FC = () => {
     const newStep: LearningFlowStep = {
       learningUnitId: unit.id,
       stepOrder: learningFlowSteps.length + 1,
-      stepType: unit.type as 'BOOK' | 'VIDEO' | 'MCQ' | 'NOTES',
+      stepType: unit.type as 'BOOK' | 'VIDEO' | 'MCQ',
       mandatory: true,
       completionCriteria: getDefaultCompletionCriteria(unit.type)
     };

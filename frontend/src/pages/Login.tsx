@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { UserRole } from '../types';
-import { GlassCard } from '../components/ui/GlassCard';
-import { GlassButton } from '../components/ui/GlassButton';
-import { GlassInput } from '../components/ui/GlassInput';
-import '../styles/Login.css';
+import { LogIn, Mail, Lock, AlertCircle, Sparkles } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -37,6 +34,8 @@ const Login: React.FC = () => {
           navigate('/faculty');
         } else if (userData.role === UserRole.STUDENT) {
           navigate('/student');
+        } else if (userData.role === UserRole.COLLEGE_DEAN) {
+          navigate('/dean');
         } else {
           navigate('/unauthorized');
         }
@@ -48,173 +47,238 @@ const Login: React.FC = () => {
     }
   };
 
-  const quickLogin = (emailVal: string, passwordVal: string) => {
-    setEmail(emailVal);
-    setPassword(passwordVal);
-  };
-
   return (
-    <div className="premium-login-page">
-      {/* Animated Gradient Background */}
-      <div className="gradient-bg">
-        <div className="gradient-orb gradient-orb-1"></div>
-        <div className="gradient-orb gradient-orb-2"></div>
-        <div className="gradient-orb gradient-orb-3"></div>
-      </div>
-
-      {/* Grid Pattern Overlay */}
-      <div className="grid-pattern"></div>
-
-      <div className="login-container">
-        {/* Left Side - Branding */}
-        <div className="login-branding">
-          <div className="brand-logo-container">
-            <div className="brand-logo-glass">
-              <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                <rect width="64" height="64" rx="16" fill="url(#logoGradient)"/>
-                <path d="M20 32h24M32 20v24M26 26l12 12M26 38l12-12" 
-                      stroke="white" 
-                      strokeWidth="3" 
-                      strokeLinecap="round"/>
-                <defs>
-                  <linearGradient id="logoGradient" x1="0" y1="0" x2="64" y2="64">
-                    <stop offset="0%" stopColor="#667eea"/>
-                    <stop offset="100%" stopColor="#764ba2"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="glass-card animate-slide-up" style={{ maxWidth: '480px', width: '100%' }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            width: '64px',
+            height: '64px',
+            borderRadius: 'var(--radius-lg)',
+            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+            marginBottom: 'var(--space-md)',
+            boxShadow: 'var(--glass-shadow-glow)'
+          }}>
+            <Sparkles size={32} color="white" />
           </div>
-          
-          <h1 className="brand-title">
-            Bitflow<span className="brand-accent">.</span>
+          <h1 className="font-size-3xl font-weight-bold text-on-glass" style={{ marginBottom: 'var(--space-xs)' }}>
+            Medical LMS
           </h1>
-          
-          <p className="brand-tagline">
-            Premium Medical Learning Management System
+          <p className="font-size-sm text-on-glass-muted">
+            Sign in to access your dashboard
           </p>
-          
-          <div className="brand-features">
-            <div className="feature-item">
-              <div className="feature-icon">✓</div>
-              <span>Multi-tenant Architecture</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">✓</div>
-              <span>Secure Clinical Education</span>
-            </div>
-            <div className="feature-item">
-              <div className="feature-icon">✓</div>
-              <span>Advanced Analytics</span>
-            </div>
-          </div>
         </div>
 
-        {/* Right Side - Login Form */}
-        <div className="login-form-section">
-          <GlassCard className="login-card">
-            <div className="login-header">
-              <h2 className="login-title">Welcome Back</h2>
-              <p className="login-subtitle">Enter your credentials to access your account</p>
-            </div>
-
-            {error && (
-              <div className="error-banner">
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                </svg>
-                <span>{error}</span>
+        {/* Error Alert */}
+        {error && (
+          <div className="glass-alert glass-alert-error animate-slide-up">
+            <AlertCircle size={20} />
+            <div>
+              <div style={{ fontWeight: 'var(--font-weight-semibold)', marginBottom: '4px' }}>
+                Authentication Failed
               </div>
+              <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.9 }}>
+                {error}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} style={{ marginBottom: 'var(--space-xl)' }}>
+          <div className="glass-input-group">
+            <label htmlFor="email" className="glass-input-label">
+              <Mail size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="glass-input"
+              placeholder="your.email@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="glass-input-group">
+            <label htmlFor="password" className="glass-input-label">
+              <Lock size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              className="glass-input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="glass-btn glass-btn-primary"
+            style={{ width: '100%' }}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <div className="glass-spinner glass-spinner-sm" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                <LogIn size={18} />
+                Sign In
+              </>
             )}
+          </button>
+        </form>
 
-            <form onSubmit={handleSubmit} className="login-form">
-              <GlassInput
-                type="email"
-                label="Email Address"
-                value={email}
-                onChange={setEmail}
-                placeholder="your@email.com"
-                required
-                disabled={loading}
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                  </svg>
-                }
-              />
-
-              <GlassInput
-                type="password"
-                label="Password"
-                value={password}
-                onChange={setPassword}
-                placeholder="••••••••"
-                required
-                disabled={loading}
-                icon={
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
-                  </svg>
-                }
-              />
-
-              <GlassButton
-                type="submit"
-                variant="primary"
-                loading={loading}
-                fullWidth
-              >
-                {!loading && (
-                  <>
-                    <span>Sign In</span>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
-                    </svg>
-                  </>
-                )}
-              </GlassButton>
-            </form>
-
-            <div className="login-footer">
-              <div className="status-indicator">
-                <div className="status-dot"></div>
-                <span>Phase 0–5 • Production Ready</span>
+        {/* Demo Credentials */}
+        <div style={{ 
+          background: 'var(--glass-white)', 
+          borderRadius: 'var(--radius-md)', 
+          padding: 'var(--space-md)',
+          border: '1px solid var(--glass-border)'
+        }}>
+          <div style={{ 
+            fontSize: 'var(--font-size-xs)', 
+            fontWeight: 'var(--font-weight-semibold)',
+            color: 'var(--text-on-glass)',
+            marginBottom: 'var(--space-sm)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <Sparkles size={12} />
+            Demo Credentials (All Portals)
+          </div>
+          
+          <div style={{ 
+            fontSize: 'var(--font-size-xs)', 
+            color: 'var(--text-on-glass-muted)', 
+            lineHeight: '1.8'
+          }}>
+            {/* Bitflow Owner Portal */}
+            <div style={{ 
+              marginBottom: 'var(--space-sm)', 
+              paddingBottom: 'var(--space-sm)',
+              borderBottom: '1px solid var(--glass-border)'
+            }}>
+              <div style={{ 
+                color: 'var(--accent-primary)', 
+                fontWeight: 'var(--font-weight-bold)',
+                marginBottom: '6px',
+                fontSize: '11px'
+              }}>
+                🏢 BITFLOW OWNER
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.6' }}>
+                <div>📧 owner@bitflow.com</div>
+                <div style={{ color: 'var(--accent-secondary)' }}>🔑 Demo@2026</div>
               </div>
             </div>
-          </GlassCard>
 
-          {/* Quick Access Credentials */}
-          <GlassCard className="credentials-card">
-            <div className="credentials-header">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
-              </svg>
-              <h3>Quick Access</h3>
+            {/* Publisher Portal */}
+            <div style={{ 
+              marginBottom: 'var(--space-sm)', 
+              paddingBottom: 'var(--space-sm)',
+              borderBottom: '1px solid var(--glass-border)'
+            }}>
+              <div style={{ 
+                color: 'var(--accent-primary)', 
+                fontWeight: 'var(--font-weight-bold)',
+                marginBottom: '6px',
+                fontSize: '11px'
+              }}>
+                📚 PUBLISHER ADMIN
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.6' }}>
+                <div>📧 admin@oxford-demo.com</div>
+                <div style={{ color: 'var(--accent-secondary)' }}>🔑 Demo@2026</div>
+              </div>
             </div>
-            
-            <div className="credentials-grid">
-              <button className="credential-btn" onClick={() => quickLogin('owner@bitflow.com', 'BitflowAdmin@2026')}>
-                <div className="credential-badge badge-owner">Owner</div>
-                <code>owner@bitflow.com</code>
-              </button>
-              
-              <button className="credential-btn" onClick={() => quickLogin('admin@elsevier.com', 'Password123!')}>
-                <div className="credential-badge badge-publisher">Publisher</div>
-                <code>admin@elsevier.com</code>
-              </button>
-              
-              <button className="credential-btn" onClick={() => quickLogin('admin@aiimsnagpur.edu.in', 'Password123!')}>
-                <div className="credential-badge badge-admin">Admin</div>
-                <code>admin@aiimsnagpur.edu.in</code>
-              </button>
-              
-              <button className="credential-btn" onClick={() => quickLogin('faculty@aiimsnagpur.edu.in', 'Password123!')}>
-                <div className="credential-badge badge-faculty">Faculty</div>
-                <code>faculty@aiimsnagpur.edu.in</code>
-              </button>
+
+            {/* College Admin Portal */}
+            <div style={{ 
+              marginBottom: 'var(--space-sm)', 
+              paddingBottom: 'var(--space-sm)',
+              borderBottom: '1px solid var(--glass-border)'
+            }}>
+              <div style={{ 
+                color: 'var(--accent-primary)', 
+                fontWeight: 'var(--font-weight-bold)',
+                marginBottom: '6px',
+                fontSize: '11px'
+              }}>
+                🎓 COLLEGE ADMIN (with courses)
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.6' }}>
+                <div>📧 admin@aiims.edu</div>
+                <div style={{ color: 'var(--accent-secondary)' }}>🔑 Demo@2026</div>
+              </div>
             </div>
-          </GlassCard>
+
+            {/* Faculty Portal */}
+            <div style={{ 
+              marginBottom: 'var(--space-sm)', 
+              paddingBottom: 'var(--space-sm)',
+              borderBottom: '1px solid var(--glass-border)'
+            }}>
+              <div style={{ 
+                color: 'var(--accent-primary)', 
+                fontWeight: 'var(--font-weight-bold)',
+                marginBottom: '6px',
+                fontSize: '11px'
+              }}>
+                👨‍🏫 FACULTY (with courses)
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.6' }}>
+                <div>📧 faculty5@aiims.edu</div>
+                <div style={{ color: 'var(--accent-secondary)' }}>🔑 Demo@2026</div>
+              </div>
+            </div>
+
+            {/* Student Portal */}
+            <div style={{ marginBottom: 0 }}>
+              <div style={{ 
+                color: 'var(--accent-primary)', 
+                fontWeight: 'var(--font-weight-bold)',
+                marginBottom: '6px',
+                fontSize: '11px'
+              }}>
+                🎒 STUDENT (with courses)
+              </div>
+              <div style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.6' }}>
+                <div>📧 aiim001@aiims.edu</div>
+                <div style={{ color: 'var(--accent-secondary)' }}>🔑 Demo@2026</div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            marginTop: 'var(--space-sm)',
+            paddingTop: 'var(--space-sm)',
+            borderTop: '1px solid var(--glass-border)',
+            fontSize: '10px',
+            color: 'var(--text-on-glass-muted)',
+            textAlign: 'center',
+            fontStyle: 'italic'
+          }}>
+            💡 All accounts use password: Demo@2026
+          </div>
         </div>
       </div>
     </div>

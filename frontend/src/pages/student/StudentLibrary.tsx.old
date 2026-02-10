@@ -1,0 +1,310 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import apiService from '../../services/api.service';
+import StudentLayout from '../../components/student/StudentLayout';
+import { Library, BookOpen, FileText, Video, File, Search, Download, Eye } from 'lucide-react';
+import '../../styles/bitflow-owner.css';
+
+interface LibraryItem {
+  id: number;
+  title: string;
+  type: 'BOOK' | 'VIDEO' | 'DOCUMENT' | 'REFERENCE';
+  courseName: string;
+  uploadedBy: string;
+  uploadedAt: string;
+  fileUrl?: string;
+  secureAccessUrl?: string;
+  description?: string;
+  fileSize?: string;
+}
+
+const StudentLibrary: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<LibraryItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<string>('all');
+  const [error, setError] = useState('');
+
+  const fetchLibrary = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await apiService.get('/student-portal/library');
+      const libraryData = response.data;
+      
+      // Handle different response formats
+      if (Array.isArray(libraryData)) {
+        setItems(libraryData);
+      } else if (libraryData && Array.isArray(libraryData.items)) {
+        setItems(libraryData.items);
+      } else {
+        console.warn('Unexpected library response format:', libraryData);
+        setItems([]);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch library:', err);
+      setError(err.response?.data?.message || 'Failed to load library');
+      setItems([]); // Ensure items is always an array
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLibrary();
+  }, [fetchLibrary]);
+
+  const filteredItems = Array.isArray(items) ? items.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         item.courseName.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterType === 'all' || item.type === filterType;
+    return matchesSearch && matchesFilter;
+  }) : [];
+
+  const typeCounts = {
+    all: Array.isArray(items) ? items.length : 0,
+    BOOK: Array.isArray(items) ? items.filter(i => i.type === 'BOOK').length : 0,
+    VIDEO: Array.isArray(items) ? items.filter(i => i.type === 'VIDEO').length : 0,
+    DOCUMENT: Array.isArray(items) ? items.filter(i => i.type === 'DOCUMENT').length : 0,
+    REFERENCE: Array.isArray(items) ? items.filter(i => i.type === 'REFERENCE').length : 0,
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'BOOK': return <BookOpen size={20} />;
+      case 'VIDEO': return <Video size={20} />;
+      case 'DOCUMENT': return <FileText size={20} />;
+      case 'REFERENCE': return <File size={20} />;
+      default: return <File size={20} />;
+    }
+  };
+
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'BOOK': return 'var(--bo-accent)';
+      case 'VIDEO': return 'var(--bo-danger)';
+      case 'DOCUMENT': return 'var(--bo-success)';
+      case 'REFERENCE': return 'var(--bo-warning)';
+      default: return 'var(--bo-text-muted)';
+    }
+  };
+
+  const handleView = async (item: LibraryItem) => {
+    if (item.secureAccessUrl) {
+      window.open(item.secureAccessUrl, '_blank');
+    } else if (item.fileUrl) {
+      window.open(item.fileUrl, '_blank');
+    }
+  };
+
+  if (loading) {
+    return (
+      <StudentLayout>
+        <div className="bo-loading" style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bo-text-muted)' }}>
+          <div className="bo-spinner" style={{ marginRight: 10 }} />
+          Loading library...
+        </div>
+      </StudentLayout>
+    );
+  }
+
+  return (
+    <StudentLayout>
+      {/* Page Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)' }}>
+          Library
+        </h1>
+        <p style={{ color: 'var(--bo-text-muted)', fontSize: 14, marginTop: 4 }}>
+          Access learning materials, books, videos, and documents
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div className="bo-stats-grid" style={{ marginBottom: 24 }}>
+        <div className="bo-stat-card">
+          <div className="bo-stat-icon blue">
+            <Library size={22} />
+          </div>
+          <div className="bo-stat-value">{typeCounts.all}</div>
+          <div className="bo-stat-label">Total Resources</div>
+        </div>
+        
+        <div className="bo-stat-card">
+          <div className="bo-stat-icon purple">
+            <BookOpen size={22} />
+          </div>
+          <div className="bo-stat-value">{typeCounts.BOOK}</div>
+          <div className="bo-stat-label">Books</div>
+        </div>
+        
+        <div className="bo-stat-card">
+          <div className="bo-stat-icon orange">
+            <Video size={22} />
+          </div>
+          <div className="bo-stat-value">{typeCounts.VIDEO}</div>
+          <div className="bo-stat-label">Videos</div>
+        </div>
+        
+        <div className="bo-stat-card">
+          <div className="bo-stat-icon green">
+            <FileText size={22} />
+          </div>
+          <div className="bo-stat-value">{typeCounts.DOCUMENT}</div>
+          <div className="bo-stat-label">Documents</div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="bo-card" style={{ padding: '16px 20px', marginBottom: 24 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 300, position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--bo-text-muted)' }} />
+            <input
+              type="text"
+              placeholder="Search library..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 12px 10px 40px',
+                border: '1px solid var(--bo-border)',
+                borderRadius: 'var(--bo-radius)',
+                fontSize: 14,
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'BOOK', label: 'Books' },
+              { value: 'VIDEO', label: 'Videos' },
+              { value: 'DOCUMENT', label: 'Documents' },
+              { value: 'REFERENCE', label: 'References' },
+            ].map(f => (
+              <button
+                key={f.value}
+                onClick={() => setFilterType(f.value)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: 'var(--bo-radius)',
+                  border: filterType === f.value ? 'none' : '1px solid var(--bo-border)',
+                  background: filterType === f.value ? 'var(--bo-accent)' : 'transparent',
+                  color: filterType === f.value ? '#fff' : 'var(--bo-text-secondary)',
+                  fontSize: 13,
+                  fontWeight: filterType === f.value ? 600 : 400,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Library Items */}
+      {error && (
+        <div className="bo-card" style={{ padding: 24, marginBottom: 24, textAlign: 'center', color: 'var(--bo-danger)' }}>
+          {error}
+        </div>
+      )}
+
+      {filteredItems.length === 0 ? (
+        <div className="bo-card" style={{ padding: 80, textAlign: 'center' }}>
+          <Library size={64} style={{ color: 'var(--bo-text-muted)', opacity: 0.3, marginBottom: 16 }} />
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 8 }}>
+            No resources found
+          </h3>
+          <p style={{ color: 'var(--bo-text-muted)', fontSize: 14 }}>
+            {searchTerm || filterType !== 'all' ? 'Try adjusting your search or filter' : 'No library resources are available yet'}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 20 }}>
+          {filteredItems.map((item) => (
+            <div 
+              key={item.id}
+              className="bo-card"
+              style={{ 
+                padding: 20,
+                border: '1px solid var(--bo-border)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = 'var(--bo-shadow-md)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = 'var(--bo-shadow-sm)';
+              }}
+            >
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ 
+                  width: 48, 
+                  height: 48, 
+                  borderRadius: 'var(--bo-radius)', 
+                  background: `${getTypeColor(item.type)}15`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: getTypeColor(item.type),
+                  flexShrink: 0,
+                }}>
+                  {getTypeIcon(item.type)}
+                </div>
+                
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.title}
+                  </h4>
+                  
+                  <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 8 }}>
+                    📚 {item.courseName}
+                  </div>
+                  
+                  {item.description && (
+                    <p style={{ fontSize: 13, color: 'var(--bo-text-secondary)', marginBottom: 12, lineHeight: 1.5 }}>
+                      {item.description.length > 100 ? item.description.substring(0, 100) + '...' : item.description}
+                    </p>
+                  )}
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 16 }}>
+                    <span>By {item.uploadedBy}</span>
+                    {item.fileSize && <span>{item.fileSize}</span>}
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button 
+                      className="bo-btn bo-btn-primary"
+                      onClick={() => handleView(item)}
+                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px' }}
+                    >
+                      <Eye size={16} /> View
+                    </button>
+                    {item.type !== 'VIDEO' && (
+                      <button 
+                        className="bo-btn bo-btn-outline"
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = item.secureAccessUrl || item.fileUrl || '';
+                          link.download = item.title;
+                          link.click();
+                        }}
+                        style={{ padding: '8px 12px' }}
+                        title="Download"
+                      >
+                        <Download size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </StudentLayout>
+  );
+};
+
+export default StudentLibrary;

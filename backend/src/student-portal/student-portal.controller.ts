@@ -161,4 +161,51 @@ export class StudentPortalController {
     const end = endDate ? new Date(endDate) : undefined;
     return this.studentPortalService.getMySchedule(req.user.userId, start, end);
   }
+
+  /**
+   * Get comprehensive weekly calendar with all events, deadlines, notifications
+   */
+  @Get('calendar/week')
+  async getWeekCalendar(
+    @Request() req: any,
+    @Query('date') date?: string,
+  ) {
+    const targetDate = date ? new Date(date) : new Date();
+    return this.studentPortalService.getWeekCalendar(req.user.userId, targetDate);
+  }
+
+  /**
+   * Get student notifications (all types)
+   */
+  @Get('notifications')
+  async getMyNotifications(@Request() req: any) {
+    return this.studentPortalService.getStudentNotifications(req.user.userId);
+  }
+
+  /**
+   * Get unread notification count
+   */
+  @Get('notifications/unread-count')
+  async getUnreadCount(@Request() req: any) {
+    return this.studentPortalService.getUnreadNotificationCount(req.user.userId);
+  }
+
+  /**
+   * Mark notification as read
+   */
+  @Post('notifications/:notificationId/read')
+  async markNotificationRead(
+    @Request() req: any,
+    @Param('notificationId') notificationId: string,
+  ) {
+    return this.studentPortalService.markNotificationRead(req.user.userId, notificationId);
+  }
+
+  /**
+   * Mark all notifications as read
+   */
+  @Post('notifications/read-all')
+  async markAllNotificationsRead(@Request() req: any) {
+    return this.studentPortalService.markAllNotificationsRead(req.user.userId);
+  }
 }

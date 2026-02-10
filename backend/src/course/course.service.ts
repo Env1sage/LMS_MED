@@ -6,6 +6,7 @@ import { QueryCourseDto } from './dto/query-course.dto';
 import { AssignCourseDto } from './dto/assign-course.dto';
 import { CourseStatus, AssignmentStatus, StudentStatus, AuditAction } from '@prisma/client';
 import { AuditLogService } from '../audit/audit-log.service';
+import { EmailService } from '../email/email.service';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class CourseService {
   constructor(
     private prisma: PrismaService,
     private auditLogService: AuditLogService,
+    private emailService: EmailService,
   ) {}
 
   async create(facultyId: string, dto: CreateCourseDto) {
@@ -464,6 +466,45 @@ export class CourseService {
         },
       },
     });
+
+    // Send email notifications to assigned students (fire-and-forget)
+    try {
+      const faculty = await this.prisma.users.findUnique({ where: { id: facultyId }, select: { fullName: true } });
+      const studentsWithEmail = await this.prisma.students.findMany({
+        where: { id: { in: dto.studentIds } },
+        include: { user: { select: { email: true } } },
+      });
+      for (const student of studentsWithEmail) {
+        this.emailService.sendCourseAssignmentEmail({
+          to: student.user.email,
+          studentName: student.fullName,
+          courseTitle: course.title,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+          facultyName: faculty?.fullName || 'Your Instructor',
+        }).catch(err => console.warn('Email send failed:', err.message));
+      }
+    } catch (emailErr) {
+      console.warn('Failed to send course assignment emails:', emailErr);
+    }
+
+    // Create notification for students
+    try {
+      await this.prisma.notifications.create({
+        data: {
+          id: uuidv4(),
+          collegeId: course.collegeId,
+          createdBy: facultyId,
+          title: `New Course Assigned: ${course.title}`,
+          message: `You have been enrolled in "${course.title}" (${course.courseCode || ''})`,
+          type: 'ACADEMIC_NOTICE',
+          priority: 'NORMAL',
+          audience: 'STUDENTS',
+          academicYear: course.academicYear,
+        },
+      });
+    } catch (notifErr) {
+      console.warn('Failed to create notification:', notifErr);
+    }
 
     return {
       message: `Course assigned to ${assignments.length} student(s)`,

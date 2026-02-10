@@ -8,8 +8,8 @@ export interface Mcq {
   questionImage?: string;
   optionA: string;
   optionB: string;
-  optionC: string;
-  optionD: string;
+  optionC?: string;
+  optionD?: string;
   optionE?: string;
   correctAnswer: string;
   explanation?: string;
@@ -50,8 +50,8 @@ export interface CreateMcqDto {
   questionImage?: string;
   optionA: string;
   optionB: string;
-  optionC: string;
-  optionD: string;
+  optionC?: string;
+  optionD?: string;
   optionE?: string;
   correctAnswer: string;
   explanation?: string;

@@ -1,990 +1,510 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import learningUnitService from '../services/learning-unit.service';
-import competencyService from '../services/competency.service';
+import PublisherLayout from '../components/publisher/PublisherLayout';
 import TopicSearch from '../components/TopicSearch';
+import CompetencySearch from '../components/common/CompetencySearch';
+import FileUploadButton from '../components/publisher/FileUploadButton';
+import SecurePdfViewer from '../components/SecurePdfViewer';
+import learningUnitService, { CreateLearningUnitDto } from '../services/learning-unit.service';
+import { LearningUnitType, DeliveryType, DifficultyLevel } from '../types';
 import { Topic } from '../services/topics.service';
 import { API_BASE_URL } from '../config/api';
-import {
-  LearningUnitType,
-  DeliveryType,
-  DifficultyLevel,
-  Competency,
-  CompetencyStatus,
-} from '../types';
+import { Save, ArrowLeft, BookOpen, Video, FileText, Eye, Edit2, CheckCircle2, Clock, Shield, Tag, Layers, GraduationCap } from 'lucide-react';
+import '../styles/bitflow-owner.css';
+
+interface TopicCompetency {
+  id: string;
+  code: string;
+  title: string;
+  description: string;
+  domain: string;
+  academicLevel: string;
+  subject: string;
+}
 
 const CreateLearningUnit: React.FC = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{ name: string; url: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [competencies, setCompetencies] = useState<Competency[]>([]);
-  const [competencySearch, setCompetencySearch] = useState('');
-  const [showCompetencyDropdown, setShowCompetencyDropdown] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
-  const [topicCompetencies, setTopicCompetencies] = useState<Array<{
-    id: string;
-    code: string;
-    title: string;
-    description: string;
-    domain: string;
-  }>>([]);
-  
-  const [formData, setFormData] = useState({
-    type: LearningUnitType.BOOK,
-    title: '',
-    description: '',
-    subject: '',
-    topicId: '',
-    topic: '',
-    subTopic: '',
-    difficultyLevel: DifficultyLevel.K,
-    estimatedDuration: 30,
-    competencyIds: [] as string[],
-    secureAccessUrl: '',
-    deliveryType: DeliveryType.REDIRECT,
-    watermarkEnabled: true,
-    sessionExpiryMinutes: 30,
-    maxAttempts: undefined as number | undefined,
-    timeLimit: undefined as number | undefined,
-  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  useEffect(() => {
-    loadCompetencies();
-  }, []);
+  // Form fields
+  const [type, setType] = useState<LearningUnitType>(LearningUnitType.BOOK);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [subject, setSubject] = useState('');
+  const [topic, setTopic] = useState('');
+  const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>();
+  const [subTopic, setSubTopic] = useState('');
+  const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel>(DifficultyLevel.K);
+  const [estimatedDuration, setEstimatedDuration] = useState(30);
+  const [secureAccessUrl, setSecureAccessUrl] = useState('');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>(DeliveryType.EMBED);
+  const [watermarkEnabled, setWatermarkEnabled] = useState(true);
+  const [sessionExpiryMinutes, setSessionExpiryMinutes] = useState(30);
+  const [tags, setTags] = useState('');
 
-  const loadCompetencies = async () => {
-    try {
-      const response = await competencyService.getAll({ status: CompetencyStatus.ACTIVE, limit: 5000 });
-      setCompetencies(response.data || []);
-    } catch (err) {
-      console.error('Failed to load competencies:', err);
+  // Preview state
+  const [showPreview, setShowPreview] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Competencies
+  const [availableCompetencies, setAvailableCompetencies] = useState<TopicCompetency[]>([]);
+  const [selectedCompetencyIds, setSelectedCompetencyIds] = useState<string[]>([]);
+
+  const fileTypeMap: Record<LearningUnitType, 'book' | 'video'> = {
+    BOOK: 'book',
+    VIDEO: 'video',
+  };
+
+  const diffLabels: Record<string, string> = {
+    K: 'Knows (Knowledge recall)',
+    KH: 'Knows How (Applied knowledge)',
+    S: 'Shows (Demonstrates)',
+    SH: 'Shows How (Performance)',
+    P: 'Performs (Independent practice)',
+  };
+
+  const handleTopicSelect = (t: Topic | null) => {
+    if (t) {
+      setSubject(t.subject);
+      setTopic(t.name);
+      setSelectedTopicId(t.id);
+    } else {
+      setTopic('');
+      setSelectedTopicId(undefined);
     }
   };
 
-  // File upload handlers
-  const getFileType = (): 'book' | 'video' | 'note' | 'image' => {
-    switch (formData.type) {
-      case LearningUnitType.VIDEO: return 'video';
-      case LearningUnitType.NOTES: return 'note';
-      default: return 'book';
-    }
+  const handleCompetenciesLoad = (comps: TopicCompetency[]) => {
+    setAvailableCompetencies(comps);
+    // Auto-select all loaded competencies
+    setSelectedCompetencyIds(comps.map(c => c.id));
   };
 
-  const handleFileUpload = async (file: File) => {
-    setUploading(true);
-    setError(null);
-    
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-    
-    try {
-      const token = localStorage.getItem('accessToken');
-      const response = await axios.post(
-        `${API_BASE_URL}/learning-units/upload?type=${getFileType()}`,
-        formDataUpload,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`,
-          }
-        }
-      );
-      const url = response.data.url;
-      setUploadedFile({ name: file.name, url });
-      setFormData(prev => ({ ...prev, secureAccessUrl: url }));
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    if (e.dataTransfer.files?.[0]) {
-      handleFileUpload(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = () => setDragActive(false);
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      handleFileUpload(e.target.files[0]);
-    }
-  };
-
-  const removeFile = () => {
-    setUploadedFile(null);
-    setFormData(prev => ({ ...prev, secureAccessUrl: '' }));
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const handlePreview = () => {
+    setError('');
+    if (title.length < 5) { setError('Title must be at least 5 characters'); return; }
+    if (description.length < 20) { setError('Description must be at least 20 characters'); return; }
+    if (!subject) { setError('Please select a subject via topic search'); return; }
+    if (!topic) { setError('Please select a topic'); return; }
+    if (!secureAccessUrl) { setError('Please upload a file'); return; }
+    setShowPreview(true);
+    setTimeout(() => previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
+    setError('');
+    setSuccess('');
 
-    // Mandatory Topic validation per CBME spec - Topic must be selected via search
-    if (!formData.topicId) {
-      setError('Topic selection is mandatory. Please search and select a valid topic from the dropdown.');
-      setLoading(false);
-      return;
-    }
-
-    // Mandatory Competency validation per CBME spec - At least 1 competency required
-    if (!formData.competencyIds || formData.competencyIds.length === 0) {
-      setError('At least one competency mapping is required per CBME specification.');
-      setLoading(false);
-      return;
-    }
-
-    if (formData.description.length < 20) {
-      setError('Description must be at least 20 characters');
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.secureAccessUrl) {
-      setError('Please upload a file or enter an external content URL');
-      setLoading(false);
-      return;
-    }
+    if (title.length < 5) { setError('Title must be at least 5 characters'); return; }
+    if (description.length < 20) { setError('Description must be at least 20 characters'); return; }
+    if (!subject) { setError('Please select a subject via topic search'); return; }
+    if (!topic) { setError('Please select a topic'); return; }
+    if (!secureAccessUrl) { setError('Please upload a file'); return; }
 
     try {
-      await learningUnitService.create(formData);
-      setSuccess(true);
-      setTimeout(() => navigate('/publisher-admin'), 1500);
+      setSaving(true);
+      const dto: CreateLearningUnitDto = {
+        type,
+        title,
+        description,
+        subject,
+        topic,
+        subTopic: subTopic || undefined,
+        difficultyLevel,
+        estimatedDuration,
+        competencyIds: selectedCompetencyIds,
+        secureAccessUrl,
+        deliveryType,
+        watermarkEnabled,
+        sessionExpiryMinutes,
+        tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : undefined,
+      };
+
+      const created = await learningUnitService.create(dto);
+      setSuccess('Learning unit created successfully!');
+      setTimeout(() => navigate(`/publisher-admin/view/${created.id}`), 1500);
     } catch (err: any) {
-      const msg = err.response?.data?.message;
-      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to create');
+      const msg = err?.response?.data?.message;
+      setError(Array.isArray(msg) ? msg.join(', ') : msg || 'Failed to create learning unit');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const filteredCompetencies = competencies.filter(c =>
-    c.code.toLowerCase().includes(competencySearch.toLowerCase()) ||
-    c.title.toLowerCase().includes(competencySearch.toLowerCase()) ||
-    c.subject.toLowerCase().includes(competencySearch.toLowerCase())
-  ).slice(0, 10);
-
-  const toggleCompetency = (id: string) => {
-    setFormData(prev => ({
-      ...prev,
-      competencyIds: prev.competencyIds.includes(id)
-        ? prev.competencyIds.filter(cid => cid !== id)
-        : [...prev.competencyIds, id]
-    }));
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '10px 12px', borderRadius: 8,
+    border: '1px solid var(--bo-border)', fontSize: 14,
+    background: 'var(--bo-bg)', color: 'var(--bo-text)',
   };
 
-  const selectedCompetencies = competencies.filter(c => formData.competencyIds.includes(c.id));
-
-  // Styles
-  const styles: Record<string, React.CSSProperties> = {
-    container: {
-      minHeight: '100vh',
-      backgroundColor: '#0f172a',
-      color: '#e2e8f0',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    },
-    header: {
-      background: '#1e293b',
-      padding: '20px 40px',
-      borderBottom: '1px solid #334155',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    headerTitle: {
-      margin: 0,
-      fontSize: '22px',
-      fontWeight: 600,
-      color: '#f8fafc',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-    },
-    backBtn: {
-      padding: '10px 20px',
-      background: 'transparent',
-      border: '1px solid #475569',
-      borderRadius: '8px',
-      color: '#94a3b8',
-      cursor: 'pointer',
-      fontSize: '14px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-    },
-    main: {
-      padding: '30px 40px',
-      maxWidth: '900px',
-      margin: '0 auto',
-    },
-    alert: {
-      padding: '15px 20px',
-      borderRadius: '10px',
-      marginBottom: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-    },
-    alertError: {
-      background: '#7f1d1d',
-      border: '1px solid #991b1b',
-      color: '#fecaca',
-    },
-    alertSuccess: {
-      background: '#14532d',
-      border: '1px solid #166534',
-      color: '#bbf7d0',
-    },
-    section: {
-      background: '#1e293b',
-      borderRadius: '12px',
-      border: '1px solid #334155',
-      marginBottom: '20px',
-      overflow: 'hidden',
-    },
-    sectionHeader: {
-      padding: '15px 20px',
-      borderBottom: '1px solid #334155',
-      background: '#0f172a',
-    },
-    sectionTitle: {
-      margin: 0,
-      fontSize: '16px',
-      fontWeight: 600,
-      color: '#f8fafc',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-    },
-    sectionBody: {
-      padding: '20px',
-    },
-    formGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(2, 1fr)',
-      gap: '20px',
-    },
-    formGroup: {
-      marginBottom: '0',
-    },
-    formGroupFull: {
-      gridColumn: '1 / -1',
-    },
-    label: {
-      display: 'block',
-      marginBottom: '8px',
-      fontSize: '13px',
-      fontWeight: 600,
-      color: '#94a3b8',
-      textTransform: 'uppercase',
-      letterSpacing: '0.5px',
-    },
-    input: {
-      width: '100%',
-      padding: '12px 15px',
-      background: '#0f172a',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      color: '#f8fafc',
-      fontSize: '14px',
-      outline: 'none',
-      boxSizing: 'border-box',
-    },
-    select: {
-      width: '100%',
-      padding: '12px 15px',
-      background: '#0f172a',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      color: '#f8fafc',
-      fontSize: '14px',
-      outline: 'none',
-      cursor: 'pointer',
-    },
-    textarea: {
-      width: '100%',
-      padding: '12px 15px',
-      background: '#0f172a',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      color: '#f8fafc',
-      fontSize: '14px',
-      outline: 'none',
-      resize: 'vertical',
-      minHeight: '100px',
-      boxSizing: 'border-box',
-    },
-    hint: {
-      fontSize: '12px',
-      color: '#64748b',
-      marginTop: '6px',
-    },
-    charCount: {
-      fontSize: '12px',
-      marginTop: '6px',
-    },
-    checkbox: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      cursor: 'pointer',
-    },
-    checkboxInput: {
-      width: '18px',
-      height: '18px',
-      cursor: 'pointer',
-    },
-    typeCards: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: '12px',
-    },
-    typeCard: {
-      padding: '15px',
-      background: '#0f172a',
-      border: '2px solid #334155',
-      borderRadius: '10px',
-      cursor: 'pointer',
-      textAlign: 'center',
-      transition: 'all 0.2s',
-    },
-    typeCardActive: {
-      borderColor: '#3b82f6',
-      background: '#1e3a5f',
-    },
-    typeIcon: {
-      fontSize: '28px',
-      marginBottom: '8px',
-    },
-    typeName: {
-      fontSize: '13px',
-      fontWeight: 600,
-      color: '#e2e8f0',
-    },
-    uploadArea: {
-      border: '2px dashed #475569',
-      borderRadius: '12px',
-      padding: '40px 20px',
-      textAlign: 'center',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-      background: '#0f172a',
-    },
-    uploadAreaActive: {
-      borderColor: '#3b82f6',
-      background: '#1e3a5f',
-    },
-    uploadIcon: {
-      fontSize: '48px',
-      marginBottom: '15px',
-    },
-    uploadText: {
-      fontSize: '16px',
-      color: '#e2e8f0',
-      marginBottom: '8px',
-    },
-    uploadHint: {
-      fontSize: '13px',
-      color: '#64748b',
-      marginBottom: '15px',
-    },
-    browseBtn: {
-      padding: '10px 24px',
-      background: '#3b82f6',
-      border: 'none',
-      borderRadius: '8px',
-      color: 'white',
-      fontSize: '14px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    uploadedFileBox: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '15px 20px',
-      background: '#14532d',
-      border: '1px solid #166534',
-      borderRadius: '10px',
-    },
-    uploadedFileName: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-      color: '#bbf7d0',
-    },
-    removeFileBtn: {
-      padding: '6px 12px',
-      background: '#dc2626',
-      border: 'none',
-      borderRadius: '6px',
-      color: 'white',
-      fontSize: '12px',
-      cursor: 'pointer',
-    },
-    uploadProgress: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '10px',
-      padding: '30px',
-      color: '#94a3b8',
-    },
-    orDivider: {
-      display: 'flex',
-      alignItems: 'center',
-      margin: '20px 0',
-      color: '#64748b',
-      fontSize: '13px',
-    },
-    orLine: {
-      flex: 1,
-      height: '1px',
-      background: '#334155',
-    },
-    orText: {
-      padding: '0 15px',
-    },
-    competencySearch: {
-      position: 'relative',
-    },
-    competencyDropdown: {
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      right: 0,
-      background: '#1e293b',
-      border: '1px solid #334155',
-      borderRadius: '8px',
-      marginTop: '5px',
-      maxHeight: '200px',
-      overflowY: 'auto',
-      zIndex: 100,
-    },
-    competencyItem: {
-      padding: '10px 15px',
-      cursor: 'pointer',
-      borderBottom: '1px solid #334155',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    competencyCode: {
-      fontWeight: 600,
-      color: '#3b82f6',
-      fontSize: '12px',
-    },
-    competencyTitle: {
-      color: '#e2e8f0',
-      fontSize: '13px',
-    },
-    selectedTags: {
-      display: 'flex',
-      flexWrap: 'wrap',
-      gap: '8px',
-      marginTop: '10px',
-    },
-    tag: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '6px',
-      padding: '6px 12px',
-      background: '#3b82f6',
-      borderRadius: '20px',
-      fontSize: '12px',
-      color: 'white',
-    },
-    tagRemove: {
-      cursor: 'pointer',
-      opacity: 0.8,
-    },
-    infoBox: {
-      padding: '15px',
-      background: '#0c4a6e',
-      border: '1px solid #0369a1',
-      borderRadius: '8px',
-      marginBottom: '20px',
-    },
-    infoTitle: {
-      fontWeight: 600,
-      color: '#7dd3fc',
-      marginBottom: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-    },
-    infoText: {
-      fontSize: '13px',
-      color: '#bae6fd',
-      lineHeight: 1.5,
-    },
-    actions: {
-      display: 'flex',
-      justifyContent: 'flex-end',
-      gap: '15px',
-      marginTop: '30px',
-    },
-    btnCancel: {
-      padding: '12px 30px',
-      background: 'transparent',
-      border: '1px solid #475569',
-      borderRadius: '8px',
-      color: '#94a3b8',
-      fontSize: '14px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    btnSubmit: {
-      padding: '12px 30px',
-      background: 'linear-gradient(135deg, #2563eb 0%, #3b82f6 100%)',
-      border: 'none',
-      borderRadius: '8px',
-      color: 'white',
-      fontSize: '14px',
-      fontWeight: 600,
-      cursor: 'pointer',
-    },
-    btnDisabled: {
-      opacity: 0.6,
-      cursor: 'not-allowed',
-    },
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: 13, fontWeight: 600,
+    color: 'var(--bo-text-secondary)', marginBottom: 6,
   };
 
-  const typeOptions = [
-    { value: LearningUnitType.BOOK, icon: '📚', label: 'Book' },
-    { value: LearningUnitType.VIDEO, icon: '🎥', label: 'Video' },
-    { value: LearningUnitType.NOTES, icon: '📝', label: 'Notes' },
-  ];
+  // Content preview helpers
+  const getFileUrl = (url: string) => {
+    if (url.startsWith('/uploads/')) {
+      return `${API_BASE_URL.replace('/api', '')}/api${url}`;
+    }
+    return url;
+  };
+  const isPdf = (url: string) => url?.toLowerCase().endsWith('.pdf');
+  const isVideoFile = (url: string) => /\.(mp4|webm|ogg|mov)$/i.test(url) || /youtube\.com|youtu\.be/i.test(url);
+  const isLocalFile = (url: string) => url?.startsWith('/uploads/');
+  const token = localStorage.getItem('token') || '';
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <h1 style={styles.headerTitle}>
-          <span>📝</span> Create Learning Unit
-        </h1>
-        <button style={styles.backBtn} onClick={() => navigate('/publisher-admin')}>
-          ← Back to Dashboard
-        </button>
-      </header>
+    <PublisherLayout>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <button className="bo-btn bo-btn-outline" style={{ padding: '6px 10px' }}
+            onClick={() => navigate('/publisher-admin/content')}>
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--bo-text)' }}>Create Learning Unit</h1>
+            <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginTop: 2 }}>
+              Upload and configure new educational content
+            </p>
+          </div>
+        </div>
 
-      <main style={styles.main}>
         {error && (
-          <div style={{ ...styles.alert, ...styles.alertError }}>
-            ⚠️ {error}
+          <div style={{ padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', fontSize: 14, marginBottom: 16 }}>
+            {error}
           </div>
         )}
         {success && (
-          <div style={{ ...styles.alert, ...styles.alertSuccess }}>
-            ✅ Learning unit created successfully! Redirecting...
+          <div style={{ padding: '12px 16px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, color: '#16A34A', fontSize: 14, marginBottom: 16 }}>
+            {success}
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        {/* ============ FORM ============ */}
+        <form onSubmit={e => e.preventDefault()}>
           {/* Content Type */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>📦 Content Type</h2>
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Content Type</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+              {([
+                { value: LearningUnitType.BOOK, label: 'E-Book / PDF', icon: <BookOpen size={24} />, color: '#3B82F6' },
+                { value: LearningUnitType.VIDEO, label: 'Video', icon: <Video size={24} />, color: '#8B5CF6' },
+              ]).map(opt => (
+                <div key={opt.value}
+                  onClick={() => { setType(opt.value); setSecureAccessUrl(''); setShowPreview(false); }}
+                  style={{
+                    padding: 20, borderRadius: 12, border: `2px solid ${type === opt.value ? opt.color : 'var(--bo-border)'}`,
+                    background: type === opt.value ? `${opt.color}08` : 'transparent',
+                    cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s',
+                  }}>
+                  <div style={{ color: opt.color, marginBottom: 8, display: 'flex', justifyContent: 'center' }}>{opt.icon}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: type === opt.value ? opt.color : 'var(--bo-text)' }}>{opt.label}</div>
+                </div>
+              ))}
             </div>
-            <div style={styles.sectionBody}>
-              <div style={styles.typeCards}>
-                {typeOptions.map(opt => (
-                  <div
-                    key={opt.value}
-                    style={{
-                      ...styles.typeCard,
-                      ...(formData.type === opt.value ? styles.typeCardActive : {}),
-                    }}
-                    onClick={() => setFormData({ ...formData, type: opt.value })}
+          </div>
+
+          {/* Basic Info */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Basic Information</h3>
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Title *</label>
+                <input style={inputStyle} value={title} onChange={e => { setTitle(e.target.value); setShowPreview(false); }}
+                  placeholder="Enter a descriptive title (min 5 characters)" required minLength={5} />
+              </div>
+              <div>
+                <label style={labelStyle}>Description *</label>
+                <textarea style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }} value={description}
+                  onChange={e => { setDescription(e.target.value); setShowPreview(false); }}
+                  placeholder="Detailed description of the content (min 20 characters)" required minLength={20} />
+                <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 4 }}>{description.length}/20 min characters</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Difficulty Level *</label>
+                  <select style={inputStyle} value={difficultyLevel}
+                    onChange={e => setDifficultyLevel(e.target.value as DifficultyLevel)}>
+                    {Object.entries(diffLabels).map(([k, v]) => (
+                      <option key={k} value={k}>{k} - {v}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Estimated Duration (minutes) *</label>
+                  <input type="number" style={inputStyle} value={estimatedDuration}
+                    onChange={e => setEstimatedDuration(Number(e.target.value))} min={1} required />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>Tags (comma-separated)</label>
+                <input style={inputStyle} value={tags} onChange={e => setTags(e.target.value)}
+                  placeholder="e.g. anatomy, cardiovascular, MBBS" />
+              </div>
+            </div>
+          </div>
+
+          {/* Topic & Competency */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Subject, Topic & Competencies</h3>
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Subject & Topic * (from CBME Repository)</label>
+              <TopicSearch
+                selectedTopicId={selectedTopicId}
+                selectedSubject={subject}
+                onTopicSelect={handleTopicSelect}
+                onSubjectSelect={s => setSubject(s)}
+                onCompetenciesLoad={handleCompetenciesLoad}
+                required
+              />
+            </div>
+            {subject && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>
+                  Selected: <strong>{subject}</strong> → <strong>{topic || 'Select a topic above'}</strong>
+                </div>
+              </div>
+            )}
+            <div>
+              <label style={labelStyle}>Sub-Topic (optional)</label>
+              <input style={inputStyle} value={subTopic} onChange={e => setSubTopic(e.target.value)}
+                placeholder="Optional sub-topic within the selected topic" />
+            </div>
+            {availableCompetencies.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <CompetencySearch
+                  competencies={availableCompetencies}
+                  selectedIds={selectedCompetencyIds}
+                  onChange={setSelectedCompetencyIds}
+                  label="Map Competencies (auto-loaded from topic)"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* File Upload */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Content File</h3>
+            <FileUploadButton
+              fileType={fileTypeMap[type]}
+              onUploadComplete={url => { setSecureAccessUrl(url); setShowPreview(false); }}
+              label={`Upload ${type === 'BOOK' ? 'E-Book (PDF/EPUB)' : 'Video (MP4/WebM)'}`}
+            />
+            {secureAccessUrl && (
+              <div style={{ marginTop: 8, fontSize: 12, color: 'var(--bo-success)' }}>
+                ✅ File uploaded: {secureAccessUrl.split('/').pop()}
+              </div>
+            )}
+          </div>
+
+          {/* Delivery Settings */}
+          <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Delivery & Security</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Delivery Type</label>
+                <select style={inputStyle} value={deliveryType}
+                  onChange={e => setDeliveryType(e.target.value as DeliveryType)}>
+                  <option value="EMBED">Embed (in-app viewer)</option>
+                  <option value="REDIRECT">Redirect (external link)</option>
+                  <option value="STREAM">Stream (video streaming)</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Session Expiry (minutes)</label>
+                <input type="number" style={inputStyle} value={sessionExpiryMinutes}
+                  onChange={e => setSessionExpiryMinutes(Number(e.target.value))} min={5} max={480} />
+              </div>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={watermarkEnabled}
+                  onChange={e => setWatermarkEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
+                <span style={{ fontSize: 14 }}>Enable watermark protection</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Preview Button */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginBottom: showPreview ? 0 : 24 }}>
+            <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate('/publisher-admin/content')}>
+              Cancel
+            </button>
+            <button type="button" className="bo-btn bo-btn-primary" onClick={handlePreview}
+              style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Eye size={16} /> {showPreview ? 'Refresh Preview' : 'Preview & Create'}
+            </button>
+          </div>
+        </form>
+
+        {/* ============ PREVIEW & CREATE SECTION (below form) ============ */}
+        {showPreview && (
+          <div ref={previewRef} style={{ marginTop: 32 }}>
+            {/* Divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--bo-border)' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 16px', borderRadius: 20, background: '#6366F1', color: '#fff', fontSize: 13, fontWeight: 600 }}>
+                <Eye size={14} /> Preview
+              </div>
+              <div style={{ flex: 1, height: 1, background: 'var(--bo-border)' }} />
+            </div>
+
+            {/* Content Preview — Actual Viewer */}
+            <div className="bo-card" style={{ padding: 24, marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: type === LearningUnitType.BOOK ? 'linear-gradient(135deg, #3B82F6, #2563EB)' : 'linear-gradient(135deg, #8B5CF6, #7C3AED)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0,
+                }}>
+                  {type === LearningUnitType.BOOK ? <BookOpen size={22} /> : <Video size={22} />}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--bo-text)', margin: 0 }}>{title}</h2>
+                  <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginTop: 2 }}>
+                    {subject} • {topic} • {difficultyLevel} Level • {estimatedDuration} min
+                  </div>
+                </div>
+              </div>
+
+              {/* Actual Content Viewer */}
+              {secureAccessUrl && isPdf(secureAccessUrl) && isLocalFile(secureAccessUrl) && (
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--bo-border)' }}>
+                  <SecurePdfViewer
+                    url={getFileUrl(secureAccessUrl)}
+                    watermarkText={watermarkEnabled ? `${title} - Preview` : ''}
+                  />
+                </div>
+              )}
+
+              {secureAccessUrl && isVideoFile(secureAccessUrl) && isLocalFile(secureAccessUrl) && (
+                <div style={{ borderRadius: 12, overflow: 'hidden', background: '#000' }}>
+                  <video
+                    controls
+                    controlsList="nodownload"
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{ width: '100%', maxHeight: 500, display: 'block' }}
                   >
-                    <div style={styles.typeIcon}>{opt.icon}</div>
-                    <div style={styles.typeName}>{opt.label}</div>
+                    <source src={`${getFileUrl(secureAccessUrl)}?token=${token}`} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              )}
+
+              {secureAccessUrl && !isLocalFile(secureAccessUrl) && (
+                <div style={{ padding: 20, background: 'var(--bo-bg)', borderRadius: 10, border: '1px solid var(--bo-border)', textAlign: 'center' }}>
+                  <FileText size={32} style={{ color: 'var(--bo-text-muted)', marginBottom: 8 }} />
+                  <div style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>External content: {secureAccessUrl}</div>
+                </div>
+              )}
+
+              {/* Description */}
+              <div style={{ padding: 14, background: 'var(--bo-bg)', borderRadius: 10, border: '1px solid var(--bo-border)', marginTop: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Description</div>
+                <p style={{ fontSize: 14, color: 'var(--bo-text)', lineHeight: 1.7, margin: 0 }}>{description}</p>
+              </div>
+            </div>
+
+            {/* Details Grid */}
+            <div className="bo-card" style={{ padding: 24, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Layers size={16} style={{ color: '#6366F1' }} /> Content Details
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+                {[
+                  { label: 'Subject', value: subject, color: '#3B82F6' },
+                  { label: 'Topic', value: topic, color: '#10B981' },
+                  { label: 'Sub-Topic', value: subTopic || '—', color: '#6B7280' },
+                  { label: 'Difficulty', value: `${difficultyLevel} — ${diffLabels[difficultyLevel]?.split('(')[0]?.trim() || ''}`, color: '#F59E0B' },
+                  { label: 'Duration', value: `${estimatedDuration} min`, color: '#8B5CF6' },
+                  { label: 'Delivery', value: deliveryType === 'EMBED' ? 'Embed' : deliveryType === 'REDIRECT' ? 'Redirect' : 'Stream', color: '#EC4899' },
+                ].map((item, i) => (
+                  <div key={i} style={{
+                    padding: 12, borderRadius: 10, border: '1px solid var(--bo-border)', background: 'var(--bo-bg)',
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: item.color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{item.label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--bo-text)' }}>{item.value}</div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* Basic Information */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>📋 Basic Information</h2>
-            </div>
-            <div style={styles.sectionBody}>
-              <div style={styles.formGrid}>
-                <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
-                  <label style={styles.label}>Title *</label>
-                  <input
-                    style={styles.input}
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    required
-                    placeholder="e.g., Cardiovascular System Anatomy"
-                  />
-                </div>
-
-                <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
-                  <label style={styles.label}>Description * (min 20 characters)</label>
-                  <textarea
-                    style={styles.textarea}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                    placeholder="Detailed description of the learning content..."
-                  />
-                  <div style={{
-                    ...styles.charCount,
-                    color: formData.description.length >= 20 ? '#22c55e' : '#f59e0b'
-                  }}>
-                    {formData.description.length}/20 characters
-                  </div>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Subject *</label>
-                  <input
-                    style={styles.input}
-                    type="text"
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    required
-                    placeholder="e.g., Anatomy"
-                  />
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Topic * (Search & Select)</label>
-                  <TopicSearch
-                    onTopicSelect={(topic) => {
-                      if (topic) {
-                        setSelectedTopic(topic);
-                        setFormData({ ...formData, topicId: topic.id, topic: topic.name, subject: topic.subject });
-                      } else {
-                        setSelectedTopic(null);
-                        setTopicCompetencies([]);
-                        setFormData({ ...formData, topicId: '', topic: '', competencyIds: [] });
-                      }
-                    }}
-                    onCompetenciesLoad={(comps) => {
-                      setTopicCompetencies(comps);
-                      // Auto-select all competencies from the topic
-                      if (comps.length > 0) {
-                        setFormData(prev => ({ ...prev, competencyIds: comps.map(c => c.id) }));
-                      }
-                    }}
-                    required
-                  />
-                  {selectedTopic && (
-                    <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '4px' }}>
-                      ✓ Selected: {selectedTopic.name} ({selectedTopic.code})
-                    </div>
-                  )}
-                </div>
-
-                {/* Auto-loaded Competencies from Topic */}
-                {topicCompetencies.length > 0 && (
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>📚 Mapped Competencies (Auto-loaded)</label>
-                    <div style={{ background: '#1e293b', borderRadius: '8px', padding: '12px', maxHeight: '200px', overflowY: 'auto' }}>
-                      {topicCompetencies.map(comp => (
-                        <div key={comp.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 0', borderBottom: '1px solid #334155' }}>
-                          <input
-                            type="checkbox"
-                            id={`lu-comp-${comp.id}`}
-                            checked={formData.competencyIds.includes(comp.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData({ ...formData, competencyIds: [...formData.competencyIds, comp.id] });
-                              } else {
-                                setFormData({ ...formData, competencyIds: formData.competencyIds.filter(id => id !== comp.id) });
-                              }
-                            }}
-                            style={{ width: '16px', height: '16px' }}
-                          />
-                          <label htmlFor={`lu-comp-${comp.id}`} style={{ color: '#e2e8f0', fontSize: '13px', cursor: 'pointer' }}>
-                            <strong style={{ color: '#3b82f6' }}>{comp.code}</strong> - {comp.title}
-                            <span style={{ color: '#94a3b8', marginLeft: '8px' }}>({comp.domain})</span>
-                          </label>
-                        </div>
+            {/* Competencies + Tags + Security in a row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              {/* Competencies */}
+              {selectedCompetencyIds.length > 0 && (
+                <div className="bo-card" style={{ padding: 20 }}>
+                  <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <GraduationCap size={14} style={{ color: '#6366F1' }} /> Competencies ({selectedCompetencyIds.length})
+                  </h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {availableCompetencies
+                      .filter(c => selectedCompetencyIds.includes(c.id))
+                      .map(comp => (
+                        <span key={comp.id} style={{
+                          padding: '4px 10px', borderRadius: 14, fontSize: 12, fontWeight: 600,
+                          background: '#E0E7FF', color: '#3730A3', border: '1px solid #C7D2FE',
+                        }}>
+                          {comp.code}
+                        </span>
                       ))}
-                    </div>
-                    <p style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>At least one competency mapping is required.</p>
                   </div>
-                )}
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Competency Level (Miller's Pyramid)</label>
-                  <select
-                    style={styles.select}
-                    value={formData.difficultyLevel}
-                    onChange={(e) => setFormData({ ...formData, difficultyLevel: e.target.value as DifficultyLevel })}
-                  >
-                    <option value={DifficultyLevel.K}>K - Knows (Basic knowledge)</option>
-                    <option value={DifficultyLevel.KH}>KH - Knows How (Applied knowledge)</option>
-                    <option value={DifficultyLevel.S}>S - Shows (Can demonstrate)</option>
-                    <option value={DifficultyLevel.SH}>SH - Shows How (Demonstrates competently)</option>
-                    <option value={DifficultyLevel.P}>P - Performs (Independent performance)</option>
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Duration (minutes)</label>
-                  <input
-                    style={styles.input}
-                    type="number"
-                    value={formData.estimatedDuration}
-                    onChange={(e) => setFormData({ ...formData, estimatedDuration: parseInt(e.target.value) || 30 })}
-                    min="1"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Content Upload */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>📤 Upload Content</h2>
-            </div>
-            <div style={styles.sectionBody}>
-              <input
-                type="file"
-                ref={fileInputRef}
-                style={{ display: 'none' }}
-                onChange={handleFileSelect}
-                accept={formData.type === LearningUnitType.VIDEO 
-                  ? 'video/mp4,video/webm,video/ogg'
-                  : formData.type === LearningUnitType.NOTES
-                    ? 'application/pdf,text/plain,.doc,.docx'
-                    : 'application/pdf,application/epub+zip'
-                }
-              />
-              
-              {uploading ? (
-                <div style={styles.uploadProgress}>
-                  <span style={{ fontSize: '24px' }}>⏳</span>
-                  <span>Uploading file...</span>
-                </div>
-              ) : uploadedFile ? (
-                <div style={styles.uploadedFileBox}>
-                  <div style={styles.uploadedFileName}>
-                    <span style={{ fontSize: '20px' }}>✅</span>
-                    <span><strong>{uploadedFile.name}</strong> uploaded successfully</span>
-                  </div>
-                  <button type="button" style={styles.removeFileBtn} onClick={removeFile}>
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <div
-                  style={{
-                    ...styles.uploadArea,
-                    ...(dragActive ? styles.uploadAreaActive : {}),
-                  }}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <div style={styles.uploadIcon}>
-                    {formData.type === LearningUnitType.VIDEO ? '🎬' : 
-                     formData.type === LearningUnitType.NOTES ? '📄' : '📚'}
-                  </div>
-                  <div style={styles.uploadText}>
-                    Drag & drop your {formData.type.toLowerCase()} file here
-                  </div>
-                  <div style={styles.uploadHint}>
-                    {formData.type === LearningUnitType.VIDEO 
-                      ? 'Supports: MP4, WebM, OGG (max 500MB)'
-                      : formData.type === LearningUnitType.NOTES
-                        ? 'Supports: PDF, TXT, DOC, DOCX (max 500MB)'
-                        : 'Supports: PDF, EPUB (max 500MB)'
-                    }
-                  </div>
-                  <button type="button" style={styles.browseBtn}>
-                    Browse Files
-                  </button>
                 </div>
               )}
 
-              {/* Only show URL input when no file is uploaded */}
-              {!uploadedFile && (
-                <>
-                  <div style={styles.orDivider}>
-                    <div style={styles.orLine}></div>
-                    <span style={styles.orText}>OR enter external URL</span>
-                    <div style={styles.orLine}></div>
-                  </div>
-
-                  <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
-                    <label style={styles.label}>External Content URL</label>
-                    <input
-                      style={styles.input}
-                      type="text"
-                      value={formData.secureAccessUrl}
-                      onChange={(e) => {
-                        setFormData({ ...formData, secureAccessUrl: e.target.value });
-                      }}
-                      placeholder="https://your-cdn.com/content/file.pdf"
-                    />
-                    <div style={styles.hint}>If you already have content hosted externally, paste the URL here</div>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Content Access */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>🔐 Access Settings</h2>
-            </div>
-            <div style={styles.sectionBody}>
-              <div style={styles.formGrid}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Delivery Type</label>
-                  <select
-                    style={styles.select}
-                    value={formData.deliveryType}
-                    onChange={(e) => setFormData({ ...formData, deliveryType: e.target.value as DeliveryType })}
-                  >
-                    <option value={DeliveryType.REDIRECT}>🔗 Redirect (new window)</option>
-                    <option value={DeliveryType.EMBED}>📐 Embed (iframe)</option>
-                    <option value={DeliveryType.STREAM}>📺 Stream (HLS/DASH)</option>
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Session Expiry (minutes)</label>
-                  <input
-                    style={styles.input}
-                    type="number"
-                    value={formData.sessionExpiryMinutes}
-                    onChange={(e) => setFormData({ ...formData, sessionExpiryMinutes: parseInt(e.target.value) || 30 })}
-                    min="5"
-                    max="180"
-                  />
-                </div>
-
-                <div style={{ ...styles.formGroup, ...styles.formGroupFull }}>
-                  <label style={styles.checkbox}>
-                    <input
-                      type="checkbox"
-                      checked={formData.watermarkEnabled}
-                      onChange={(e) => setFormData({ ...formData, watermarkEnabled: e.target.checked })}
-                      style={styles.checkboxInput}
-                    />
-                    <span>🔒 Enable Watermarking</span>
-                    <span style={{ color: '#64748b', fontSize: '12px', marginLeft: '10px' }}>
-                      (Shows student info on content for security)
+              {/* Security */}
+              <div className="bo-card" style={{ padding: 20 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Shield size={14} style={{ color: '#6366F1' }} /> Security
+                </h4>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--bo-text-muted)' }}>Watermark</span>
+                    <span style={{ fontWeight: 600, color: watermarkEnabled ? '#10B981' : '#EF4444' }}>
+                      {watermarkEnabled ? '✅ Enabled' : '❌ Disabled'}
                     </span>
-                  </label>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                    <span style={{ color: 'var(--bo-text-muted)' }}>Session Expiry</span>
+                    <span style={{ fontWeight: 600, color: 'var(--bo-text)' }}>{sessionExpiryMinutes} min</span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Competency Mapping */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <h2 style={styles.sectionTitle}>🎯 Competency Mapping</h2>
-            </div>
-            <div style={styles.sectionBody}>
-              <div style={styles.competencySearch}>
-                <label style={styles.label}>Search & Select MCI Competencies</label>
-                <input
-                  style={styles.input}
-                  type="text"
-                  value={competencySearch}
-                  onChange={(e) => {
-                    setCompetencySearch(e.target.value);
-                    setShowCompetencyDropdown(true);
-                  }}
-                  onFocus={() => setShowCompetencyDropdown(true)}
-                  placeholder="Type to search competencies..."
-                />
-                {showCompetencyDropdown && competencySearch && filteredCompetencies.length > 0 && (
-                  <div style={styles.competencyDropdown}>
-                    {filteredCompetencies.map(c => (
-                      <div
-                        key={c.id}
-                        style={{
-                          ...styles.competencyItem,
-                          background: formData.competencyIds.includes(c.id) ? '#1e3a5f' : 'transparent',
-                        }}
-                        onClick={() => toggleCompetency(c.id)}
-                      >
-                        <div>
-                          <div style={styles.competencyCode}>{c.code}</div>
-                          <div style={styles.competencyTitle}>{c.title}</div>
-                        </div>
-                        {formData.competencyIds.includes(c.id) && <span>✓</span>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {selectedCompetencies.length > 0 && (
-                <div style={styles.selectedTags}>
-                  {selectedCompetencies.map(c => (
-                    <span key={c.id} style={styles.tag}>
-                      {c.code}
-                      <span style={styles.tagRemove} onClick={() => toggleCompetency(c.id)}>×</span>
+            {/* Tags */}
+            {tags && (
+              <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <Tag size={14} style={{ color: '#6366F1', marginTop: 2 }} />
+                  {tags.split(',').map(t => t.trim()).filter(Boolean).map((tag, i) => (
+                    <span key={i} style={{
+                      padding: '4px 12px', borderRadius: 14, fontSize: 12, fontWeight: 500,
+                      background: '#6366F1', color: '#fff',
+                    }}>
+                      {tag}
                     </span>
                   ))}
                 </div>
-              )}
-
-              <div style={{ ...styles.hint, marginTop: '15px' }}>
-                {competencies.length > 0
-                  ? `${formData.competencyIds.length} selected from ${competencies.length} available competencies`
-                  : 'Loading competencies...'
-                }
               </div>
+            )}
+
+            {/* Create Button */}
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingBottom: 32 }}>
+              <button type="button" className="bo-btn bo-btn-primary" disabled={saving}
+                onClick={(e) => handleSubmit(e as any)}
+                style={{ padding: '14px 32px', fontSize: 16, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10, borderRadius: 12 }}>
+                <CheckCircle2 size={20} /> {saving ? 'Creating...' : 'Create Learning Unit'}
+              </button>
             </div>
           </div>
-
-          {/* Actions */}
-          <div style={styles.actions}>
-            <button
-              type="button"
-              style={styles.btnCancel}
-              onClick={() => navigate('/publisher-admin')}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={{
-                ...styles.btnSubmit,
-                ...(loading ? styles.btnDisabled : {}),
-              }}
-              disabled={loading}
-            >
-              {loading ? '⏳ Creating...' : '✨ Create Learning Unit'}
-            </button>
-          </div>
-        </form>
-      </main>
-    </div>
+        )}
+      </div>
+    </PublisherLayout>
   );
 };
 

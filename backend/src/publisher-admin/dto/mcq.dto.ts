@@ -42,13 +42,13 @@ export class CreateMcqDto {
   @IsNotEmpty()
   optionB: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  optionC: string;
+  optionC?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  optionD: string;
+  optionD?: string;
 
   @IsOptional()
   @IsString()

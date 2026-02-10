@@ -92,7 +92,7 @@ export class LearningUnitController {
     return {
       templateUrl: '/templates/learning-units-template.csv',
       columns: [
-        'type (BOOK|VIDEO|MCQ|NOTES)',
+        'type (BOOK|VIDEO|MCQ)',
         'title',
         'description (min 20 chars)',
         'subject',

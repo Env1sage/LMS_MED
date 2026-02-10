@@ -4,37 +4,66 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import Login from './pages/Login';
-import LoginNew from './pages/LoginNew';
 import BitflowOwnerDashboard from './pages/BitflowOwnerDashboard';
-import CompetencyDashboard from './pages/CompetencyDashboard';
-import ContentManagement from './pages/ContentManagement';
+import PublishersManagement from './pages/PublishersManagement';
+import CollegesManagement from './pages/CollegesManagement';
+import CompetencyBrowser from './pages/CompetencyBrowser';
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import AuditLogs from './pages/AuditLogs';
+import Settings from './pages/Settings';
+import ContentManagementPage from './pages/ContentManagementPage';
+import PackagesManagement from './pages/PackagesManagement';
 import PublisherAdminDashboard from './pages/PublisherAdminDashboard';
-import PublisherProfilePage from './pages/PublisherProfilePage';
+import ContentListPage from './pages/ContentListPage';
 import CreateLearningUnit from './pages/CreateLearningUnit';
 import ViewLearningUnit from './pages/ViewLearningUnit';
 import EditLearningUnit from './pages/EditLearningUnit';
 import McqManagement from './pages/McqManagement';
-import CollegeAdminDashboard from './pages/CollegeAdminDashboardNew';
-import DepartmentManagement from './pages/DepartmentManagementNew';
-import FacultyManagement from './pages/FacultyManagementNew';
-import CollegeProfile from './pages/CollegeProfile';
-import CreateStudent from './pages/CreateStudent';
-import EditStudent from './pages/EditStudent';
-import ResetStudentPassword from './pages/ResetStudentPassword';
+import BulkUploadPage from './pages/BulkUploadPage';
+import PublisherProfile from './pages/PublisherProfile';
+import CollegeAdminDashboard from './pages/CollegeAdminDashboard';
 import DeanDashboard from './pages/DeanDashboard';
-import FacultyDashboard from './pages/FacultyDashboardNew';
-import CreateCourse from './pages/CreateCourse';
-import EditCourse from './pages/EditCourse';
-import AssignCourse from './pages/AssignCourse';
-import CourseDetails from './pages/CourseDetails';
-import CourseAnalytics from './pages/CourseAnalytics';
-import StudentTracking from './pages/StudentTracking';
-import StudentProgressDetail from './pages/StudentProgressDetail';
-import StudentDashboard from './pages/StudentDashboard';
-import StudentPortal from './pages/StudentPortal';
+import FacultyDashboard from './pages/faculty/FacultyDashboard';
+import FacultyMyCourses from './pages/faculty/FacultyMyCourses';
+import FacultyCreateCourse from './pages/faculty/FacultyCreateCourse';
+import FacultyEditCourse from './pages/faculty/FacultyEditCourse';
+import FacultyCourseDetails from './pages/faculty/FacultyCourseDetails';
+import FacultyAssignCourse from './pages/faculty/FacultyAssignCourse';
+import FacultyCourseAnalytics from './pages/faculty/FacultyCourseAnalytics';
+import FacultyStudentTracking from './pages/faculty/FacultyStudentTracking';
+import FacultyStudentProgress from './pages/faculty/FacultyStudentProgress';
+import FacultySelfPaced from './pages/faculty/FacultySelfPaced';
+import FacultyStudents from './pages/faculty/FacultyStudents';
+import FacultyAnalytics from './pages/faculty/FacultyAnalytics';
+import FacultyNotifications from './pages/faculty/FacultyNotifications';
+import FacultyAssignments from './pages/faculty/FacultyAssignments';
+import FacultyProfile from './pages/faculty/FacultyProfile';
+import CollegeStudents from './pages/college/CollegeStudents';
+import CollegeCreateStudent from './pages/college/CollegeCreateStudent';
+import CollegeEditStudent from './pages/college/CollegeEditStudent';
+import CollegeResetPassword from './pages/college/CollegeResetPassword';
+import CollegeDepartments from './pages/college/CollegeDepartments';
+import CollegeFaculty from './pages/college/CollegeFaculty';
+import CollegeAnalytics from './pages/college/CollegeAnalytics';
+import CollegeNotifications from './pages/college/CollegeNotifications';
+import CollegeProfilePage from './pages/college/CollegeProfilePage';
+import CollegeBulkUpload from './pages/college/CollegeBulkUpload';
+import CollegePackages from './pages/college/CollegePackages';
+import TeacherPerformance from './pages/college/TeacherPerformance';
+import StudentPerformance from './pages/college/StudentPerformance';
+import CourseAnalysis from './pages/college/CourseAnalysis';
+// Old faculty page imports removed — now using pages/faculty/*
+import StudentDashboard from './pages/student/StudentDashboard';
+import StudentCourses from './pages/student/StudentCourses';
+import StudentTests from './pages/student/StudentTests';
+import StudentLibrary from './pages/student/StudentLibrary';
+import StudentAnalytics from './pages/student/StudentAnalytics';
+import StudentSchedule from './pages/student/StudentSchedule';
+import StudentProfile from './pages/student/StudentProfile';
+import StudentNotifications from './pages/student/StudentNotifications';
 import StudentCourseView from './pages/StudentCourseView';
 import TestAttempt from './pages/TestAttempt';
-import SelfPacedContentManager from './pages/SelfPacedContentManager';
+// SelfPacedContentManager replaced by FacultySelfPaced
 import StudentSelfPaced from './pages/StudentSelfPaced';
 import { UserRole } from './types';
 import './App.css';
@@ -44,8 +73,7 @@ const App: React.FC = () => {
     <Router>
       <AuthProvider>
         <Routes>
-          <Route path="/login" element={<LoginNew />} />
-          <Route path="/login-old" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route 
             path="/dashboard" 
             element={
@@ -55,10 +83,26 @@ const App: React.FC = () => {
             } 
           />
           <Route 
+            path="/publishers" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <PublishersManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/colleges" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <CollegesManagement />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/competencies" 
             element={
               <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
-                <CompetencyDashboard />
+                <CompetencyBrowser />
               </ProtectedRoute>
             } 
           />
@@ -66,15 +110,56 @@ const App: React.FC = () => {
             path="/content" 
             element={
               <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
-                <ContentManagement />
+                <ContentManagementPage />
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <AnalyticsDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/activity-logs" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <AuditLogs />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <Settings />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/packages" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.BITFLOW_OWNER}>
+                <PackagesManagement />
+              </ProtectedRoute>
+            } 
+          />
+          {/* Publisher Admin Portal */}
           <Route 
             path="/publisher-admin" 
             element={
               <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
                 <PublisherAdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/publisher-admin/content" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
+                <ContentListPage />
               </ProtectedRoute>
             } 
           />
@@ -95,10 +180,18 @@ const App: React.FC = () => {
             } 
           />
           <Route 
-            path="/publisher-admin/learning-units/:id/edit" 
+            path="/publisher-admin/edit/:id" 
             element={
               <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
                 <EditLearningUnit />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/publisher-admin/bulk-upload" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
+                <BulkUploadPage />
               </ProtectedRoute>
             } 
           />
@@ -114,10 +207,11 @@ const App: React.FC = () => {
             path="/publisher-admin/profile" 
             element={
               <ProtectedRoute requiredRole={UserRole.PUBLISHER_ADMIN}>
-                <PublisherProfilePage />
+                <PublisherProfile />
               </ProtectedRoute>
             } 
           />
+          {/* College Admin Portal */}
           <Route 
             path="/college-admin" 
             element={
@@ -127,10 +221,18 @@ const App: React.FC = () => {
             } 
           />
           <Route 
+            path="/college-admin/students" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <CollegeStudents />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/college-admin/create-student" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <CreateStudent />
+                <CollegeCreateStudent />
               </ProtectedRoute>
             } 
           />
@@ -138,7 +240,7 @@ const App: React.FC = () => {
             path="/college-admin/edit-student/:id" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <EditStudent />
+                <CollegeEditStudent />
               </ProtectedRoute>
             } 
           />
@@ -146,7 +248,7 @@ const App: React.FC = () => {
             path="/college-admin/students/:id" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <EditStudent />
+                <CollegeEditStudent />
               </ProtectedRoute>
             } 
           />
@@ -154,7 +256,7 @@ const App: React.FC = () => {
             path="/college-admin/reset-password/:id" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <ResetStudentPassword />
+                <CollegeResetPassword />
               </ProtectedRoute>
             } 
           />
@@ -162,7 +264,7 @@ const App: React.FC = () => {
             path="/college-admin/departments" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <DepartmentManagement />
+                <CollegeDepartments />
               </ProtectedRoute>
             } 
           />
@@ -170,7 +272,63 @@ const App: React.FC = () => {
             path="/college-admin/faculty" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <FacultyManagement />
+                <CollegeFaculty />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/analytics" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <CollegeAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/packages" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <CollegePackages />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/notifications" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <CollegeNotifications />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/bulk-upload" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <CollegeBulkUpload />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/teacher-performance" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <TeacherPerformance />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/student-performance" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <StudentPerformance />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/college-admin/course-analysis" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
+                <CourseAnalysis />
               </ProtectedRoute>
             } 
           />
@@ -178,103 +336,39 @@ const App: React.FC = () => {
             path="/college-admin/profile" 
             element={
               <ProtectedRoute requiredRole={UserRole.COLLEGE_ADMIN}>
-                <CollegeProfile />
+                <CollegeProfilePage />
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/dean" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.COLLEGE_DEAN}>
-                <DeanDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <FacultyDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/create-course" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <CreateCourse />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/edit-course/:id" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <EditCourse />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/courses/:id" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <CourseDetails />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/assign-course/:id" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <AssignCourse />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/courses/:id/analytics" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <CourseAnalytics />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/courses/:courseId/tracking" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <StudentTracking />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/courses/:courseId/students/:studentId" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <StudentProgressDetail />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/faculty/self-paced" 
-            element={
-              <ProtectedRoute requiredRole={UserRole.FACULTY}>
-                <SelfPacedContentManager />
-              </ProtectedRoute>
-            } 
-          />
+          {/* Faculty Portal Routes */}
+          <Route path="/faculty" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyDashboard /></ProtectedRoute>} />
+          <Route path="/faculty/courses" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyMyCourses /></ProtectedRoute>} />
+          <Route path="/faculty/create-course" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyCreateCourse /></ProtectedRoute>} />
+          <Route path="/faculty/edit-course/:id" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyEditCourse /></ProtectedRoute>} />
+          <Route path="/faculty/courses/:id" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyCourseDetails /></ProtectedRoute>} />
+          <Route path="/faculty/assign-course/:id" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyAssignCourse /></ProtectedRoute>} />
+          <Route path="/faculty/courses/:id/analytics" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyCourseAnalytics /></ProtectedRoute>} />
+          <Route path="/faculty/courses/:courseId/tracking" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyStudentTracking /></ProtectedRoute>} />
+          <Route path="/faculty/courses/:courseId/students/:studentId" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyStudentProgress /></ProtectedRoute>} />
+          <Route path="/faculty/self-paced" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultySelfPaced /></ProtectedRoute>} />
+          <Route path="/faculty/students" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyStudents /></ProtectedRoute>} />
+          <Route path="/faculty/analytics" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyAnalytics /></ProtectedRoute>} />
+          <Route path="/faculty/notifications" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyNotifications /></ProtectedRoute>} />
+          <Route path="/faculty/assignments" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyAssignments /></ProtectedRoute>} />
+          <Route path="/faculty/profile" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyProfile /></ProtectedRoute>} />
           <Route 
             path="/student" 
             element={
               <ProtectedRoute requiredRole={UserRole.STUDENT}>
-                <StudentPortal />
+                <StudentDashboard />
               </ProtectedRoute>
             } 
           />
           <Route 
-            path="/student/dashboard-old" 
+            path="/student/courses" 
             element={
               <ProtectedRoute requiredRole={UserRole.STUDENT}>
-                <StudentDashboard />
+                <StudentCourses />
               </ProtectedRoute>
             } 
           />
@@ -287,10 +381,58 @@ const App: React.FC = () => {
             } 
           />
           <Route 
-            path="/student/tests/:testId" 
+            path="/student/assignments" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentTests />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/assignments/:testId" 
             element={
               <ProtectedRoute requiredRole={UserRole.STUDENT}>
                 <TestAttempt />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/library" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentLibrary />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/analytics" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/schedule" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentSchedule />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/notifications" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentNotifications />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/profile" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentProfile />
               </ProtectedRoute>
             } 
           />
@@ -303,10 +445,19 @@ const App: React.FC = () => {
             } 
           />
           <Route 
-            path="/student/tests/:testId/results" 
+            path="/student/assignments/:testId/results" 
             element={
               <ProtectedRoute requiredRole={UserRole.STUDENT}>
                 <TestAttempt />
+              </ProtectedRoute>
+            } 
+          />
+          {/* Dean Portal */}
+          <Route 
+            path="/dean" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_DEAN}>
+                <DeanDashboard />
               </ProtectedRoute>
             } 
           />

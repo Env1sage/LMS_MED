@@ -18,6 +18,8 @@
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.13.2",
     "framer-motion": "^12.33.0",
+    "jspdf": "^4.1.0",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
