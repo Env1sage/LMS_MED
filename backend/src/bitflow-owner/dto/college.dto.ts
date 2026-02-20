@@ -35,6 +35,19 @@ export class CreateCollegeDto {
   @IsString()
   @IsOptional()
   state?: string;
+
+  @IsString()
+  @IsOptional()
+  taluka?: string;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^[0-9]{6}$/, { message: 'Pincode must be 6 digits' })
+  pincode?: string;
+
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
 }
 
 export class UpdateCollegeDto {
@@ -63,6 +76,19 @@ export class UpdateCollegeDto {
   @IsString()
   @IsOptional()
   state?: string;
+
+  @IsString()
+  @IsOptional()
+  taluka?: string;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^[0-9]{6}$/, { message: 'Pincode must be 6 digits' })
+  pincode?: string;
+
+  @IsString()
+  @IsOptional()
+  logoUrl?: string;
 }
 
 export class UpdateCollegeStatusDto {
@@ -80,6 +106,9 @@ export class CollegeResponseDto {
   address?: string | null;
   city?: string | null;
   state?: string | null;
+  taluka?: string | null;
+  pincode?: string | null;
+  logoUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
   userCount?: number;

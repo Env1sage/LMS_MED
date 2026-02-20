@@ -22,11 +22,11 @@ export class LearningUnitService {
   ) {}
 
   /**
-   * Create a new learning unit (PUBLISHER_ADMIN only)
+   * Create a new learning unit (PUBLISHER_ADMIN or FACULTY)
    * Content starts in DRAFT status
    * Competency mapping is required before activation
    */
-  async create(createDto: CreateLearningUnitDto, userId: string, publisherId: string) {
+  async create(createDto: CreateLearningUnitDto, userId: string, publisherId: string | undefined) {
     // Validate competency IDs exist
     let hasCompetencies = false;
     if (createDto.competencyIds && createDto.competencyIds.length > 0) {
@@ -40,25 +40,30 @@ export class LearningUnitService {
     }
 
     // Determine initial status based on competency mapping
-    const initialStatus = hasCompetencies ? ContentStatus.ACTIVE : ContentStatus.PENDING_MAPPING;
+    // For faculty-created content (no publisherId), auto-activate
+    // For publisher content, require competencies
+    const initialStatus = publisherId 
+      ? (hasCompetencies ? ContentStatus.ACTIVE : ContentStatus.PENDING_MAPPING)
+      : ContentStatus.ACTIVE; // Faculty content is auto-activated
+    
     const mappingStatus = hasCompetencies ? CompetencyMappingStatus.COMPLETE : CompetencyMappingStatus.PENDING;
 
     const learningUnit = await this.prisma.learning_units.create({
       data: {
         id: uuidv4(),
         ...createDto,
-        publisherId,
+        publisherId: publisherId || null,
         status: initialStatus,
         competencyMappingStatus: mappingStatus,
-        activatedAt: hasCompetencies ? new Date() : null,
-        activatedBy: hasCompetencies ? userId : null,
+        activatedAt: (hasCompetencies || !publisherId) ? new Date() : null,
+        activatedBy: (hasCompetencies || !publisherId) ? userId : null,
         updatedAt: new Date(),
       },
     });
 
     await this.auditService.log({
       userId,
-      publisherId,
+      publisherId: publisherId || undefined,
       action: AuditAction.LEARNING_UNIT_CREATED,
       entityType: 'LearningUnit',
       entityId: learningUnit.id,
@@ -365,9 +370,11 @@ export class LearningUnitService {
     });
 
     return {
-      accessToken,
+      token: accessToken, // Return as 'token' for frontend compatibility
+      accessToken, // Also keep accessToken for backward compatibility
       sessionId,
       expiresIn: learningUnit.sessionExpiryMinutes * 60, // in seconds
+      expiresAt: new Date(Date.now() + learningUnit.sessionExpiryMinutes * 60 * 1000).toISOString(),
       learningUnit: {
         id: learningUnit.id,
         title: learningUnit.title,
@@ -378,6 +385,7 @@ export class LearningUnitService {
         watermarkEnabled: learningUnit.watermarkEnabled,
       },
       watermark: learningUnit.watermarkEnabled ? watermarkPayload : null,
+      watermarkText: learningUnit.watermarkEnabled ? `${userFullName} - ${collegeName || 'N/A'}` : undefined,
     };
   }
 

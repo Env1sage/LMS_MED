@@ -109,9 +109,6 @@ const FacultyDashboard: React.FC = () => {
           <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/analytics')}>
             <BarChart3 size={16} /> Analytics
           </button>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/self-paced')}>
-            <FileText size={16} /> Self-Paced Resources
-          </button>
         </div>
       </div>
 

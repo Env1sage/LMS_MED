@@ -49,6 +49,7 @@ export class CourseService {
           title: dto.title,
           description: dto.description,
           academicYear: dto.academicYear,
+          courseType: dto.courseType || 'NORMAL',
           status: CourseStatus.DRAFT,
           updatedAt: new Date(),
         },

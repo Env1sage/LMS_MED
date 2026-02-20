@@ -41,7 +41,7 @@ export class LearningUnitController {
    * POST /api/learning-units/upload
    */
   @Post('upload')
-  @Roles(UserRole.PUBLISHER_ADMIN)
+  @Roles(UserRole.PUBLISHER_ADMIN, UserRole.FACULTY)
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
@@ -115,12 +115,14 @@ export class LearningUnitController {
    * POST /api/learning-units
    */
   @Post()
-  @Roles(UserRole.PUBLISHER_ADMIN)
+  @Roles(UserRole.PUBLISHER_ADMIN, UserRole.FACULTY)
   create(
     @Body() createDto: CreateLearningUnitDto,
     @CurrentUser('userId') userId: string,
-    @CurrentUser('publisherId') publisherId: string,
+    @CurrentUser('publisherId') publisherId: string | undefined,
+    @CurrentUser('collegeId') collegeId: string | undefined,
   ) {
+    // For faculty, publisherId will be undefined - that's OK
     return this.learningUnitService.create(createDto, userId, publisherId);
   }
 

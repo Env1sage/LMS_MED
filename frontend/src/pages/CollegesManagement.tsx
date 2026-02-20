@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { GraduationCap, Plus, Search, X, Eye, Edit, CheckCircle, XCircle, Users, Package, Trash2, Mail } from 'lucide-react';
+import { GraduationCap, Plus, Search, X, Eye, Edit, CheckCircle, XCircle, Users, Package, Trash2, Mail, Building2 } from 'lucide-react';
 import apiService from '../services/api.service';
 import MainLayout from '../components/MainLayout';
 import '../styles/bitflow-owner.css';
@@ -44,15 +44,37 @@ const CollegesManagement: React.FC = () => {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkAssignCollege, setBulkAssignCollege] = useState<College | null>(null);
+  const [publishers, setPublishers] = useState<any[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
 
   const [form, setForm] = useState({
-    name: '', contactEmail: '', contactPhone: '', address: '',
+    name: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '',
     maxStudents: '', licenseType: 'STANDARD',
     subscriptionStartDate: '', subscriptionEndDate: '',
     adminEmail: '', adminName: '', adminPassword: ''
   });
 
-  useEffect(() => { fetchColleges(); fetchAssignments(); }, []);
+  useEffect(() => { fetchColleges(); fetchAssignments(); fetchPublishersAndPackages(); }, []);
+
+  const fetchPublishersAndPackages = async () => {
+    try {
+      const [pubsRes, pkgsRes] = await Promise.all([
+        apiService.get('/bitflow-owner/publishers'),
+        apiService.get('/packages')
+      ]);
+      setPublishers(pubsRes.data?.publishers || pubsRes.data || []);
+      setPackages(Array.isArray(pkgsRes.data) ? pkgsRes.data : pkgsRes.data?.data || []);
+    } catch (err) {
+      console.error('Error fetching publishers/packages:', err);
+    }
+  };
+
+  const openBulkAssignModal = (college: College) => {
+    setBulkAssignCollege(college);
+    setShowBulkAssignModal(true);
+  };
 
   const fetchColleges = async () => {
     try {
@@ -123,7 +145,7 @@ const CollegesManagement: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingCollege(null);
-    setForm({ name: '', contactEmail: '', contactPhone: '', address: '', maxStudents: '', licenseType: 'STANDARD', subscriptionStartDate: '', subscriptionEndDate: '', adminEmail: '', adminName: '', adminPassword: '' });
+    setForm({ name: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '', maxStudents: '', licenseType: 'STANDARD', subscriptionStartDate: '', subscriptionEndDate: '', adminEmail: '', adminName: '', adminPassword: '' });
     setError('');
     setShowModal(true);
   };
@@ -132,7 +154,8 @@ const CollegesManagement: React.FC = () => {
     setEditingCollege(col);
     setForm({
       name: col.name, contactEmail: col.contactEmail, contactPhone: col.contactPhone || '',
-      address: col.address || '', maxStudents: col.maxStudents?.toString() || '',
+      address: col.address || '', city: (col as any).city || '', state: (col as any).state || '', taluka: (col as any).taluka || '', pincode: (col as any).pincode || '', logoUrl: (col as any).logoUrl || '',
+      maxStudents: col.maxStudents?.toString() || '',
       licenseType: col.licenseType || 'STANDARD',
       subscriptionStartDate: col.subscriptionStartDate ? col.subscriptionStartDate.split('T')[0] : '',
       subscriptionEndDate: col.subscriptionEndDate ? col.subscriptionEndDate.split('T')[0] : '',
@@ -154,6 +177,8 @@ const CollegesManagement: React.FC = () => {
       const payload: any = {
         name: form.name, contactEmail: form.contactEmail,
         contactPhone: form.contactPhone || undefined, address: form.address || undefined,
+        city: form.city || undefined, state: form.state || undefined, taluka: form.taluka || undefined,
+        pincode: form.pincode || undefined, logoUrl: form.logoUrl || undefined,
         maxStudents: form.maxStudents ? parseInt(form.maxStudents) : undefined,
         licenseType: form.licenseType,
         subscriptionStartDate: form.subscriptionStartDate || undefined,
@@ -191,18 +216,6 @@ const CollegesManagement: React.FC = () => {
     }
   };
 
-  const handleRenew = async (id: string) => {
-    try {
-      await apiService.post(`/bitflow-owner/colleges/${id}/renew`);
-      setSuccessMsg('Subscription renewed successfully');
-      fetchColleges();
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to renew subscription');
-      setTimeout(() => setError(''), 3000);
-    }
-  };
-
   const handleDeleteCollege = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete "${name}"? This will deactivate all associated users, students, and package assignments. This action cannot be undone.`)) return;
     try {
@@ -225,6 +238,100 @@ const CollegesManagement: React.FC = () => {
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to resend credentials');
       setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleBulkAssignAllPackages = async (collegeId: string) => {
+    if (!window.confirm('This will assign ALL active packages to this college. Continue?')) return;
+    try {
+      setSaving(true);
+      const activePackages = packages.filter(p => p.status === 'ACTIVE');
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const pkg of activePackages) {
+        try {
+          await apiService.post('/packages/assignments', {
+            collegeId,
+            packageId: pkg.id,
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            status: 'ACTIVE'
+          });
+          successCount++;
+        } catch (err) {
+          errorCount++;
+          console.error(`Failed to assign package ${pkg.name}:`, err);
+        }
+      }
+
+      setSuccessMsg(`Successfully assigned ${successCount} packages${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
+      setShowBulkAssignModal(false);
+      fetchAssignments();
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      setError('Failed to assign packages');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBulkAssignByPublisher = async (collegeId: string, publisherId: string) => {
+    const publisher = publishers.find(p => p.id === publisherId);
+    if (!window.confirm(`Assign all packages from "${publisher?.name}" to this college?`)) return;
+    try {
+      setSaving(true);
+      const publisherPackages = packages.filter(p => p.publisherId === publisherId && p.status === 'ACTIVE');
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const pkg of publisherPackages) {
+        try {
+          await apiService.post('/packages/assignments', {
+            collegeId,
+            packageId: pkg.id,
+            startDate: new Date().toISOString().split('T')[0],
+            endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            status: 'ACTIVE'
+          });
+          successCount++;
+        } catch (err) {
+          errorCount++;
+          console.error(`Failed to assign package ${pkg.name}:`, err);
+        }
+      }
+
+      setSuccessMsg(`Successfully assigned ${successCount} packages from ${publisher?.name}${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
+      fetchAssignments();
+      setTimeout(() => setSuccessMsg(''), 4000);
+    } catch (err: any) {
+      setError('Failed to assign publisher packages');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAssignSinglePackage = async (collegeId: string, packageId: string) => {
+    const pkg = packages.find(p => p.id === packageId);
+    try {
+      setSaving(true);
+      await apiService.post('/packages/assignments', {
+        collegeId,
+        packageId,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: 'ACTIVE'
+      });
+      setSuccessMsg(`Successfully assigned package: ${pkg?.name}`);
+      fetchAssignments();
+      setTimeout(() => setSuccessMsg(''), 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to assign package');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -332,11 +439,11 @@ const CollegesManagement: React.FC = () => {
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="View" onClick={() => setViewCollege(col)}><Eye size={15} /></button>
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Edit" onClick={() => openEditModal(col)}><Edit size={15} /></button>
                           {col.status === 'ACTIVE' ? (
-                            <button className="bo-btn bo-btn-danger bo-btn-sm" onClick={() => handleStatusChange(col.id, 'SUSPENDED')}>Suspend</button>
+                            <button className="bo-btn bo-btn-danger bo-btn-sm" onClick={() => handleStatusChange(col.id, 'SUSPENDED')}>Don't Allow</button>
                           ) : (
-                            <button className="bo-btn bo-btn-success bo-btn-sm" onClick={() => handleStatusChange(col.id, 'ACTIVE')}>Activate</button>
+                            <button className="bo-btn bo-btn-success bo-btn-sm" onClick={() => handleStatusChange(col.id, 'ACTIVE')}>Allow</button>
                           )}
-                          <button className="bo-btn bo-btn-primary bo-btn-sm" title="Renew Subscription" onClick={() => handleRenew(col.id)}>Renew</button>
+                          <button className="bo-btn bo-btn-primary bo-btn-sm" title="Assign Content" onClick={() => openBulkAssignModal(col)}>Assign</button>
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Resend IT Admin Credentials" onClick={() => handleResendCredentials(col.id, 'IT_ADMIN')}><Mail size={15} /></button>
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Delete College" style={{ color: 'var(--bo-danger)' }} onClick={() => handleDeleteCollege(col.id, col.name)}><Trash2 size={15} /></button>
                         </div>
@@ -379,6 +486,30 @@ const CollegesManagement: React.FC = () => {
                   <div className="bo-form-group">
                     <label className="bo-form-label">Address</label>
                     <input className="bo-form-input" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="College address" />
+                  </div>
+                  <div className="bo-form-row">
+                    <div className="bo-form-group">
+                      <label className="bo-form-label">City</label>
+                      <input className="bo-form-input" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} placeholder="e.g., Mumbai" />
+                    </div>
+                    <div className="bo-form-group">
+                      <label className="bo-form-label">State</label>
+                      <input className="bo-form-input" value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} placeholder="e.g., Maharashtra" />
+                    </div>
+                  </div>
+                  <div className="bo-form-row">
+                    <div className="bo-form-group">
+                      <label className="bo-form-label">Taluka</label>
+                      <input className="bo-form-input" value={form.taluka} onChange={e => setForm({ ...form, taluka: e.target.value })} placeholder="e.g., Mumbai City" />
+                    </div>
+                    <div className="bo-form-group">
+                      <label className="bo-form-label">Pincode</label>
+                      <input className="bo-form-input" type="text" maxLength={6} pattern="[0-9]{6}" value={form.pincode} onChange={e => setForm({ ...form, pincode: e.target.value })} placeholder="400001" />
+                    </div>
+                  </div>
+                  <div className="bo-form-group">
+                    <label className="bo-form-label">College Logo URL</label>
+                    <input className="bo-form-input" type="url" value={form.logoUrl} onChange={e => setForm({ ...form, logoUrl: e.target.value })} placeholder="https://example.com/logo.png" />
                   </div>
                   <div className="bo-form-row">
                     <div className="bo-form-group">
@@ -538,6 +669,117 @@ const CollegesManagement: React.FC = () => {
                   <Edit size={15} /> Edit
                 </button>
                 <button className="bo-btn bo-btn-secondary" onClick={() => setViewCollege(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Assignment Modal */}
+        {showBulkAssignModal && bulkAssignCollege && (
+          <div className="bo-modal-overlay" onClick={() => setShowBulkAssignModal(false)}>
+            <div className="bo-modal" style={{ maxWidth: 700 }} onClick={e => e.stopPropagation()}>
+              <div className="bo-modal-header">
+                <h3 className="bo-modal-title">Assign Content to {bulkAssignCollege.name}</h3>
+                <button className="bo-modal-close" onClick={() => setShowBulkAssignModal(false)}><X size={20} /></button>
+              </div>
+              <div className="bo-modal-body">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  
+                  {/* Assign All Packages */}
+                  <div style={{ 
+                    padding: 16, 
+                    border: '2px solid #E5E7EB', 
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #667eea10, #764ba210)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <Package size={20} style={{ color: '#667eea' }} />
+                      <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Assign All Packages</h4>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 12 }}>
+                      Assign all active packages from all publishers to this college
+                    </p>
+                    <button 
+                      className="bo-btn bo-btn-primary bo-btn-sm" 
+                      onClick={() => handleBulkAssignAllPackages(bulkAssignCollege.id)}
+                      style={{ width: '100%' }}
+                    >
+                      <Package size={15} /> Assign All Packages ({packages.filter(p => p.status === 'ACTIVE').length})
+                    </button>
+                  </div>
+
+                  {/* Assign by Publisher */}
+                  <div style={{ 
+                    padding: 16, 
+                    border: '2px solid #E5E7EB', 
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #f093fb10, #f5576c10)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <Building2 size={20} style={{ color: '#f093fb' }} />
+                      <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Assign by Publisher</h4>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 12 }}>
+                      Select a publisher to assign all their packages and content
+                    </p>
+                    <select 
+                      className="bo-form-input" 
+                      style={{ marginBottom: 12 }}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleBulkAssignByPublisher(bulkAssignCollege.id, e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                    >
+                      <option value="">Select a publisher...</option>
+                      {publishers.filter(p => p.status === 'ACTIVE').map(pub => (
+                        <option key={pub.id} value={pub.id}>
+                          {pub.name} ({packages.filter(pkg => pkg.publisherId === pub.id && pkg.status === 'ACTIVE').length} packages)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Assign Individual Packages */}
+                  <div style={{ 
+                    padding: 16, 
+                    border: '2px solid #E5E7EB', 
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, #4facfe10, #00f2fe10)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <CheckCircle size={20} style={{ color: '#4facfe' }} />
+                      <h4 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Assign Individual Package</h4>
+                    </div>
+                    <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 12 }}>
+                      Select individual packages to assign
+                    </p>
+                    <select 
+                      className="bo-form-input"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          handleAssignSinglePackage(bulkAssignCollege.id, e.target.value);
+                          e.target.value = '';
+                        }
+                      }}
+                    >
+                      <option value="">Select a package...</option>
+                      {packages.filter(p => p.status === 'ACTIVE').map(pkg => {
+                        const pub = publishers.find(p => p.id === pkg.publisherId);
+                        return (
+                          <option key={pkg.id} value={pkg.id}>
+                            {pkg.name} - {pub?.name || 'Unknown Publisher'}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                </div>
+              </div>
+              <div className="bo-modal-footer">
+                <button className="bo-btn bo-btn-secondary" onClick={() => setShowBulkAssignModal(false)}>Close</button>
               </div>
             </div>
           </div>

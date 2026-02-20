@@ -40,6 +40,9 @@ model colleges {
   address              String?
   city                 String?
   state                String?
+  taluka               String?
+  pincode              String?
+  logoUrl              String?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime
   audit_logs           audit_logs[]
@@ -304,6 +307,7 @@ model courses {
   title               String
   description         String?
   academicYear        AcademicYear
+  courseType          CourseType            @default(NORMAL)
   status              CourseStatus          @default(DRAFT)
   metadata            Json?
   createdAt           DateTime              @default(now())
@@ -371,7 +375,7 @@ model learning_unit_access_logs {
 
 model learning_units {
   id                        String                      @id
-  publisherId               String
+  publisherId               String?
   type                      LearningUnitType
   title                     String
   description               String
@@ -403,7 +407,7 @@ model learning_units {
   updatedAt                 DateTime
   learning_flow_steps       learning_flow_steps[]
   learning_unit_access_logs learning_unit_access_logs[]
-  publishers                publishers                  @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  publishers                publishers?                 @relation(fields: [publisherId], references: [id], onDelete: Cascade)
   topicRef                  topics?                     @relation(fields: [topicId], references: [id])
 
   @@index([difficultyLevel])
@@ -1078,6 +1082,9 @@ enum LearningUnitType {
   VIDEO
   NOTES
   MCQ
+  HANDBOOK
+  PPT
+  DOCUMENT
 }
 
 enum McqStatus {
@@ -1090,6 +1097,12 @@ enum McqType {
   NORMAL
   SCENARIO_BASED
   IMAGE_BASED
+}
+
+enum CourseType {
+  NORMAL
+  SELF_PACED
+  ASSIGNMENT
 }
 
 enum BloomsLevel {

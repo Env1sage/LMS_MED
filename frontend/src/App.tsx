@@ -38,6 +38,7 @@ import FacultyAnalytics from './pages/faculty/FacultyAnalytics';
 import FacultyNotifications from './pages/faculty/FacultyNotifications';
 import FacultyAssignments from './pages/faculty/FacultyAssignments';
 import FacultyProfile from './pages/faculty/FacultyProfile';
+import FacultyContentViewer from './pages/faculty/FacultyContentViewer';
 import CollegeStudents from './pages/college/CollegeStudents';
 import CollegeCreateStudent from './pages/college/CollegeCreateStudent';
 import CollegeEditStudent from './pages/college/CollegeEditStudent';
@@ -62,6 +63,7 @@ import StudentSchedule from './pages/student/StudentSchedule';
 import StudentProfile from './pages/student/StudentProfile';
 import StudentNotifications from './pages/student/StudentNotifications';
 import StudentCourseView from './pages/StudentCourseView';
+import StudentContentViewer from './pages/student/StudentContentViewer';
 import TestAttempt from './pages/TestAttempt';
 // SelfPacedContentManager replaced by FacultySelfPaced
 import StudentSelfPaced from './pages/StudentSelfPaced';
@@ -356,6 +358,8 @@ const App: React.FC = () => {
           <Route path="/faculty/notifications" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyNotifications /></ProtectedRoute>} />
           <Route path="/faculty/assignments" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyAssignments /></ProtectedRoute>} />
           <Route path="/faculty/profile" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyProfile /></ProtectedRoute>} />
+          <Route path="/faculty/content/:id/view" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyContentViewer /></ProtectedRoute>} />
+          <Route path="/view-content/:id" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyContentViewer /></ProtectedRoute>} />
           <Route 
             path="/student" 
             element={
@@ -401,6 +405,30 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute requiredRole={UserRole.STUDENT}>
                 <StudentLibrary />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/student/library/:id/view" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentContentViewer />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/library/:id/view" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.STUDENT}>
+                <StudentContentViewer />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/faculty/content/:id/view" 
+            element={
+              <ProtectedRoute requiredRole={UserRole.FACULTY}>
+                <ViewLearningUnit />
               </ProtectedRoute>
             } 
           />

@@ -91,6 +91,11 @@ export enum RatingType {
 export enum LearningUnitType {
   BOOK = 'BOOK',
   VIDEO = 'VIDEO',
+  NOTES = 'NOTES',
+  MCQ = 'MCQ',
+  HANDBOOK = 'HANDBOOK',
+  PPT = 'PPT',
+  DOCUMENT = 'DOCUMENT',
 }
 
 export enum DeliveryType {

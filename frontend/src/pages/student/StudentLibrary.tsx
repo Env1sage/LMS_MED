@@ -27,6 +27,8 @@ interface LibraryItem {
   subject?: string;
   saved?: boolean;
   questionCount?: number;
+  isFacultyCreated?: boolean;
+  isFromCompletedCourse?: boolean;
 }
 
 interface CustomFolder {
@@ -64,12 +66,13 @@ const StudentLibrary: React.FC = () => {
         apiService.get('/student-portal/tests').catch(() => ({ data: [] })),
       ]);
 
-      // Library API returns: { totalItems, ebooks: [...], videos: [...], interactives: [...] }
+      // Library API returns: { totalItems, ebooks: [...], videos: [...], interactives: [...], documents: [...], facultyContent: [...], completedCourseContent: [...] }
       const rawEbooks = libraryRes.data?.ebooks || [];
       const rawVideos = libraryRes.data?.videos || [];
       const rawInteractives = libraryRes.data?.interactives || [];
+      const rawDocuments = libraryRes.data?.documents || [];
 
-      // Map ebooks
+      // Map ebooks - WITHOUT publisher name
       const ebooks = rawEbooks.map((book: any) => ({
         id: book.id,
         title: book.title,
@@ -77,14 +80,17 @@ const StudentLibrary: React.FC = () => {
         description: book.description,
         subject: book.subject || book.topic,
         courseName: book.courseTitle,
-        author: book.author || 'Publisher',
+        author: book.assignedBy || 'Course Content', // Show teacher name or generic
+        uploadedBy: book.assignedBy ? `Assigned by ${book.assignedBy}` : book.isFromCompletedCourse ? 'From Completed Course' : 'Course Content',
         uploadedAt: book.createdAt || new Date().toISOString(),
         duration: book.duration ? `${book.duration} min` : undefined,
         thumbnail: book.thumbnail,
         saved: false,
+        isFacultyCreated: book.isFacultyCreated,
+        isFromCompletedCourse: book.isFromCompletedCourse,
       }));
 
-      // Map videos
+      // Map videos - WITHOUT publisher name
       const videos = rawVideos.map((video: any) => ({
         id: video.id,
         title: video.title,
@@ -92,14 +98,33 @@ const StudentLibrary: React.FC = () => {
         description: video.description,
         subject: video.subject || video.topic,
         courseName: video.courseTitle,
-        author: video.instructor || video.author || 'Publisher',
+        author: video.assignedBy || 'Course Content',
+        uploadedBy: video.assignedBy ? `Assigned by ${video.assignedBy}` : video.isFromCompletedCourse ? 'From Completed Course' : 'Course Content',
         uploadedAt: video.createdAt || new Date().toISOString(),
         duration: video.duration ? `${video.duration} min` : undefined,
         thumbnail: video.thumbnail,
         saved: false,
+        isFacultyCreated: video.isFacultyCreated,
+        isFromCompletedCourse: video.isFromCompletedCourse,
       }));
 
-      // Map interactives
+      // Map documents (handbooks, PPTs, notes)
+      const documents = rawDocuments.map((doc: any) => ({
+        id: doc.id,
+        title: doc.title,
+        type: 'DOCUMENT' as const,
+        description: doc.description,
+        subject: doc.subject || doc.topic,
+        courseName: doc.courseTitle,
+        author: doc.assignedBy || 'Course Content',
+        uploadedBy: doc.assignedBy ? `Assigned by ${doc.assignedBy}` : doc.isFromCompletedCourse ? 'From Completed Course' : 'Course Content',
+        uploadedAt: doc.createdAt || new Date().toISOString(),
+        saved: false,
+        isFacultyCreated: doc.isFacultyCreated,
+        isFromCompletedCourse: doc.isFromCompletedCourse,
+      }));
+
+      // Map interactives - WITHOUT publisher name
       const interactives = rawInteractives.map((item: any) => ({
         id: item.id,
         title: item.title,
@@ -107,9 +132,12 @@ const StudentLibrary: React.FC = () => {
         description: item.description,
         subject: item.subject || item.topic,
         courseName: item.courseTitle,
-        author: item.author || 'Publisher',
+        author: item.assignedBy || 'Course Content',
+        uploadedBy: item.assignedBy ? `Assigned by ${item.assignedBy}` : item.isFromCompletedCourse ? 'From Completed Course' : 'Course Content',
         uploadedAt: item.createdAt || new Date().toISOString(),
         saved: false,
+        isFacultyCreated: item.isFacultyCreated,
+        isFromCompletedCourse: item.isFromCompletedCourse,
       }));
 
       // Map MCQ tests as library items
@@ -122,7 +150,8 @@ const StudentLibrary: React.FC = () => {
           type: 'MCQ' as const,
           subject: test.subject,
           courseName: test.courseName || test.course?.title,
-          author: test.creatorName,
+          author: test.creatorName || 'Course Content',
+          uploadedBy: test.creatorName,
           uploadedAt: test.createdAt || new Date().toISOString(),
           questionCount: test.totalQuestions || test.questionCount || 0,
           description: `${test.totalQuestions || 0} questions • ${test.durationMinutes || 0} mins`,
@@ -130,7 +159,7 @@ const StudentLibrary: React.FC = () => {
         }));
 
       // Merge all content
-      const allItems = [...ebooks, ...videos, ...interactives, ...mcqs];
+      const allItems = [...ebooks, ...videos, ...documents, ...interactives, ...mcqs];
 
       setItems(allItems);
       setCustomFolders([]);
@@ -354,7 +383,7 @@ const StudentLibrary: React.FC = () => {
               My Library
             </h1>
             <p style={{ color: 'var(--bo-text-muted)', fontSize: 14, marginTop: 4 }}>
-              All your learning materials in one place — Books, Videos, MCQs & More
+              Content assigned by your teachers and from completed courses
             </p>
           </div>
           <button
@@ -760,9 +789,9 @@ const StudentLibrary: React.FC = () => {
                     <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 6, lineHeight: 1.3 }}>
                       {item.title}
                     </h3>
-                    {(item.courseName || item.author) && (
+                    {(item.uploadedBy || item.courseName) && (
                       <div style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 8 }}>
-                        {item.author || item.courseName}
+                        {item.uploadedBy || item.courseName}
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -776,6 +805,30 @@ const StudentLibrary: React.FC = () => {
                       }}>
                         {item.type === 'EBOOK' ? 'E-BOOK' : item.type}
                       </span>
+                      {item.isFacultyCreated && (
+                        <span style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          borderRadius: 4,
+                          background: '#10B98115',
+                          color: '#10B981',
+                          fontWeight: 500
+                        }}>
+                          👨‍🏫 Faculty Content
+                        </span>
+                      )}
+                      {item.isFromCompletedCourse && !item.isFacultyCreated && (
+                        <span style={{
+                          fontSize: 11,
+                          padding: '3px 8px',
+                          borderRadius: 4,
+                          background: '#3B82F615',
+                          color: '#3B82F6',
+                          fontWeight: 500
+                        }}>
+                          ✓ Completed Course
+                        </span>
+                      )}
                       {item.year && (
                         <span style={{
                           fontSize: 11,
@@ -835,7 +888,7 @@ const StudentLibrary: React.FC = () => {
                       if (item.type === 'MCQ') {
                         navigate(`/student/assignments/${item.id}`);
                       } else {
-                        window.open(`/library/${item.id}/view`, '_blank');
+                        navigate(`/student/library/${item.id}/view`);
                       }
                     }}
                   >

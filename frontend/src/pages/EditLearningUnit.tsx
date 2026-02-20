@@ -138,7 +138,8 @@ const EditLearningUnit: React.FC = () => {
   };
 
   const fileTypeMap: Record<LearningUnitType, 'book' | 'video'> = {
-    BOOK: 'book', VIDEO: 'video',
+    BOOK: 'book', VIDEO: 'video', NOTES: 'book', MCQ: 'book',
+    HANDBOOK: 'book', PPT: 'book', DOCUMENT: 'book',
   };
 
   const diffLabels: Record<string, string> = {

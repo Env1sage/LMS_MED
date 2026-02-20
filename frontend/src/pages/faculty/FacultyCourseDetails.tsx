@@ -87,15 +87,11 @@ const FacultyCourseDetails: React.FC = () => {
 
   const handleViewContent = async (unitId: string) => {
     try {
-      const tokenData = await learningUnitService.generateAccessToken(unitId, 'DESKTOP');
-      if (tokenData?.token) {
-        // The backend returns a token, construct the access URL
-        window.open(`/view-content/${unitId}?token=${tokenData.token}`, '_blank');
-      } else {
-        alert('Content preview not available');
-      }
+      // Navigate to the faculty content viewer
+      navigate(`/faculty/content/${unitId}/view`);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to open content');
+      const errorMsg = err.message || 'Failed to open content';
+      alert(`Error: ${errorMsg}`);
     }
   };
 

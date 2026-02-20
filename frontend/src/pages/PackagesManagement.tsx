@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Package, Plus, Search, X, Eye, Edit, CheckCircle, XCircle, Trash2, Link2, ChevronDown } from 'lucide-react';
+import { Package, Plus, Search, X, Eye, Edit, CheckCircle, XCircle, Trash2, Link2, ChevronDown, Users, GraduationCap } from 'lucide-react';
 import apiService from '../services/api.service';
 import MainLayout from '../components/MainLayout';
 import '../styles/bitflow-owner.css';
@@ -43,11 +43,43 @@ interface Assignment {
   createdAt?: string;
 }
 
+interface TeacherAssignment {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  totalMarks: number;
+  passingMarks: number;
+  dueDate?: string;
+  startDate?: string;
+  createdAt: string;
+  faculty: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  college: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  course: {
+    id: string;
+    title: string;
+    academicYear?: string;
+  };
+  totalStudents: number;
+  submittedCount: number;
+  gradedCount: number;
+  avgScore?: number;
+}
+
 const PackagesManagement: React.FC = () => {
   const [packages, setPackages] = useState<PackageItem[]>([]);
   const [publishers, setPublishers] = useState<Publisher[]>([]);
   const [colleges, setColleges] = useState<College[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -59,7 +91,7 @@ const PackagesManagement: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
-  const [activeTab, setActiveTab] = useState<'packages' | 'assignments'>('packages');
+  const [activeTab, setActiveTab] = useState<'packages' | 'assignments' | 'teacher-assignments'>('packages');
 
   const [form, setForm] = useState({
     name: '', description: '', publisherId: '',
@@ -110,6 +142,7 @@ const PackagesManagement: React.FC = () => {
     fetchPublishers();
     fetchColleges();
     fetchAssignments();
+    fetchTeacherAssignments();
   }, []);
 
   const fetchPackages = async () => {
@@ -145,6 +178,16 @@ const PackagesManagement: React.FC = () => {
       setColleges(Array.isArray(cols) ? cols : []);
     } catch (err) {
       console.error('Error fetching colleges:', err);
+    }
+  };
+
+  const fetchTeacherAssignments = async () => {
+    try {
+      const res = await apiService.get('/bitflow-owner/teacher-assignments');
+      const items = Array.isArray(res.data) ? res.data : res.data?.data || [];
+      setTeacherAssignments(items);
+    } catch (err) {
+      console.error('Error fetching teacher assignments:', err);
     }
   };
 
@@ -334,6 +377,9 @@ const PackagesManagement: React.FC = () => {
           <button className={`bo-tab ${activeTab === 'assignments' ? 'bo-tab-active' : ''}`} onClick={() => setActiveTab('assignments')}>
             <Link2 size={16} /> Assignments ({assignments.length})
           </button>
+          <button className={`bo-tab ${activeTab === 'teacher-assignments' ? 'bo-tab-active' : ''}`} onClick={() => setActiveTab('teacher-assignments')}>
+            <GraduationCap size={16} /> Teacher Assignments ({teacherAssignments.length})
+          </button>
         </div>
 
         {/* Packages Tab */}
@@ -476,6 +522,111 @@ const PackagesManagement: React.FC = () => {
                           <button className="bo-btn bo-btn-danger bo-btn-sm" onClick={() => handleRemoveAssignment(a.id)}>Remove</button>
                         </td>
                       </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Teacher Assignments Tab */}
+        {activeTab === 'teacher-assignments' && (
+          <div className="bo-card">
+            {teacherAssignments.length === 0 ? (
+              <div className="bo-empty">
+                <GraduationCap size={44} className="bo-empty-icon" />
+                <h3>No Teacher Assignments</h3>
+                <p>Teachers haven't created any assignments yet</p>
+              </div>
+            ) : (
+              <div className="bo-table-wrap">
+                <table className="bo-table">
+                  <thead>
+                    <tr>
+                      <th>Assignment</th>
+                      <th>Teacher</th>
+                      <th>College</th>
+                      <th>Course</th>
+                      <th>Students</th>
+                      <th>Submitted</th>
+                      <th>Avg Score</th>
+                      <th>Due Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teacherAssignments.map(ta => {
+                      const now = new Date();
+                      const dueDate = ta.dueDate ? new Date(ta.dueDate) : null;
+                      const isOverdue = dueDate && dueDate < now;
+                      
+                      return (
+                        <tr key={ta.id} style={isOverdue ? { background: '#FEF2F2' } : {}}>
+                          <td>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{ta.title}</div>
+                            {ta.description && (
+                              <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {ta.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontSize: 13, fontWeight: 500 }}>{ta.faculty.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{ta.faculty.email}</div>
+                          </td>
+                          <td style={{ fontSize: 13 }}>{ta.college.name}</td>
+                          <td>
+                            <div style={{ fontSize: 13, fontWeight: 500 }}>{ta.course.title}</div>
+                            {ta.course.academicYear && (
+                              <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Year {ta.course.academicYear}</div>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center', fontSize: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+                              <Users size={14} style={{ color: 'var(--bo-accent)' }} />
+                              {ta.totalStudents}
+                            </div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span style={{ 
+                              fontSize: 13, 
+                              fontWeight: 500,
+                              color: ta.submittedCount === ta.totalStudents ? 'var(--bo-success)' : 'var(--bo-text-secondary)' 
+                            }}>
+                              {ta.submittedCount} / {ta.totalStudents}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            {ta.avgScore !== null && ta.avgScore !== undefined ? (
+                              <span style={{ 
+                                fontSize: 13, 
+                                fontWeight: 600,
+                                color: ta.avgScore >= 60 ? 'var(--bo-success)' : ta.avgScore >= 40 ? '#F59E0B' : 'var(--bo-danger)'
+                              }}>
+                                {ta.avgScore.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ fontSize: 13, color: isOverdue ? 'var(--bo-danger)' : 'var(--bo-text-secondary)' }}>
+                            {dueDate ? (
+                              <>
+                                {dueDate.toLocaleDateString()}
+                                {isOverdue && <div style={{ fontSize: 11, fontWeight: 600 }}>Overdue</div>}
+                              </>
+                            ) : (
+                              <span style={{ color: 'var(--bo-text-muted)' }}>No due date</span>
+                            )}
+                          </td>
+                          <td>
+                            <span className={`bo-badge ${ta.status === 'ACTIVE' ? 'bo-badge-success' : 'bo-badge-warning'}`}>
+                              {ta.status}
+                            </span>
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>

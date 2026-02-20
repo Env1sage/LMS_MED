@@ -49,6 +49,14 @@ const DeanDashboard: React.FC = () => {
     loadAll();
   }, []);
 
+  // Clear error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const loadAll = async () => {
     try {
       setLoading(true);

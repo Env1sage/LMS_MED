@@ -349,6 +349,9 @@ export class BitflowOwnerService {
         address: dto.address,
         city: dto.city,
         state: dto.state,
+        taluka: dto.taluka,
+        pincode: dto.pincode,
+        logoUrl: dto.logoUrl,
       },
     });
 
@@ -1814,7 +1817,7 @@ export class BitflowOwnerService {
     ]);
 
     // Get publisher names for byPublisher stats
-    const publisherIds = byPublisher.map(p => p.publisherId);
+    const publisherIds = byPublisher.map(p => p.publisherId).filter((id): id is string => id !== null);
     const publishers = await this.prisma.publishers.findMany({
       where: { id: { in: publisherIds } },
       select: { id: true, name: true },
@@ -1832,7 +1835,7 @@ export class BitflowOwnerService {
       })),
       byPublisher: byPublisher.map(item => ({
         publisherId: item.publisherId,
-        publisherName: publisherMap.get(item.publisherId) || 'Unknown',
+        publisherName: item.publisherId ? (publisherMap.get(item.publisherId) || 'Unknown') : 'Faculty/Custom',
         count: item._count,
       })),
       recentContent: recentContent.map(item => ({
@@ -1842,7 +1845,7 @@ export class BitflowOwnerService {
         subject: item.subject,
         status: item.status,
         createdAt: item.createdAt,
-        publisherName: item.publishers.name,
+        publisherName: item.publishers?.name || 'Faculty/Custom',
       })),
     };
   }
@@ -2046,6 +2049,86 @@ export class BitflowOwnerService {
   // STUDENT PERFORMANCE ANALYTICS
   // ========================================================================
 
+  /**
+   * Get all teacher-created assignments across the platform
+   */
+  async getAllTeacherAssignments(query: {
+    collegeId?: string;
+    facultyId?: string;
+    status?: string;
+  }) {
+    const { collegeId, facultyId, status } = query;
+
+    const where: any = {
+      type: 'ASSIGNMENT',
+    };
+
+    if (collegeId) where.collegeId = collegeId;
+    if (facultyId) where.createdBy = facultyId;
+    if (status) where.status = status;
+
+    const assignments = await this.prisma.tests.findMany({
+      where,
+      include: {
+        creator: {
+          select: { id: true, fullName: true, email: true },
+        },
+        course: {
+          select: { id: true, title: true, academicYear: true },
+        },
+        assignments: {
+          select: { id: true, studentId: true },
+        },
+        attempts: {
+          select: { 
+            id: true, 
+            studentId: true, 
+            status: true, 
+            totalScore: true,
+            percentageScore: true,
+            submittedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Fetch college data separately
+    const collegeIds = [...new Set(assignments.map(a => a.collegeId))];
+    const colleges = await this.prisma.colleges.findMany({
+      where: { id: { in: collegeIds } },
+      select: { id: true, name: true, code: true },
+    });
+    const collegeMap = new Map(colleges.map(c => [c.id, c]));
+
+    return assignments.map(a => ({
+      id: a.id,
+      title: a.title,
+      description: a.description,
+      status: a.status,
+      totalMarks: a.totalMarks,
+      passingMarks: a.passingMarks,
+      dueDate: a.scheduledEndTime,
+      startDate: a.scheduledStartTime,
+      createdAt: a.createdAt,
+      faculty: {
+        id: a.creator?.id,
+        name: a.creator?.fullName,
+        email: a.creator?.email,
+      },
+      college: collegeMap.get(a.collegeId),
+      course: a.course,
+      totalStudents: a.assignments.length,
+      submittedCount: a.attempts.filter((att: any) => 
+        att.status === 'SUBMITTED' || att.status === 'GRADED'
+      ).length,
+      gradedCount: a.attempts.filter((att: any) => att.status === 'GRADED').length,
+      avgScore: a.attempts.length > 0 
+        ? a.attempts.reduce((sum: number, att: any) => sum + (att.percentageScore || 0), 0) / a.attempts.length 
+        : null,
+    }));
+  }
+
   async getStudentPerformance(query: { collegeId?: string; courseId?: string; limit?: number }) {
     const { collegeId, courseId, limit = 50 } = query;
 
@@ -2165,20 +2248,23 @@ export class BitflowOwnerService {
   // TEACHER PERFORMANCE ANALYTICS
   // ========================================================================
 
-  async getTeacherPerformance(query: { collegeId?: string; limit?: number }) {
-    const { collegeId, limit = 50 } = query;
+  async getTeacherPerformance(query: { collegeId?: string; state?: string; city?: string; limit?: number }) {
+    const { collegeId, state, city, limit = 50 } = query;
 
     const where: any = { role: UserRole.FACULTY };
     if (collegeId) where.collegeId = collegeId;
+    if (state || city) {
+      where.colleges = {};
+      if (state) where.colleges.state = state;
+      if (city) where.colleges.city = city;
+    }
 
     const faculty = await this.prisma.users.findMany({
       where,
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        collegeId: true,
-        lastLoginAt: true,
+      include: {
+        colleges: {
+          select: { id: true, name: true, state: true, city: true },
+        },
       },
       take: limit,
     });
@@ -2271,7 +2357,9 @@ export class BitflowOwnerService {
         teacherId: f.id,
         teacherName: f.fullName,
         email: f.email,
-        collegeName: f.collegeId ? (collegeNameMap.get(f.collegeId) || 'Unknown') : 'Unknown',
+        collegeName: (f as any).colleges?.name || (f.collegeId && collegeNameMap.get(f.collegeId)) || 'Unknown',
+        city: (f as any).colleges?.city || null,
+        state: (f as any).colleges?.state || null,
         totalCourses: fCourses.length,
         activeCourses: fCourses.filter(c => c.status === 'PUBLISHED').length,
         totalStudents,
@@ -2280,6 +2368,8 @@ export class BitflowOwnerService {
         avgRating,
         totalRatings: ratingData?.count || 0,
         lastActive: f.lastLoginAt,
+        contentUploaded: fCourses.filter(c => c._count.learning_flow_steps > 0).length,
+        materialsShared: fCourses.reduce((sum, c) => sum + (c._count.learning_flow_steps || 0), 0),
       };
     });
 
@@ -2306,17 +2396,22 @@ export class BitflowOwnerService {
   // COURSE PERFORMANCE ANALYTICS
   // ========================================================================
 
-  async getCoursePerformance(query: { collegeId?: string; limit?: number }) {
-    const { collegeId, limit = 50 } = query;
+  async getCoursePerformance(query: { collegeId?: string; state?: string; city?: string; limit?: number }) {
+    const { collegeId, state, city, limit = 50 } = query;
 
     const where: any = {};
     if (collegeId) where.collegeId = collegeId;
+    if (state || city) {
+      where.colleges = {};
+      if (state) where.colleges.state = state;
+      if (city) where.colleges.city = city;
+    }
 
     const courses = await this.prisma.courses.findMany({
       where,
       include: {
-        colleges: { select: { id: true, name: true } },
-        users: { select: { id: true, fullName: true } },
+        colleges: { select: { id: true, name: true, city: true, state: true } },
+        users: { select: { id: true, fullName: true, email: true } },
         _count: {
           select: {
             course_assignments: true,
@@ -2364,10 +2459,15 @@ export class BitflowOwnerService {
       return {
         courseId: c.id,
         courseTitle: c.title,
+        courseCode: null,
         collegeName: c.colleges?.name || 'Unknown',
+        city: c.colleges?.city || null,
+        state: c.colleges?.state || null,
         facultyName: c.users?.fullName || 'Unknown',
+        facultyEmail: c.users?.email || null,
         status: c.status,
         totalSteps: c._count.learning_flow_steps,
+        totalUnits: c._count.course_assignments,
         enrolledStudents: cp.total,
         completedStudents: cp.completed,
         inProgressStudents: cp.inProgress,
@@ -2395,10 +2495,14 @@ export class BitflowOwnerService {
   // COLLEGE COMPARISON ANALYTICS
   // ========================================================================
 
-  async getCollegeComparison() {
+  async getCollegeComparison(filters?: { state?: string; city?: string }) {
+    const whereClause: any = { status: 'ACTIVE' };
+    if (filters?.state) whereClause.state = filters.state;
+    if (filters?.city) whereClause.city = filters.city;
+
     const colleges = await this.prisma.colleges.findMany({
-      where: { status: 'ACTIVE' },
-      select: { id: true, name: true, code: true },
+      where: whereClause,
+      select: { id: true, name: true, code: true, city: true, state: true },
     });
 
     const results = await Promise.all(colleges.map(async (college) => {
@@ -2443,6 +2547,8 @@ export class BitflowOwnerService {
         collegeId: college.id,
         collegeName: college.name,
         collegeCode: college.code,
+        city: college.city || null,
+        state: college.state || null,
         studentCount,
         facultyCount,
         courseCount,
@@ -2498,9 +2604,436 @@ export class BitflowOwnerService {
         return this.getCourseCompletionStats();
       case 'assessment-participation':
         return this.getAssessmentParticipation();
+      case 'weekly-activity':
+        return this.getWeeklyActivitySummary({});
+      case 'student-progress':
+        return this.getDetailedStudentProgress({ page: 1, limit: 10000 });
       default:
         throw new NotFoundException(`Report type '${reportType}' not found`);
     }
+  }
+
+  // ========================================================================
+  // LOCATION-BASED ANALYTICS
+  // ========================================================================
+
+  async getLocationBasedAnalytics(filters: { state?: string; city?: string; pincode?: string }) {
+    const whereClause: any = {};
+    if (filters.state) whereClause.state = filters.state;
+    if (filters.city) whereClause.city = filters.city;
+    if (filters.pincode) whereClause.pincode = filters.pincode;
+
+    const colleges = await this.prisma.colleges.findMany({
+      where: whereClause,
+      include: {
+        _count: { select: { students: true, users: true } },
+      },
+    });
+
+    // Group by state
+    const byState = new Map<string, any>();
+    colleges.forEach(c => {
+      if (!c.state) return;
+      if (!byState.has(c.state)) {
+        byState.set(c.state, {
+          state: c.state,
+          collegeCount: 0,
+          studentCount: 0,
+          facultyCount: 0,
+          avgCompletionRate: 0,
+        });
+      }
+      const entry = byState.get(c.state);
+      entry.collegeCount++;
+      entry.studentCount += c._count.students;
+      entry.facultyCount += c._count.users;
+    });
+
+    // Group by city
+    const byCity = new Map<string, any>();
+    colleges.forEach(c => {
+      if (!c.city || !c.state) return;
+      const key = `${c.city}-${c.state}`;
+      if (!byCity.has(key)) {
+        byCity.set(key, {
+          city: c.city,
+          state: c.state,
+          collegeCount: 0,
+          studentCount: 0,
+          facultyCount: 0,
+          avgCompletionRate: 0,
+        });
+      }
+      const entry = byCity.get(key);
+      entry.collegeCount++;
+      entry.studentCount += c._count.students;
+      entry.facultyCount += c._count.users;
+    });
+
+    // Group by pincode
+    const byPincode = new Map<string, any>();
+    colleges.forEach(c => {
+      if (!c.pincode || !c.city || !c.state) return;
+      if (!byPincode.has(c.pincode)) {
+        byPincode.set(c.pincode, {
+          pincode: c.pincode,
+          city: c.city,
+          state: c.state,
+          collegeCount: 0,
+          studentCount: 0,
+          avgCompletionRate: 0,
+        });
+      }
+      const entry = byPincode.get(c.pincode);
+      entry.collegeCount++;
+      entry.studentCount += c._count.students;
+    });
+
+    return {
+      byState: Array.from(byState.values()).sort((a, b) => b.studentCount - a.studentCount),
+      byCity: Array.from(byCity.values()).sort((a, b) => b.studentCount - a.studentCount),
+      byPincode: Array.from(byPincode.values()).sort((a, b) => b.studentCount - a.studentCount),
+    };
+  }
+
+  // ========================================================================
+  // DETAILED STUDENT PROGRESS
+  // ========================================================================
+
+  async getDetailedStudentProgress(filters: {
+    page?: number;
+    limit?: number;
+    collegeId?: string;
+    state?: string;
+    city?: string;
+    search?: string;
+  }) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const whereClause: any = {};
+    if (filters.collegeId) whereClause.collegeId = filters.collegeId;
+    if (filters.state || filters.city) {
+      whereClause.college = {};
+      if (filters.state) whereClause.college.state = filters.state;
+      if (filters.city) whereClause.college.city = filters.city;
+    }
+    if (filters.search) {
+      whereClause.OR = [
+        { fullName: { contains: filters.search, mode: 'insensitive' } },
+        { user: { email: { contains: filters.search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [students, total] = await Promise.all([
+      this.prisma.students.findMany({
+        where: whereClause,
+        take: limit,
+        skip,
+        include: {
+          college: {
+            select: { name: true, city: true, state: true },
+          },
+          student_progress: {
+            include: {
+              courses: {
+                select: {
+                  id: true,
+                  title: true,
+                  status: true,
+                  users: { select: { fullName: true } },
+                  learning_flow_steps: {
+                    select: { id: true },
+                  },
+                },
+              },
+            },
+          },
+          user: {
+            select: { email: true, lastLoginAt: true },
+          },
+          practice_sessions: {
+            select: {
+              totalQuestions: true,
+              correctAnswers: true,
+              timeSpentSeconds: true,
+              completedAt: true,
+            },
+          },
+          test_attempts: {
+            select: {
+              totalCorrect: true,
+              totalIncorrect: true,
+              totalSkipped: true,
+              totalScore: true,
+              percentageScore: true,
+              submittedAt: true,
+            },
+          },
+          step_progress: {
+            select: {
+              lastAccessedAt: true,
+            },
+            orderBy: {
+              lastAccessedAt: 'desc',
+            },
+            take: 1,
+          },
+        },
+      }),
+      this.prisma.students.count({ where: whereClause }),
+    ]);
+
+    // Get student IDs for batch queries
+    const studentIds = students.map(s => s.id);
+
+    // Fetch login counts in batch
+    const loginCounts = await this.prisma.audit_logs.groupBy({
+      by: ['userId'],
+      where: {
+        userId: { in: students.map(s => s.userId) },
+        action: AuditAction.LOGIN_SUCCESS,
+      },
+      _count: true,
+    });
+    const loginMap = new Map(loginCounts.map(l => [l.userId, l._count]));
+
+    const studentProgress = students.map((student: any) => {
+      const progress = student.student_progress || [];
+      const completed = progress.filter((p: any) => p.status === 'COMPLETED').length;
+      const inProgress = progress.filter((p: any) => p.status === 'IN_PROGRESS').length;
+      const notStarted = progress.filter((p: any) => p.status === 'NOT_STARTED').length;
+
+      // Calculate practice statistics
+      const practiceSessions = student.practice_sessions || [];
+      const totalPracticeSessions = practiceSessions.length;
+      const totalQuestions = practiceSessions.reduce((sum: number, ps: any) => sum + ps.totalQuestions, 0);
+      const correctAnswers = practiceSessions.reduce((sum: number, ps: any) => sum + ps.correctAnswers, 0);
+      const totalTimeSpent = practiceSessions.reduce((sum: number, ps: any) => sum + ps.timeSpentSeconds, 0);
+      const accuracy = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+      const avgSessionDuration = totalPracticeSessions > 0 ? Math.round(totalTimeSpent / totalPracticeSessions) : 0;
+
+      // Calculate test performance
+      const testAttempts = student.test_attempts || [];
+      const completedTests = testAttempts.filter((t: any) => t.submittedAt !== null);
+      const testsAttempted = testAttempts.length;
+      const testsCompleted = completedTests.length;
+      const scores = completedTests
+        .filter((t: any) => t.percentageScore !== null)
+        .map((t: any) => t.percentageScore);
+      const avgScore = scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
+      const highestScore = scores.length > 0 ? Math.max(...scores) : 0;
+      const lowestScore = scores.length > 0 ? Math.min(...scores) : 0;
+
+      // Calculate activity metrics
+      const lastLoginAt = student.user?.lastLoginAt || null;
+      const lastContentAccessAt = student.step_progress?.[0]?.lastAccessedAt || null;
+      const daysActive = loginMap.get(student.userId) || 0;
+
+      // Course details with accurate step counts
+      const courseDetails = progress.map((p: any) => {
+        const totalSteps = p.courses?.learning_flow_steps?.length || 0;
+        const completedSteps = Array.isArray(p.completedSteps) ? p.completedSteps.length : 0;
+        return {
+          courseId: p.courses?.id || 'N/A',
+          courseTitle: p.courses?.title || 'N/A',
+          facultyName: p.courses?.users?.fullName || 'N/A',
+          status: p.status,
+          completedSteps,
+          totalSteps,
+          progress: totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0,
+          startedAt: p.startedAt,
+          completedAt: p.completedAt,
+        };
+      });
+
+      return {
+        studentId: student.id,
+        studentName: student.fullName,
+        studentEmail: student.user?.email || 'N/A',
+        rollNumber: student.id.substring(0, 10),
+        collegeName: student.college.name,
+        city: student.college.city || 'N/A',
+        state: student.college.state || 'N/A',
+        currentYear: parseInt(student.currentAcademicYear?.replace('YEAR_', '') || '1'),
+        currentSemester: 1,
+        status: student.status,
+        academicProgress: {
+          totalCourses: progress.length,
+          completedCourses: completed,
+          inProgressCourses: inProgress,
+          notStartedCourses: notStarted,
+          completionRate: progress.length > 0 ? Math.round((completed / progress.length) * 100) : 0,
+        },
+        practiceStats: {
+          totalPracticeSessions,
+          totalQuestions,
+          correctAnswers,
+          accuracy,
+          totalTimeSpent,
+          avgSessionDuration,
+        },
+        testPerformance: {
+          testsAttempted,
+          testsCompleted,
+          avgScore,
+          highestScore,
+          lowestScore,
+        },
+        recentActivity: {
+          lastLoginAt,
+          lastContentAccessAt,
+          daysActive,
+        },
+        courseDetails,
+      };
+    });
+
+    // Calculate summary statistics
+    const totalStudents = studentProgress.length;
+    const avgCompletionRate = totalStudents > 0
+      ? Math.round(studentProgress.reduce((sum, s) => sum + s.academicProgress.completionRate, 0) / totalStudents)
+      : 0;
+    const avgAccuracy = totalStudents > 0
+      ? Math.round(studentProgress.reduce((sum, s) => sum + s.practiceStats.accuracy, 0) / totalStudents)
+      : 0;
+    const topPerformers = studentProgress.filter(s => s.academicProgress.completionRate >= 80).length;
+    const atRisk = studentProgress.filter(s => s.academicProgress.completionRate < 30 && s.academicProgress.totalCourses > 0).length;
+
+    return {
+      summary: {
+        totalStudents,
+        avgCompletionRate,
+        avgAccuracy,
+        topPerformers,
+        atRisk,
+      },
+      students: studentProgress,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  // ========================================================================
+  // WEEKLY ACTIVITY SUMMARY
+  // ========================================================================
+
+  async getWeeklyActivitySummary(filters: { startDate?: string; endDate?: string }) {
+    const now = new Date();
+    const weekStart = filters.startDate ? new Date(filters.startDate) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekEnd = filters.endDate ? new Date(filters.endDate) : now;
+
+    // User activity
+    const logins = await this.prisma.audit_logs.findMany({
+      where: {
+        action: 'LOGIN_SUCCESS',
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+      select: { userId: true },
+    });
+
+    const uniqueUsers = new Set(logins.map(l => l.userId).filter(Boolean)).size;
+
+    const newUsers = await this.prisma.users.count({
+      where: {
+        createdAt: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    // Content activity
+    const contentAccessed = await this.prisma.audit_logs.count({
+      where: {
+        action: { in: ['CONTENT_ACCESSED', 'LEARNING_UNIT_ACCESSED'] },
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    const testsAttempted = await this.prisma.test_attempts.count({
+      where: {
+        startedAt: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    const practiceSessionsCompleted = await this.prisma.practice_sessions.count({
+      where: {
+        completedAt: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    // Top active colleges
+    const collegeActivity = await this.prisma.audit_logs.groupBy({
+      by: ['collegeId'],
+      where: {
+        timestamp: { gte: weekStart, lte: weekEnd },
+        collegeId: { not: null },
+      },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 5,
+    });
+
+    const topActiveColleges = await Promise.all(
+      collegeActivity.map(async (ca) => {
+        const college = await this.prisma.colleges.findUnique({
+          where: { id: ca.collegeId! },
+          select: { name: true },
+        });
+        return {
+          collegeName: college?.name || 'Unknown',
+          activeUsers: 0,
+          contentAccessed: ca._count.id,
+        };
+      })
+    );
+
+    // Security events
+    const failedLogins = await this.prisma.audit_logs.count({
+      where: {
+        action: 'LOGIN_FAILED',
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    const securityViolations = await this.prisma.audit_logs.count({
+      where: {
+        action: { in: ['SECURITY_VIOLATION', 'UNAUTHORIZED_ACCESS'] },
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    const blockedAccess = await this.prisma.audit_logs.count({
+      where: {
+        action: { in: ['BLOCKED_ACCESS', 'BLOCKED_ACCESS_ATTEMPT'] },
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    return {
+      weekStartDate: weekStart.toISOString().split('T')[0],
+      weekEndDate: weekEnd.toISOString().split('T')[0],
+      userActivity: {
+        totalLogins: logins.length,
+        uniqueUsers,
+        newUsers,
+        avgSessionDuration: 0,
+      },
+      contentActivity: {
+        contentAccessed,
+        coursesStarted: 0,
+        coursesCompleted: 0,
+        testsAttempted,
+        practiceSessionsCompleted,
+      },
+      topActiveColleges,
+      topActiveStudents: [],
+      securityEvents: {
+        failedLoginAttempts: failedLogins,
+        suspiciousActivities: securityViolations,
+        blockedAccessAttempts: blockedAccess,
+      },
+    };
   }
 }
 

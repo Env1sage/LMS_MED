@@ -524,46 +524,6 @@ const McqManagement: React.FC = () => {
                   Write the full clinical scenario including patient history, exam findings, lab values, and end with the question.
                 </p>
 
-                {/* Optional Image for Scenario */}
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--bo-text, #1e293b)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                    <Image size={14} style={{ color: 'var(--bo-primary)' }} />
-                    Attach Image (optional)
-                  </label>
-                  <p style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginBottom: 8 }}>
-                    Add an X-ray, ECG, lab report, histopathology slide, or clinical photograph to accompany the scenario.
-                  </p>
-                  {formData.questionImage ? (
-                    <div style={{ marginBottom: 4 }}>
-                      <div style={{ position: 'relative', display: 'inline-block', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--bo-border)' }}>
-                        <img
-                          src={formData.questionImage.startsWith('/uploads/')
-                            ? `${API_BASE_URL.replace('/api', '')}/api${formData.questionImage}?token=${localStorage.getItem('accessToken')}`
-                            : formData.questionImage}
-                          alt="Scenario"
-                          style={{ maxWidth: '100%', maxHeight: 220, display: 'block' }}
-                        />
-                        <button type="button"
-                          onClick={() => updateField('questionImage', '')}
-                          style={{
-                            position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)',
-                            border: 'none', borderRadius: '50%', width: 28, height: 28,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: 'pointer', color: '#fff',
-                          }}>
-                          <X size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <FileUploadButton
-                      fileType="image"
-                      label="Upload Scenario Image"
-                      onUploadComplete={url => updateField('questionImage', url)}
-                    />
-                  )}
-                </div>
-
                 <textarea style={{ ...inputStyle, minHeight: 140, lineHeight: '1.6' }}
                   value={formData.question}
                   onChange={e => updateField('question', e.target.value)} required
@@ -571,47 +531,57 @@ const McqManagement: React.FC = () => {
               </div>
             )}
 
-            {/* IMAGE UPLOAD - only for IMAGE_BASED */}
-            {formData.mcqType === 'IMAGE_BASED' && (
-              <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
-                <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Image size={16} style={{ color: 'var(--bo-primary)' }} />
-                  Question Image *
-                </h3>
-                <p style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 12 }}>
-                  Upload an image (X-ray, ECG, histopathology slide, etc.) that the question refers to.
-                </p>
-                {formData.questionImage ? (
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ position: 'relative', display: 'inline-block', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--bo-border)' }}>
-                      <img
-                        src={formData.questionImage.startsWith('/uploads/')
-                          ? `${API_BASE_URL.replace('/api', '')}/api${formData.questionImage}?token=${localStorage.getItem('accessToken')}`
-                          : formData.questionImage}
-                        alt="Question"
-                        style={{ maxWidth: '100%', maxHeight: 300, display: 'block' }}
-                      />
-                      <button type="button"
-                        onClick={() => updateField('questionImage', '')}
-                        style={{
-                          position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)',
-                          border: 'none', borderRadius: '50%', width: 28, height: 28,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', color: '#fff',
-                        }}>
-                        <X size={14} />
-                      </button>
-                    </div>
+            {/* IMAGE UPLOAD - Available for all MCQ types */}
+            <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Image size={16} style={{ color: 'var(--bo-primary)' }} />
+                {formData.mcqType === 'IMAGE_BASED' ? 'Question Image *' : 'Attach Image (Optional)'}
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 12 }}>
+                {formData.mcqType === 'IMAGE_BASED' 
+                  ? 'Upload an image (X-ray, ECG, histopathology slide, etc.) that the question refers to.'
+                  : 'Add an X-ray, ECG, lab report, histopathology slide, clinical photograph, or any supporting image for this MCQ.'}
+              </p>
+              {formData.questionImage ? (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ position: 'relative', display: 'inline-block', borderRadius: 8, overflow: 'hidden', border: '2px solid var(--bo-primary)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                    <img
+                      src={formData.questionImage.startsWith('/uploads/')
+                        ? `${API_BASE_URL.replace('/api', '')}/api${formData.questionImage}?token=${localStorage.getItem('accessToken')}`
+                        : formData.questionImage}
+                      alt="MCQ Image"
+                      style={{ maxWidth: '100%', maxHeight: 300, display: 'block' }}
+                    />
+                    <button type="button"
+                      onClick={() => updateField('questionImage', '')}
+                      style={{
+                        position: 'absolute', top: 8, right: 8, background: 'rgba(220, 38, 38, 0.9)',
+                        border: 'none', borderRadius: '50%', width: 32, height: 32,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', color: '#fff', transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(220, 38, 38, 1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(220, 38, 38, 0.9)'}>
+                      <X size={16} />
+                    </button>
                   </div>
-                ) : (
+                  <p style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 8 }}>
+                    ✓ Image uploaded successfully. Click X to remove and upload a different image.
+                  </p>
+                </div>
+              ) : (
+                <div>
                   <FileUploadButton
                     fileType="image"
-                    label="Upload Question Image"
+                    label={`${formData.mcqType === 'IMAGE_BASED' ? '📤 Upload Question Image (Required)' : '📤 Upload Supporting Image'}`}
                     onUploadComplete={url => updateField('questionImage', url)}
                   />
-                )}
-              </div>
-            )}
+                  <p style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 8 }}>
+                    Accepted formats: JPG, PNG, GIF, WebP • Max size: 10MB
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* QUESTION TEXT - shown for NORMAL and IMAGE_BASED (scenario has its own textarea above) */}
             {formData.mcqType !== 'SCENARIO_BASED' && (

@@ -910,11 +910,12 @@ export class StudentPortalService {
 
   /**
    * Get student's library (assigned learning content)
+   * Shows content from completed courses and teacher-assigned content
    */
   async getMyLibrary(userId: string) {
     const student = await this.getStudentByUserId(userId);
 
-    // Get all assigned courses with learning units
+    // Get all course assignments with progress
     const assignments = await this.prisma.course_assignments.findMany({
       where: { studentId: student.id },
       include: {
@@ -932,26 +933,60 @@ export class StudentPortalService {
                     topic: true,
                     estimatedDuration: true,
                     thumbnailUrl: true,
+                    publisherId: true,
                   },
                 },
               },
               orderBy: { stepOrder: 'asc' },
+            },
+            users: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
             },
           },
         },
       },
     });
 
-    // Group by type
+    // Get student progress for each course
+    const progressRecords = await this.prisma.student_progress.findMany({
+      where: { studentId: student.id },
+      select: {
+        courseId: true,
+        status: true,
+        completedSteps: true,
+      },
+    });
+
+    const progressMap = new Map(
+      progressRecords.map(p => [p.courseId, p])
+    );
+
+    // Group by type and source (publisher vs faculty)
     const library = {
       ebooks: [] as any[],
       videos: [] as any[],
       interactives: [] as any[],
+      documents: [] as any[],
     };
 
+    const facultyContent: any[] = [];
+    const completedCourseContent: any[] = [];
+
     assignments.forEach(a => {
+      const progress = progressMap.get(a.courseId);
+      const totalSteps = a.courses.learning_flow_steps.length;
+      const completedStepsCount = progress?.completedSteps?.length || 0;
+      const isCompleted = progress?.status === 'COMPLETED' || (totalSteps > 0 && completedStepsCount >= totalSteps);
+      const facultyName = a.courses.users?.fullName || 'Faculty';
+
       a.courses.learning_flow_steps.forEach(step => {
         const unit = step.learning_units;
+        const isFacultyCreated = !unit.publisherId; // No publisherId means faculty created
+
         const item = {
           id: unit.id,
           title: unit.title,
@@ -962,20 +997,50 @@ export class StudentPortalService {
           thumbnail: unit.thumbnailUrl,
           courseTitle: a.courses.title,
           courseId: a.courseId,
+          assignedBy: isFacultyCreated ? facultyName : null,
+          isFacultyCreated,
+          isFromCompletedCourse: isCompleted,
+          createdAt: new Date().toISOString(),
         };
 
         const unitType = unit.type as string;
-        if (unitType === 'BOOK') library.ebooks.push(item);
-        else if (unitType === 'VIDEO') library.videos.push(item);
-        else if (unitType === 'MCQ' || unitType === 'NOTES') library.interactives.push(item);
+
+        // Faculty-created content - show immediately without publisher name
+        if (isFacultyCreated) {
+          facultyContent.push(item);
+        }
+        
+        // Publisher content from completed courses only
+        if (!isFacultyCreated && isCompleted) {
+          completedCourseContent.push(item);
+        }
+
+        // Categorize by type for all eligible content
+        if (isFacultyCreated || isCompleted) {
+          if (unitType === 'BOOK' || unitType === 'EBOOK') library.ebooks.push(item);
+          else if (unitType === 'VIDEO') library.videos.push(item);
+          else if (unitType === 'MCQ' || unitType === 'NOTES') library.interactives.push(item);
+          else if (unitType === 'DOCUMENT' || unitType === 'HANDBOOK' || unitType === 'PPT') library.documents.push(item);
+        }
       });
     });
 
     return {
-      totalItems: library.ebooks.length + library.videos.length + library.interactives.length,
+      totalItems: library.ebooks.length + library.videos.length + library.interactives.length + library.documents.length,
       ebooks: library.ebooks,
       videos: library.videos,
       interactives: library.interactives,
+      documents: library.documents,
+      facultyContent, // Content created by teachers
+      completedCourseContent, // Content from completed courses
+      summary: {
+        totalFacultyContent: facultyContent.length,
+        totalCompletedCourseContent: completedCourseContent.length,
+        booksCount: library.ebooks.length,
+        videosCount: library.videos.length,
+        interactivesCount: library.interactives.length,
+        documentsCount: library.documents.length,
+      },
     };
   }
 

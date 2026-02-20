@@ -12,7 +12,7 @@ const getAuthHeaders = () => {
 export interface LearningFlowStep {
   learningUnitId: string;
   stepOrder: number;
-  stepType: 'BOOK' | 'VIDEO' | 'MCQ';
+  stepType: 'BOOK' | 'VIDEO' | 'MCQ' | 'HANDBOOK' | 'PPT' | 'NOTES' | 'DOCUMENT';
   mandatory: boolean;
   completionCriteria?: {
     videoMinWatchPercent?: number;

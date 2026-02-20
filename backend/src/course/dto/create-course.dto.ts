@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsEnum, IsOptional, IsArray, ValidateNested, IsBoolean, IsInt, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AcademicYear, LearningUnitType } from '@prisma/client';
+import { AcademicYear, LearningUnitType, CourseType } from '@prisma/client';
 
 export class LearningFlowStepDto {
   @IsString()
@@ -36,6 +36,10 @@ export class CreateCourseDto {
 
   @IsEnum(AcademicYear)
   academicYear: AcademicYear;
+
+  @IsEnum(CourseType)
+  @IsOptional()
+  courseType?: CourseType;
 
   @IsArray()
   @IsOptional()

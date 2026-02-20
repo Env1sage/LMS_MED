@@ -44,6 +44,9 @@ import {
   ActivityTrendsDto,
   SubjectPopularityDto,
   CourseCompletionStatsDto,
+  LocationBasedAnalyticsDto,
+  DetailedStudentProgressDto,
+  WeeklyActivitySummaryDto,
 } from './dto/analytics.dto';
 import {
   GetAuditLogsDto,
@@ -291,26 +294,69 @@ export class BitflowOwnerController {
   @Get('analytics/teacher-performance')
   async getTeacherPerformance(
     @Query('collegeId') collegeId?: string,
+    @Query('state') state?: string,
+    @Query('city') city?: string,
     @Query('limit') limit?: string,
   ) {
     return this.bitflowOwnerService.getTeacherPerformance({
-      collegeId, limit: limit ? parseInt(limit) : 50,
+      collegeId, state, city, limit: limit ? parseInt(limit) : 50,
     });
   }
 
   @Get('analytics/course-performance')
   async getCoursePerformance(
     @Query('collegeId') collegeId?: string,
+    @Query('state') state?: string,
+    @Query('city') city?: string,
     @Query('limit') limit?: string,
   ) {
     return this.bitflowOwnerService.getCoursePerformance({
-      collegeId, limit: limit ? parseInt(limit) : 50,
+      collegeId, state, city, limit: limit ? parseInt(limit) : 50,
     });
   }
 
   @Get('analytics/college-comparison')
-  async getCollegeComparison() {
-    return this.bitflowOwnerService.getCollegeComparison();
+  async getCollegeComparison(
+    @Query('state') state?: string,
+    @Query('city') city?: string,
+  ) {
+    return this.bitflowOwnerService.getCollegeComparison({ state, city });
+  }
+
+  @Get('analytics/location-based')
+  async getLocationBasedAnalytics(
+    @Query('state') state?: string,
+    @Query('city') city?: string,
+    @Query('pincode') pincode?: string,
+  ): Promise<LocationBasedAnalyticsDto> {
+    return this.bitflowOwnerService.getLocationBasedAnalytics({ state, city, pincode });
+  }
+
+  @Get('analytics/student-progress')
+  async getDetailedStudentProgress(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('collegeId') collegeId?: string,
+    @Query('state') state?: string,
+    @Query('city') city?: string,
+    @Query('search') search?: string,
+  ): Promise<{ students: DetailedStudentProgressDto[]; total: number; page: number; totalPages: number }> {
+    return this.bitflowOwnerService.getDetailedStudentProgress({
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 50,
+      collegeId,
+      state,
+      city,
+      search,
+    });
+  }
+
+  @Get('analytics/weekly-summary')
+  async getWeeklyActivitySummary(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<WeeklyActivitySummaryDto> {
+    return this.bitflowOwnerService.getWeeklyActivitySummary({ startDate, endDate });
   }
 
   @Get('analytics/export/:reportType')
@@ -395,5 +441,18 @@ export class BitflowOwnerController {
   @Get('mcqs/:id')
   async getMcqById(@Param('id') id: string) {
     return this.bitflowOwnerService.getMcqById(id);
+  }
+
+  // ========================================================================
+  // TEACHER ASSIGNMENTS - VIEW ALL PLATFORM-WIDE
+  // ========================================================================
+
+  @Get('teacher-assignments')
+  async getAllTeacherAssignments(
+    @Query('collegeId') collegeId?: string,
+    @Query('facultyId') facultyId?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.bitflowOwnerService.getAllTeacherAssignments({ collegeId, facultyId, status });
   }
 }

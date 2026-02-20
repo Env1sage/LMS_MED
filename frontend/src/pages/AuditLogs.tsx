@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Activity, Search, Clock, Filter, X, Users, Building2, GraduationCap, BookOpen, ChevronDown, RefreshCw } from 'lucide-react';
+import { Activity, Search, Clock, Filter, X, Users, Building2, GraduationCap, BookOpen, ChevronDown, RefreshCw, BarChart3, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import apiService from '../services/api.service';
 import MainLayout from '../components/MainLayout';
 import '../styles/bitflow-owner.css';
@@ -106,6 +106,11 @@ const AuditLogs: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
+  const [weeklyData, setWeeklyData] = useState<any>(null);
+  const [showWeekly, setShowWeekly] = useState(false);
+  const [exportingWeekly, setExportingWeekly] = useState(false);
+  const [showExportPreview, setShowExportPreview] = useState(false);
+  const [exportPreviewData, setExportPreviewData] = useState<{ headers: string[]; rows: any[] } | null>(null);
 
   const activeFilterCount = [actionCategory !== 'ALL', roleFilter, dateFrom, dateTo].filter(Boolean).length;
 
@@ -150,6 +155,175 @@ const AuditLogs: React.FC = () => {
       setLoading(false);
     }
   }, [page, actionCategory, roleFilter, dateFrom, dateTo, searchTerm]);
+
+  const fetchWeeklySummary = async () => {
+    try {
+      setLoading(true);
+      const endDate = dateTo || new Date().toISOString().split('T')[0];
+      const startDate = dateFrom || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const res = await apiService.get(`/bitflow-owner/analytics/weekly-summary?startDate=${startDate}&endDate=${endDate}`);
+      setWeeklyData(res.data);
+      setShowWeekly(true);
+    } catch (err) {
+      console.error('Error fetching weekly summary:', err);
+      alert('Failed to load weekly summary');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportWeeklySummary = async () => {
+    try {
+      setExportingWeekly(true);
+      const endDate = dateTo || new Date().toISOString().split('T')[0];
+      const startDate = dateFrom || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      const res = await apiService.get(`/bitflow-owner/analytics/export/weekly-activity?startDate=${startDate}&endDate=${endDate}`);
+      const data = res.data;
+
+      // Create CSV content
+      let csvContent = `Weekly Activity Report (${startDate} to ${endDate})\n\n`;
+      
+      csvContent += 'USER ACTIVITY\n';
+      csvContent += `Total Logins,${data.userActivity?.totalLogins || 0}\n`;
+      csvContent += `Unique Users,${data.userActivity?.uniqueUsers || 0}\n`;
+      csvContent += `New Users,${data.userActivity?.newUsers || 0}\n\n`;
+      
+      csvContent += 'CONTENT ACTIVITY\n';
+      csvContent += `Content Accessed,${data.contentActivity?.contentAccessed || 0}\n`;
+      csvContent += `Courses Started,${data.contentActivity?.coursesStarted || 0}\n`;
+      csvContent += `Courses Completed,${data.contentActivity?.coursesCompleted || 0}\n`;
+      csvContent += `Tests Attempted,${data.contentActivity?.testsAttempted || 0}\n`;
+      csvContent += `Practice Sessions,${data.contentActivity?.practiceSessionsCompleted || 0}\n\n`;
+      
+      csvContent += 'SECURITY EVENTS\n';
+      csvContent += `Failed Logins,${data.securityEvents?.failedLoginAttempts || 0}\n`;
+      csvContent += `Suspicious Activities,${data.securityEvents?.suspiciousActivities || 0}\n`;
+      csvContent += `Blocked Access,${data.securityEvents?.blockedAccessAttempts || 0}\n\n`;
+      
+      if (data.topActiveColleges && data.topActiveColleges.length > 0) {
+        csvContent += 'TOP ACTIVE COLLEGES\n';
+        csvContent += 'College Name,Content Accessed\n';
+        data.topActiveColleges.forEach((c: any) => {
+          csvContent += `${c.collegeName},${c.contentAccessed}\n`;
+        });
+      }
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `weekly_activity_${startDate}_to_${endDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Failed to export weekly report');
+    } finally {
+      setExportingWeekly(false);
+    }
+  };
+
+  const handleExportLogs = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch ALL logs with current filters (no pagination limit)
+      const params: any = { limit: 100000 }; // Get all logs for export
+
+      if (actionCategory !== 'ALL') {
+        const cat = ACTION_CATEGORIES[actionCategory];
+        if (cat) {
+          params.action = cat.actions[0];
+        }
+      }
+
+      if (roleFilter) params.userRole = roleFilter;
+      if (dateFrom) params.startDate = dateFrom;
+      if (dateTo) params.endDate = dateTo;
+      if (searchTerm) params.search = searchTerm;
+
+      console.log('Fetching logs for export with params:', params);
+      const res = await apiService.get('/bitflow-owner/audit-logs', { params });
+      const allLogs = res.data?.logs || res.data || [];
+      console.log('Fetched logs count:', allLogs.length);
+      
+      // Client-side category filter for full category matching
+      const filteredForExport = allLogs.filter((log: AuditLog) => {
+        if (actionCategory !== 'ALL') {
+          const cat = ACTION_CATEGORIES[actionCategory];
+          if (cat && !cat.actions.includes(log.action?.toUpperCase())) return false;
+        }
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (log.action?.toLowerCase().includes(term)) ||
+          (log.userEmail?.toLowerCase().includes(term)) ||
+          (log.userName?.toLowerCase().includes(term)) ||
+          (log.entity?.toLowerCase().includes(term)) ||
+          (log.entityType?.toLowerCase().includes(term)) ||
+          (log.description?.toLowerCase().includes(term)) ||
+          (log.details?.toLowerCase().includes(term)) ||
+          (log.collegeName?.toLowerCase().includes(term)) ||
+          (log.publisherName?.toLowerCase().includes(term));
+      });
+      
+      console.log('Filtered logs count:', filteredForExport.length);
+      
+      if (filteredForExport.length === 0) {
+        alert('No logs found matching the current filters.');
+        return;
+      }
+      
+      // Prepare export data from ALL filtered logs
+      const headers = ['Timestamp', 'Action', 'User', 'Email', 'Role', 'College/Publisher', 'Entity Type', 'Entity', 'IP Address', 'Details'];
+      const rows = filteredForExport.map((log: AuditLog) => [
+        formatFullTimestamp(log.createdAt || log.timestamp),
+        formatAction(log.action || ''),
+        log.userName || 'Unknown',
+        log.userEmail || 'N/A',
+        log.userRole || 'N/A',
+        log.collegeName || log.publisherName || 'N/A',
+        log.entityType || 'N/A',
+        log.entity || 'N/A',
+        log.ipAddress || 'N/A',
+        log.description || log.details || 'N/A'
+      ]);
+
+      console.log('Prepared export data with rows:', rows.length);
+      setExportPreviewData({ headers, rows });
+      setShowExportPreview(true);
+    } catch (err: any) {
+      console.error('Export error:', err);
+      alert(`Failed to prepare export data: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmExportLogs = () => {
+    if (!exportPreviewData) return;
+
+    const csvContent = [
+      exportPreviewData.headers.join(','),
+      ...exportPreviewData.rows.map(r => r.map((v: any) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    
+    const filterSuffix = actionCategory !== 'ALL' ? `_${actionCategory}` : roleFilter ? `_${roleFilter}` : '';
+    const dateRange = dateFrom && dateTo ? `_${dateFrom}_to_${dateTo}` : '';
+    link.download = `activity_logs${filterSuffix}${dateRange}_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setShowExportPreview(false);
+    setExportPreviewData(null);
+  };
 
   const getActionColor = (action: string) => {
     const a = action?.toUpperCase() || '';
@@ -254,6 +428,17 @@ const AuditLogs: React.FC = () => {
             <p className="bo-page-subtitle">Track all system activities, user actions, and security events</p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button className="bo-btn bo-btn-secondary bo-btn-sm" onClick={fetchWeeklySummary} title="View Weekly Summary">
+              <BarChart3 size={15} /> Weekly Summary
+            </button>
+            <button 
+              className="bo-btn bo-btn-primary bo-btn-sm" 
+              onClick={handleExportLogs}
+              title="Export Filtered Logs"
+              disabled={loading}
+            >
+              <FileSpreadsheet size={15} /> Export Logs
+            </button>
             <button className="bo-btn bo-btn-ghost bo-btn-sm" onClick={() => { setPage(1); fetchLogs(); }} title="Refresh">
               <RefreshCw size={15} />
             </button>
@@ -483,6 +668,169 @@ const AuditLogs: React.FC = () => {
             </>
           )}
         </div>
+
+        {/* Weekly Summary Modal */}
+        {showWeekly && weeklyData && (
+          <div className="bo-modal-overlay" onClick={() => setShowWeekly(false)}>
+            <div className="bo-modal" style={{ maxWidth: 900 }} onClick={e => e.stopPropagation()}>
+              <div className="bo-modal-header">
+                <h3 className="bo-modal-title">Weekly Activity Summary</h3>
+                <button className="bo-modal-close" onClick={() => setShowWeekly(false)}><X size={20} /></button>
+              </div>
+              <div className="bo-modal-body">
+                <div style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 20 }}>
+                  {weeklyData.weekStartDate} to {weeklyData.weekEndDate}
+                </div>
+
+                {/* User Activity */}
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>User Activity</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    <div className="bo-card" style={{ padding: '16px', background: '#EEF2FF' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Total Logins</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#6366F1' }}>{weeklyData.userActivity?.totalLogins || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', background: '#F0FDF4' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Unique Users</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#10B981' }}>{weeklyData.userActivity?.uniqueUsers || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', background: '#FEF3C7' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>New Users</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#F59E0B' }}>{weeklyData.userActivity?.newUsers || 0}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Content Activity */}
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Content Activity</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+                    <div className="bo-card" style={{ padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Content Accessed</div>
+                      <div style={{ fontSize: 20, fontWeight: 700 }}>{weeklyData.contentActivity?.contentAccessed || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Courses Started</div>
+                      <div style={{ fontSize: 20, fontWeight: 700 }}>{weeklyData.contentActivity?.coursesStarted || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Completed</div>
+                      <div style={{ fontSize: 20, fontWeight: 700 }}>{weeklyData.contentActivity?.coursesCompleted || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Tests Attempted</div>
+                      <div style={{ fontSize: 20, fontWeight: 700 }}>{weeklyData.contentActivity?.testsAttempted || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Practice Sessions</div>
+                      <div style={{ fontSize: 20, fontWeight: 700 }}>{weeklyData.contentActivity?.practiceSessionsCompleted || 0}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Security Events */}
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Security Events</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                    <div className="bo-card" style={{ padding: '16px', background: '#FEE2E2' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Failed Logins</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#DC2626' }}>{weeklyData.securityEvents?.failedLoginAttempts || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', background: '#FEF2F2' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Suspicious Activities</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#EF4444' }}>{weeklyData.securityEvents?.suspiciousActivities || 0}</div>
+                    </div>
+                    <div className="bo-card" style={{ padding: '16px', background: '#FEE2E2' }}>
+                      <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>Blocked Access</div>
+                      <div style={{ fontSize: 24, fontWeight: 700, color: '#DC2626' }}>{weeklyData.securityEvents?.blockedAccessAttempts || 0}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top Active Colleges */}
+                {weeklyData.topActiveColleges && weeklyData.topActiveColleges.length > 0 && (
+                  <div>
+                    <h4 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Top Active Colleges</h4>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {weeklyData.topActiveColleges.map((college: any, i: number) => (
+                        <div key={i} className="bo-card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 600 }}>{college.collegeName}</span>
+                          <span style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>{college.contentAccessed} activities</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="bo-modal-footer">
+                <button className="bo-btn bo-btn-primary" onClick={exportWeeklySummary} disabled={exportingWeekly}>
+                  {exportingWeekly ? <><div className="bo-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Exporting...</> : <><FileSpreadsheet size={15} /> Export CSV</>}
+                </button>
+                <button className="bo-btn bo-btn-secondary" onClick={() => setShowWeekly(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Export Preview Modal */}
+        {showExportPreview && exportPreviewData && (
+          <div className="bo-modal-backdrop" onClick={() => setShowExportPreview(false)}>
+            <div className="bo-modal" style={{ maxWidth: 1200, width: '95%' }} onClick={(e) => e.stopPropagation()}>
+              <div className="bo-modal-header">
+                <h2 style={{ fontSize: 20, fontWeight: 700 }}>Export Preview - Activity Logs</h2>
+                <button className="bo-btn bo-btn-ghost bo-btn-icon" onClick={() => setShowExportPreview(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="bo-modal-body" style={{ padding: 20 }}>
+                <div style={{ marginBottom: 16, padding: 12, background: '#FEF3C7', borderRadius: 8, border: '1px solid #FCD34D' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                    <Activity size={16} style={{ color: '#F59E0B' }} />
+                    <span style={{ fontWeight: 500 }}>
+                      Ready to export {exportPreviewData.rows.length} activity logs
+                      {actionCategory !== 'ALL' && ` • Category: ${ACTION_CATEGORIES[actionCategory]?.label}`}
+                      {roleFilter && ` • Role: ${roleFilter}`}
+                      {dateFrom && dateTo && ` • Date Range: ${dateFrom} to ${dateTo}`}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 13, marginBottom: 12, color: 'var(--bo-text-muted)' }}>
+                  Showing first 10 records as preview. All {exportPreviewData.rows.length} records will be exported.
+                </div>
+
+                <div style={{ overflow: 'auto', maxHeight: '50vh', border: '1px solid var(--bo-border)', borderRadius: 8 }}>
+                  <table className="bo-table" style={{ fontSize: 11 }}>
+                    <thead style={{ position: 'sticky', top: 0, background: 'var(--bo-bg)', zIndex: 1 }}>
+                      <tr>
+                        {exportPreviewData.headers.map((h, i) => (
+                          <th key={i} style={{ fontSize: 11, padding: 8, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exportPreviewData.rows.slice(0, 10).map((row, i) => (
+                        <tr key={i}>
+                          {row.map((cell: any, j: number) => (
+                            <td key={j} style={{ fontSize: 10, padding: 6, whiteSpace: 'nowrap', maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="bo-modal-footer">
+                <button className="bo-btn bo-btn-primary" onClick={confirmExportLogs}>
+                  <FileSpreadsheet size={15} /> Download CSV ({exportPreviewData.rows.length} records)
+                </button>
+                <button className="bo-btn bo-btn-secondary" onClick={() => setShowExportPreview(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

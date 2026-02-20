@@ -265,9 +265,9 @@ const PublishersManagement: React.FC = () => {
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="View" onClick={() => setViewPublisher(pub)}><Eye size={15} /></button>
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Edit" onClick={() => openEditModal(pub)}><Edit size={15} /></button>
                           {pub.status === 'ACTIVE' ? (
-                            <button className="bo-btn bo-btn-danger bo-btn-sm" onClick={() => handleStatusChange(pub.id, 'SUSPENDED')}>Suspend</button>
+                            <button className="bo-btn bo-btn-danger bo-btn-sm" onClick={() => handleStatusChange(pub.id, 'SUSPENDED')}>Don't Allow</button>
                           ) : (
-                            <button className="bo-btn bo-btn-success bo-btn-sm" onClick={() => handleStatusChange(pub.id, 'ACTIVE')}>Activate</button>
+                            <button className="bo-btn bo-btn-success bo-btn-sm" onClick={() => handleStatusChange(pub.id, 'ACTIVE')}>Allow</button>
                           )}
                           <button className="bo-btn bo-btn-primary bo-btn-sm" title="Renew Contract" onClick={() => handleRenew(pub.id)}>Renew</button>
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Resend Credentials" onClick={() => handleResendCredentials(pub.id)}><Mail size={15} /></button>

@@ -23,7 +23,6 @@ const FacultyLayout: React.FC<FacultyLayoutProps> = ({ children }) => {
     { path: '/faculty/assignments', label: 'Assignments', icon: <ClipboardList size={18} /> },
     { path: '/faculty/students', label: 'My Students', icon: <GraduationCap size={18} /> },
     { path: '/faculty/analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
-    { path: '/faculty/self-paced', label: 'Self-Paced Resources', icon: <FileText size={18} /> },
     { path: '/faculty/notifications', label: 'Notifications', icon: <Bell size={18} /> },
     { path: '/faculty/profile', label: 'My Profile', icon: <Settings size={18} /> },
   ];

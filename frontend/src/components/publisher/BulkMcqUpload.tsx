@@ -4,9 +4,10 @@ import topicsService from '../../services/topics.service';
 import { Topic } from '../../services/topics.service';
 import TopicSearch from '../TopicSearch';
 import CompetencySearch from '../common/CompetencySearch';
+import FileUploadButton from './FileUploadButton';
 import {
   Upload, X, Download, Plus, Trash2, FileText,
-  AlertCircle, CheckCircle2, ChevronDown
+  AlertCircle, CheckCircle2, ChevronDown, Image as ImageIcon
 } from 'lucide-react';
 
 interface BulkUploadResult {
@@ -33,6 +34,7 @@ interface McqRow {
   tags: string;
   year: string;
   source: string;
+  questionImage?: string; // Image URL for scenario/image-based MCQs
   expanded: boolean;
 }
 
@@ -48,8 +50,9 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
     id: crypto.randomUUID(),
     question: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '',
     correctAnswer: 'A', subject: '', topic: '', mcqType: 'NORMAL',
-    difficultyLevel: 'K', bloomsLevel: 'REMEMBER', competencyCodes: '',
-    tags: '', year: String(currentYear), source: '', expanded: true,
+    difficultyLevel: 'K', bloomsLevel: 'REMEMBER',
+    competencyCodes: '', tags: '', year: String(currentYear), source: '', questionImage: '',
+    expanded: true,
   });
 
   const [mode, setMode] = useState<'form' | 'csv'>('form');
@@ -192,12 +195,12 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
       setError(`${invalid.length} MCQ(s) missing required fields (question, options A & B, subject)`);
       return;
     }
-    const headers = 'question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,mcqType,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source';
+    const headers = 'question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,mcqType,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source,questionImageUrl';
     const csvRows = rows.map(r => {
       const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
       return [r.question, r.optionA, r.optionB, r.optionC, r.optionD, r.optionE,
         r.correctAnswer, r.subject, r.topic, r.mcqType, r.difficultyLevel,
-        r.bloomsLevel, r.competencyCodes, r.tags, r.year, r.source].map(escape).join(',');
+        r.bloomsLevel, r.competencyCodes, r.tags, r.year, r.source, r.questionImage || ''].map(escape).join(',');
     });
     const csvContent = [headers, ...csvRows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -215,9 +218,9 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
   };
 
   const downloadTemplate = () => {
-    const csvContent = `question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,mcqType,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source
-"What is the normal heart rate?","60-100 bpm","40-60 bpm","100-120 bpm","120-140 bpm","","A","Physiology","Cardiovascular System","NORMAL","K","REMEMBER","PY2.1,PY2.2","cardiology,vitals","2024","NEET PG"
-"A 45-year-old patient presents with chest pain. ECG shows ST elevation.","Myocardial Infarction","Angina","Pericarditis","Aortic Dissection","","A","Medicine","Cardiovascular System","SCENARIO_BASED","KH","APPLY","IM3.1,IM3.2","cardiology","2024","AIIMS"`;
+    const csvContent = `question,optionA,optionB,optionC,optionD,optionE,correctAnswer,subject,topic,mcqType,difficultyLevel,bloomsLevel,competencyCodes,tags,year,source,questionImageUrl
+"What is the normal heart rate?","60-100 bpm","40-60 bpm","100-120 bpm","120-140 bpm","","A","Physiology","Cardiovascular System","NORMAL","K","REMEMBER","PY2.1,PY2.2","cardiology,vitals","2024","NEET PG",""
+"A 45-year-old patient presents with chest pain. ECG shows ST elevation.","Myocardial Infarction","Angina","Pericarditis","Aortic Dissection","","A","Medicine","Cardiovascular System","SCENARIO_BASED","KH","APPLY","IM3.1,IM3.2","cardiology","2024","AIIMS","https://example.com/ecg-image.jpg"`;
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -327,6 +330,61 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
                       onBlur={e => { e.currentTarget.style.borderColor = 'var(--bo-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
                   </div>
+
+                  {/* Image Upload Section - Only for Scenario-Based & Image-Based MCQs */}
+                  {(row.mcqType === 'SCENARIO_BASED' || row.mcqType === 'IMAGE_BASED') && (
+                    <div className="bo-card" style={{
+                      padding: 16, marginBottom: 14,
+                      background: 'linear-gradient(135deg, #667eea11, #764ba211)',
+                      border: '2px dashed var(--bo-primary-light, #9F7AEA)',
+                      borderRadius: 12,
+                      transition: 'all 0.3s ease',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <ImageIcon size={18} style={{ color: 'var(--bo-primary)' }} />
+                        <label style={{
+                          ...labelStyle,
+                          margin: 0,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: 'var(--bo-text)',
+                          textTransform: 'none',
+                        }}>
+                          📸 Image Upload (Optional) — For Scenario-Based & Image-Based MCQs
+                        </label>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginBottom: 10 }}>
+                        Upload an image if this MCQ requires visual context (ECG, X-ray, clinical photo, diagram, etc.)
+                      </p>
+                      {row.questionImage ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <img src={row.questionImage} alt="Question" style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--bo-border)' }} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, color: 'var(--bo-text)', fontWeight: 600, marginBottom: 4 }}>✅ Image Uploaded</div>
+                            <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', wordBreak: 'break-all' }}>{row.questionImage}</div>
+                          </div>
+                          <button type="button"
+                            onClick={() => updateRow(row.id, 'questionImage', '')}
+                            style={{
+                              padding: '6px 12px', borderRadius: 6, border: '1px solid var(--bo-danger)',
+                              background: 'transparent', color: 'var(--bo-danger)', cursor: 'pointer',
+                              fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4,
+                            }}>
+                            <X size={12} /> Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <FileUploadButton
+                          fileType="image"
+                          label="Upload Image"
+                          onUploadComplete={(url) => updateRow(row.id, 'questionImage', url)}
+                        />
+                      )}
+                      <div style={{ fontSize: 10, color: 'var(--bo-text-muted)', marginTop: 8, fontStyle: 'italic' }}>
+                        💡 Supported formats: JPG, PNG, GIF, WebP • Max size: 5MB
+                      </div>
+                    </div>
+                  )}
 
                   {/* Options Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>

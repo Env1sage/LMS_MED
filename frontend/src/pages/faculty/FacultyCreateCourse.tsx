@@ -4,8 +4,11 @@ import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { courseService, LearningFlowStep } from '../../services/course.service';
 import competencyService from '../../services/competency.service';
 import packagesService from '../../services/packages.service';
+import learningUnitService from '../../services/learning-unit.service';
+import { LearningUnitType } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Lock, Unlock, Search, X } from 'lucide-react';
+import FileUploadButton from '../../components/publisher/FileUploadButton';
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Lock, Unlock, Search, X, Upload } from 'lucide-react';
 import '../../styles/bitflow-owner.css';
 
 const ACCENT = '#7C3AED';
@@ -24,14 +27,27 @@ const FacultyCreateCourse: React.FC = () => {
     description: '',
     academicYear: 'YEAR_1',
     competencyIds: [] as string[],
+    courseType: 'NORMAL' as 'NORMAL' | 'SELF_PACED' | 'ASSIGNMENT',
   });
 
   const [steps, setSteps] = useState<LearningFlowStep[]>([]);
   const [units, setUnits] = useState<any[]>([]);
   const [competencies, setCompetencies] = useState<any[]>([]);
   const [showSelector, setShowSelector] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [unitSearch, setUnitSearch] = useState('');
   const [unitTypeFilter, setUnitTypeFilter] = useState('ALL');
+  
+  // Custom content upload state
+  const [customContent, setCustomContent] = useState({
+    title: '',
+    description: '',
+    type: LearningUnitType.VIDEO,
+    subject: '',
+    topic: '',
+    estimatedDuration: 30,
+    fileUrl: '',
+  });
 
   useEffect(() => { loadResources(); }, []);
 
@@ -84,6 +100,76 @@ const FacultyCreateCourse: React.FC = () => {
     setUnitSearch('');
   };
 
+  const addCustomContent = async () => {
+    if (!customContent.title || !customContent.fileUrl) {
+      setError('Please fill in title and upload a file');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Create learning unit in database
+      const createdUnit = await learningUnitService.create({
+        type: customContent.type,
+        title: customContent.title,
+        description: customContent.description || 'Teacher uploaded content',
+        subject: customContent.subject || 'Custom',
+        topic: customContent.topic || 'Teacher Uploaded',
+        subTopic: '',
+        difficultyLevel: 'K' as any,
+        estimatedDuration: customContent.estimatedDuration,
+        competencyIds: [],
+        secureAccessUrl: customContent.fileUrl,
+        deliveryType: 'REDIRECT' as any,
+        watermarkEnabled: false,
+        sessionExpiryMinutes: 60,
+      });
+      
+      // Create custom unit object with real ID from database
+      const customUnit = {
+        id: createdUnit.id,
+        title: createdUnit.title,
+        description: createdUnit.description,
+        type: createdUnit.type,
+        subject: createdUnit.subject,
+        topic: createdUnit.topic,
+        estimatedDuration: createdUnit.estimatedDuration,
+        fileUrl: customContent.fileUrl,
+        isCustom: true,
+      };
+      
+      // Add to units list and steps
+      setUnits([...units, customUnit]);
+      setSteps([...steps, {
+        learningUnitId: customUnit.id,
+        stepOrder: steps.length + 1,
+        stepType: customUnit.type,
+        mandatory: true,
+        completionCriteria: getDefaultCriteria(customUnit.type),
+      }]);
+      
+      // Reset and close modal
+      setCustomContent({
+        title: '',
+        description: '',
+        type: LearningUnitType.VIDEO,
+        subject: '',
+        topic: '',
+        estimatedDuration: 30,
+        fileUrl: '',
+      });
+      setShowUploadModal(false);
+      setSuccess('Content added successfully!');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to create learning unit';
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const removeStep = (idx: number) => {
     const updated = steps.filter((_, i) => i !== idx);
     updated.forEach((s, i) => { s.stepOrder = i + 1; });
@@ -115,7 +201,11 @@ const FacultyCreateCourse: React.FC = () => {
       setSuccess('Course created successfully!');
       setTimeout(() => navigate(`/faculty/courses/${course.id}`), 1500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to create course');
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to create course';
+      const errorDetails = Array.isArray(err.response?.data?.message) 
+        ? err.response.data.message.join(', ')
+        : errorMessage;
+      setError(errorDetails);
     } finally {
       setLoading(false);
     }
@@ -139,6 +229,8 @@ const FacultyCreateCourse: React.FC = () => {
   };
 
   const filteredUnits = units.filter(u => {
+    // If course type is ASSIGNMENT, only show MCQs
+    if (formData.courseType === 'ASSIGNMENT' && normalizeType(u.type) !== 'MCQ') return false;
     if (unitTypeFilter !== 'ALL' && normalizeType(u.type) !== unitTypeFilter) return false;
     if (unitSearch) {
       const s = unitSearch.toLowerCase();
@@ -192,6 +284,17 @@ const FacultyCreateCourse: React.FC = () => {
               </select>
             </div>
             <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Course Type *</label>
+              <select value={formData.courseType} onChange={e => setFormData({ ...formData, courseType: e.target.value as 'NORMAL' | 'SELF_PACED' | 'ASSIGNMENT' })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none', background: '#fff' }}>
+                <option value="NORMAL">Normal Course</option>
+                <option value="SELF_PACED">Self-Paced Learning</option>
+                <option value="ASSIGNMENT">Assignment (MCQs Only)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Competencies</label>
               {resourcesLoading ? (
                 <p style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>Loading...</p>
@@ -212,13 +315,18 @@ const FacultyCreateCourse: React.FC = () => {
         <div className="bo-card" style={{ padding: 24, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--bo-text-primary)' }}>Learning Flow Design</h3>
-            <button type="button" className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} onClick={() => setShowSelector(true)}>
-              <Plus size={16} /> Add Learning Unit
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="bo-btn bo-btn-outline" onClick={() => setShowUploadModal(true)} style={{ borderColor: '#10B981', color: '#10B981' }}>
+                <Upload size={16} /> Upload My Content
+              </button>
+              <button type="button" className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} onClick={() => setShowSelector(true)}>
+                <Plus size={16} /> Add Learning Unit
+              </button>
+            </div>
           </div>
 
-          <div style={{ padding: 12, background: '#F5F3FF', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#5B21B6' }}>
-            💡 <strong>Tip:</strong> Arrange units in order. Mandatory steps block progress until completed.
+          <div style={{ padding: 12, background: formData.courseType === 'ASSIGNMENT' ? '#DBEAFE' : '#F5F3FF', borderRadius: 8, marginBottom: 16, fontSize: 13, color: formData.courseType === 'ASSIGNMENT' ? '#1E40AF' : '#5B21B6' }}>
+            💡 <strong>Tip:</strong> {formData.courseType === 'ASSIGNMENT' ? 'Only MCQ units are available for assignments. Add MCQs to create a test/assignment.' : 'Arrange units in order. Mandatory steps block progress until completed.'}
           </div>
 
           {steps.length === 0 ? (
@@ -237,7 +345,10 @@ const FacultyCreateCourse: React.FC = () => {
                       {step.stepOrder}
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--bo-text-primary)' }}>{unit.title}</div>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--bo-text-primary)' }}>
+                        {unit.title}
+                        {unit.isCustom && <span style={{ marginLeft: 6, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: '#D1FAE5', color: '#065F46' }}>📤 MY UPLOAD</span>}
+                      </div>
                       <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginTop: 2 }}>
                         {unit.subject} · {unit.topic} · {unit.estimatedDuration}min
                         <span style={{ marginLeft: 8, padding: '2px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: normalizeType(unit.type) === 'VIDEO' ? '#DBEAFE' : normalizeType(unit.type) === 'BOOK' ? '#FEF3C7' : normalizeType(unit.type) === 'MCQ' ? '#F5F3FF' : '#E5E7EB', color: normalizeType(unit.type) === 'VIDEO' ? '#1D4ED8' : normalizeType(unit.type) === 'BOOK' ? '#92400E' : normalizeType(unit.type) === 'MCQ' ? '#6D28D9' : '#374151' }}>
@@ -295,6 +406,11 @@ const FacultyCreateCourse: React.FC = () => {
               </select>
             </div>
             <div style={{ padding: '12px 24px', fontSize: 12, color: 'var(--bo-text-muted)', borderBottom: '1px solid var(--bo-border)' }}>
+              {formData.courseType === 'ASSIGNMENT' && (
+                <div style={{ padding: '8px 12px', background: '#DBEAFE', borderRadius: 6, marginBottom: 8, fontSize: 12, color: '#1E40AF' }}>
+                  📝 <strong>Assignment Mode:</strong> Only MCQ units are shown
+                </div>
+              )}
               Showing {filteredUnits.length} of {units.length} units
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
@@ -330,6 +446,111 @@ const FacultyCreateCourse: React.FC = () => {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Custom Content Modal */}
+      {showUploadModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowUploadModal(false)}>
+          <div style={{ background: '#fff', borderRadius: 12, width: '90%', maxWidth: 600, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--bo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--bo-text-primary)' }}>📤 Upload Your Own Content</h3>
+              <button onClick={() => setShowUploadModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}><X size={20} /></button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+              <div style={{ marginBottom: 16, padding: 12, background: '#DBEAFE', borderRadius: 8, fontSize: 13, color: '#1E40AF' }}>
+                💡 Upload your own videos, PDFs, or other learning materials to add to the course flow
+              </div>
+
+              {/* Content Type */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Content Type *</label>
+                <select value={customContent.type} onChange={e => setCustomContent({ ...customContent, type: e.target.value as any })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none', background: '#fff' }}>
+                  <option value="VIDEO">📹 Video</option>
+                  <option value="BOOK">📚 E-Book / PDF</option>
+                  <option value="HANDBOOK">📖 Handbook</option>
+                  <option value="PPT">📊 PowerPoint Presentation</option>
+                  <option value="NOTES">📝 Notes / Study Material</option>
+                  <option value="DOCUMENT">📄 Document (Other)</option>
+                </select>
+              </div>
+
+              {/* Title */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Title *</label>
+                <input type="text" value={customContent.title} onChange={e => setCustomContent({ ...customContent, title: e.target.value })} placeholder="e.g., Cardiology Introduction Video" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+              </div>
+
+              {/* Description */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Description</label>
+                <textarea value={customContent.description} onChange={e => setCustomContent({ ...customContent, description: e.target.value })} rows={3} placeholder="Brief description of the content..." style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none', resize: 'vertical' }} />
+              </div>
+
+              {/* Subject & Topic */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Subject</label>
+                  <input type="text" value={customContent.subject} onChange={e => setCustomContent({ ...customContent, subject: e.target.value })} placeholder="e.g., Anatomy" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Topic</label>
+                  <input type="text" value={customContent.topic} onChange={e => setCustomContent({ ...customContent, topic: e.target.value })} placeholder="e.g., Heart" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                </div>
+              </div>
+
+              {/* Duration */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>Estimated Duration (minutes)</label>
+                <input type="number" value={customContent.estimatedDuration} onChange={e => setCustomContent({ ...customContent, estimatedDuration: parseInt(e.target.value) || 30 })} min="1" style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+              </div>
+
+              {/* File Upload */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', marginBottom: 6 }}>
+                  Upload File * 
+                  {customContent.type === 'VIDEO' && '(MP4, WebM, MOV)'}
+                  {customContent.type === 'BOOK' && '(PDF, EPUB)'}
+                  {customContent.type === 'HANDBOOK' && '(PDF, EPUB, DOCX)'}
+                  {customContent.type === 'PPT' && '(PPT, PPTX, PDF)'}
+                  {customContent.type === 'NOTES' && '(PDF, DOCX, TXT)'}
+                  {customContent.type === 'DOCUMENT' && '(PDF, DOCX, DOC, TXT)'}
+                </label>
+                <div className="bo-card" style={{ padding: 16, border: '2px dashed var(--bo-border)', background: 'var(--bo-bg)' }}>
+                  {customContent.fileUrl ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginBottom: 4 }}>✅ File Uploaded</div>
+                        <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', wordBreak: 'break-all' }}>{customContent.fileUrl}</div>
+                      </div>
+                      <button type="button" onClick={() => setCustomContent({ ...customContent, fileUrl: '' })} style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #EF4444', background: 'transparent', color: '#EF4444', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <FileUploadButton
+                      fileType={customContent.type === 'VIDEO' ? 'video' : 'book'}
+                      onUploadComplete={(url) => setCustomContent({ ...customContent, fileUrl: url })}
+                      label={`Upload ${customContent.type === 'VIDEO' ? 'Video' : customContent.type === 'PPT' ? 'Presentation' : customContent.type === 'NOTES' ? 'Notes' : customContent.type === 'HANDBOOK' ? 'Handbook' : 'Document'}`}
+                    />
+                  )}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 6, fontStyle: 'italic' }}>
+                  💡 Tip: You can upload presentations, handbooks, study notes, or any learning material your students need
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--bo-border)', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={() => setShowUploadModal(false)} className="bo-btn bo-btn-outline" disabled={loading}>
+                Cancel
+              </button>
+              <button type="button" onClick={addCustomContent} className="bo-btn bo-btn-primary" style={{ background: '#10B981', borderColor: '#10B981' }} disabled={loading || !customContent.title || !customContent.fileUrl}>
+                {loading ? 'Adding...' : 'Add to Course'}
+              </button>
             </div>
           </div>
         </div>
