@@ -23,9 +23,6 @@ ADD COLUMN     "bloomsLevel" "BloomsLevel" NOT NULL DEFAULT 'REMEMBER',
 DROP COLUMN "status",
 ADD COLUMN     "status" "McqStatus" NOT NULL DEFAULT 'DRAFT';
 
--- CreateIndex
-CREATE INDEX "mcqs_status_idx" ON "mcqs"("status");
-
 -- AddForeignKey
 ALTER TABLE "mcqs" ADD CONSTRAINT "mcqs_publisherId_fkey" FOREIGN KEY ("publisherId") REFERENCES "publishers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
