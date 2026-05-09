@@ -1,0 +1,77 @@
+/* ============================================
+   PAGE SECTION · CONTENT ORGANIZATION
+   ============================================ */
+
+.page-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.page-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-section-header-text {
+  flex: 1;
+}
+
+.page-section-title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-display);
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-1) 0;
+  line-height: 1.2;
+}
+
+.page-section-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+  margin: 0;
+}
+
+.page-section-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.page-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.page-section-no-padding .page-section-content {
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+  .page-section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-section-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .page-section-title {
+    font-size: var(--text-xl);
+  }
+}

@@ -1,0 +1,82 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+backend/dist/
+frontend/build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+backend/.env
+backend/.env.port
+frontend/.env
+frontend/.env.local
+deploy/aws-connection.env
+
+# Secrets / Keys
+*.pem
+*.key
+deploy/nginx/ssl/
+
+# Logs
+*.log
+npm-debug.log*
+backend/backend.log
+backend/*.log
+backend/seed-*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+coverage/
+
+# Uploads
+backend/uploads/
+
+# Prisma
+backend/prisma/dev.db
+
+# Junk files in backend root
+backend/tgres*
+backend/tdout*
+backend/t"*
+backend/ys
+backend/*.swp
+backend/c\ --noEmit
+backend/leep*
+backend/Killed*
+backend/ubprocess
+backend/*.cjs
+backend/check_*
+backend/check-*
+backend/seed-*
+backend/seed.cjs
+backend/run_seed*
+backend/test_*
+backend/test-*
+backend/fix-*
+backend/assign-*
+backend/add-epub*
+backend/create-*
+backend/generate-*
+backend/gen-*
+backend/quick-*
+backend/reset-*
+backend/query_*
+backend/analytics-*
+backend/*.log
+backend/of\ *
+backend/tgres*

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Token Tester - Medical LMS</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            background: #ecf0f1;
+        }
+        .success {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔬 Medical LMS - PDF Authentication Tester</h1>
+        
+        <div class="info">
+            <strong>⚠️ Instructions:</strong>
+            <ol>
+                <li>First, login to the main app at <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+                <li>Then come back to this page and click the test buttons below</li>
+                <li>This will verify if your token is working correctly</li>
+            </ol>
+        </div>
+
+        <h2>Step 1: Check Token</h2>
+        <button onclick="checkToken()">Check Token in LocalStorage</button>
+        
+        <h2>Step 2: Test PDF Loading</h2>
+        <button onclick="testPDF()">Test PDF with Token</button>
+        <button onclick="testPDFWithoutToken()">Test PDF without Token (should fail)</button>
+        
+        <h2>Step 3: Clear Token (if needed)</h2>
+        <button onclick="clearToken()" style="background: #e74c3c;">Clear Token from LocalStorage</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001/api';
+        const SAMPLE_PDF = '/uploads/books/sample-book-3.pdf';
+
+        function checkToken() {
+            const result = document.getElementById('result');
+            const token = localStorage.getItem('token');
+            
+            result.innerHTML = '<h3>Token Check Results:</h3>';
+            
+            if (!token) {
+                result.innerHTML += '<p class="error">❌ NO TOKEN FOUND in localStorage!</p>';
+                result.innerHTML += '<p>Please login to the main app first: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>';
+                return;
+            }
+            
+            result.innerHTML += '<p class="success">✅ Token Found!</p>';
+            result.innerHTML += '<p><strong>Token (first 100 chars):</strong></p>';
+            result.innerHTML += '<pre>' + token.substring(0, 100) + '...</pre>';
+            
+            // Decode JWT payload (middle part)
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                result.innerHTML += '<p><strong>Token Payload:</strong></p>';
+                result.innerHTML += '<pre>' + JSON.stringify(payload, null, 2) + '</pre>';
+                
+                // Check expiry
+                const exp = new Date(payload.exp * 1000);
+                const now = new Date();
+                if (exp > now) {
+                    result.innerHTML += '<p class="success">✅ Token is valid until: ' + exp.toLocaleString() + '</p>';
+                } else {
+                    result.innerHTML += '<p class="error">❌ Token has EXPIRED! Please login again.</p>';
+                }
+            } catch (e) {
+                result.innerHTML += '<p class="error">❌ Invalid token format</p>';
+            }
+        }
+
+        async function testPDF() {
+            const result = document.getElementById('result');
+            const token = localStorage.getItem('token');
+            
+            result.innerHTML = '<h3>Testing PDF with Token...</h3>';
+            
+            if (!token) {
+                result.innerHTML += '<p class="error">❌ No token found! Login first.</p>';
+                return;
+            }
+            
+            const pdfUrl = `${API_URL}${SAMPLE_PDF}?token=${token}`;
+            result.innerHTML += '<p><strong>Testing URL:</strong></p>';
+            result.innerHTML += '<pre>' + pdfUrl + '</pre>';
+            
+            try {
+                const response = await fetch(pdfUrl);
+                result.innerHTML += '<p><strong>Response Status:</strong> ' + response.status + ' ' + response.statusText + '</p>';
+                result.innerHTML += '<p><strong>Content-Type:</strong> ' + response.headers.get('Content-Type') + '</p>';
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    result.innerHTML += '<p class="success">✅ PDF LOADED SUCCESSFULLY!</p>';
+                    result.innerHTML += '<p>File size: ' + (blob.size / 1024 / 1024).toFixed(2) + ' MB</p>';
+                    
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    result.innerHTML += '<p><a href="' + url + '" target="_blank" style="background: #27ae60; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">📄 View PDF in New Tab</a></p>';
+                } else {
+                    result.innerHTML += '<p class="error">❌ FAILED: HTTP ' + response.status + '</p>';
+                    const text = await response.text();
+                    result.innerHTML += '<pre>' + text + '</pre>';
+                }
+            } catch (err) {
+                result.innerHTML += '<p class="error">❌ ERROR: ' + err.message + '</p>';
+            }
+        }
+
+        async function testPDFWithoutToken() {
+            const result = document.getElementById('result');
+            const pdfUrl = `${API_URL}${SAMPLE_PDF}`;
+            
+            result.innerHTML = '<h3>Testing PDF WITHOUT Token (should return 401)...</h3>';
+            result.innerHTML += '<p><strong>Testing URL:</strong></p>';
+            result.innerHTML += '<pre>' + pdfUrl + '</pre>';
+            
+            try {
+                const response = await fetch(pdfUrl);
+                result.innerHTML += '<p><strong>Response Status:</strong> ' + response.status + ' ' + response.statusText + '</p>';
+                
+                if (response.status === 401) {
+                    result.innerHTML += '<p class="success">✅ CORRECT! Server returned 401 Unauthorized (security is working)</p>';
+                } else if (response.ok) {
+                    result.innerHTML += '<p class="error">⚠️  WARNING: PDF loaded without token! Security may not be working correctly.</p>';
+                } else {
+                    result.innerHTML += '<p>Response: ' + response.status + '</p>';
+                }
+            } catch (err) {
+                result.innerHTML += '<p class="error">❌ ERROR: ' + err.message + '</p>';
+            }
+        }
+
+        function clearToken() {
+            localStorage.removeItem('token');
+            document.getElementById('result').innerHTML = '<p class="success">✅ Token cleared from localStorage. You will need to login again.</p>';
+        }
+
+        // Auto-check token on page load
+        window.addEventListener('load', () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                document.getElementById('result').innerHTML = '<p class="success">✅ Token detected! Click buttons above to test.</p>';
+            } else {
+                document.getElementById('result').innerHTML = '<p class="error">❌ No token found. Please <a href="http://localhost:3000" target="_blank">login first</a>.</p>';
+            }
+        });
+    </script>
+</body>
+</html>

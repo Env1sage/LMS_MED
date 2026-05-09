@@ -1,0 +1,391 @@
+import React, { useState, useEffect } from 'react';
+import { studentService } from '../../services/student.service';
+import { useAuth } from '../../context/AuthContext';
+import CollegeLayout from '../../components/college/CollegeLayout';
+import {
+  Users, TrendingUp, Award, AlertTriangle, RefreshCw, Search,
+  ChevronDown, ChevronUp, GraduationCap, BarChart3, Target, BookOpen
+} from 'lucide-react';
+import '../../styles/bitflow-owner.css';
+import '../../styles/loading-screen.css';
+
+interface StudentScore {
+  id: string;
+  name: string;
+  year: string;
+  department: string;
+  score: number;
+  completionRate: number;
+  avgTestScore: number;
+  coursesCompleted: number;
+  totalCourses: number;
+  testsAttempted: number;
+}
+
+interface YearStat {
+  year: string;
+  count: number;
+  avgScore: number;
+  topPerformersCount: number;
+  needAttentionCount: number;
+}
+
+interface PerformanceData {
+  summary: {
+    totalStudents: number;
+    activeStudents: number;
+    overallAvgScore: number;
+    topPerformersCount: number;
+    needAttentionCount: number;
+  };
+  topPerformers: StudentScore[];
+  needAttention: StudentScore[];
+  yearWiseStats: YearStat[];
+  allStudents: StudentScore[];
+}
+
+const StudentPerformance: React.FC = () => {
+  const { user } = useAuth();
+  const [data, setData] = useState<PerformanceData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'overview' | 'top' | 'attention' | 'all'>('overview');
+  const [search, setSearch] = useState('');
+  const [yearFilter, setYearFilter] = useState('all');
+  const [deptFilter, setDeptFilter] = useState('all');
+  const [sortField, setSortField] = useState<'score' | 'completionRate' | 'avgTestScore' | 'name'>('score');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
+    setLoading(true); setError(null);
+    try {
+      const res = await studentService.getPerformanceAnalytics();
+      setData(res);
+    } catch (err: any) { setError(err.response?.data?.message || err.message || 'Failed to load'); }
+    finally { setLoading(false); }
+  };
+
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('desc'); }
+  };
+
+  const sortIcon = (field: string) => {
+    if (sortField !== field) return null;
+    return sortDir === 'desc' ? <ChevronDown size={12} /> : <ChevronUp size={12} />;
+  };
+
+  const scoreColor = (s: number) => s >= 80 ? '#10B981' : s >= 60 ? '#3B82F6' : s >= 40 ? '#F59E0B' : '#EF4444';
+  const scoreBadge = (s: number) => s >= 80 ? 'Excellent' : s >= 60 ? 'Good' : s >= 40 ? 'Average' : 'Needs Attention';
+
+  const getStudentList = () => {
+    if (!data) return [];
+    let list: StudentScore[] = [];
+    if (tab === 'top') list = data.topPerformers || [];
+    else if (tab === 'attention') list = data.needAttention || [];
+    else list = data.allStudents || [];
+
+    if (search) list = list.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.department.toLowerCase().includes(search.toLowerCase()));
+    if (yearFilter !== 'all') list = list.filter(s => s.year === yearFilter);
+    if (deptFilter !== 'all') list = list.filter(s => s.department === deptFilter);
+
+    return [...list].sort((a, b) => {
+      if (sortField === 'name') return sortDir === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+      return sortDir === 'desc' ? (b[sortField] || 0) - (a[sortField] || 0) : (a[sortField] || 0) - (b[sortField] || 0);
+    });
+  };
+
+  const allYears = data ? (data.allStudents || []).map(s => s.year).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).sort() : [];
+  const allDepts = data ? (data.allStudents || []).map(s => s.department).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).sort() : [];
+
+  if (loading) return (
+    <CollegeLayout>
+      <div className="page-loading-screen">
+        <div className="loading-rings">
+          <div className="loading-ring loading-ring-1"></div>
+          <div className="loading-ring loading-ring-2"></div>
+          <div className="loading-ring loading-ring-3"></div>
+        </div>
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
+        <div className="loading-title">Loading Student Performance</div>
+        <div className="loading-bar-track">
+          <div className="loading-bar-fill"></div>
+        </div>
+      </div>
+    </CollegeLayout>
+  );
+
+  const s = data?.summary;
+
+  return (
+    <CollegeLayout>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Student Performance Analysis</h1>
+          <p style={{ color: 'var(--bo-text-muted)', fontSize: 13, marginTop: 4 }}>Track academic performance, identify top achievers and students needing support</p>
+        </div>
+        <button className="bo-btn bo-btn-outline" onClick={fetchData}><RefreshCw size={14} /> Refresh</button>
+      </div>
+
+      {error && <div style={{ padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', color: '#DC2626', marginBottom: 16, fontSize: 13 }}>{error}</div>}
+
+      {/* Summary Cards */}
+      {s && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
+          {[
+            { label: 'Total Students', value: s.totalStudents, color: '#059669', icon: <Users size={20} /> },
+            { label: 'Active Students', value: s.activeStudents, color: '#3B82F6', icon: <GraduationCap size={20} /> },
+            { label: 'Avg Score', value: s.overallAvgScore.toFixed(1) + '%', color: '#8B5CF6', icon: <Target size={20} /> },
+            { label: 'Top Performers', value: s.topPerformersCount, color: '#10B981', icon: <Award size={20} /> },
+            { label: 'Need Attention', value: s.needAttentionCount, color: '#EF4444', icon: <AlertTriangle size={20} /> },
+          ].map((c, i) => (
+            <div key={i} className="bo-card" style={{ padding: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--bo-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{c.label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: c.color, marginTop: 6 }}>{c.value}</div>
+                </div>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${c.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.color }}>{c.icon}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tab Switcher */}
+      <div className="bo-card" style={{ padding: 4, marginBottom: 16, display: 'flex', gap: 4 }}>
+        {[
+          { key: 'overview', label: 'Year-wise Overview', icon: <BarChart3 size={14} /> },
+          { key: 'top', label: `Top Performers (${s?.topPerformersCount || 0})`, icon: <Award size={14} /> },
+          { key: 'attention', label: `Need Attention (${s?.needAttentionCount || 0})`, icon: <AlertTriangle size={14} /> },
+          { key: 'all', label: 'All Students', icon: <Users size={14} /> },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as any)} style={{
+            flex: 1, padding: '8px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            background: tab === t.key ? '#059669' : 'transparent', color: tab === t.key ? 'white' : 'var(--bo-text-secondary)',
+          }}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Year-wise Overview */}
+      {tab === 'overview' && data?.yearWiseStats && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          {/* Year Stats Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+            {data.yearWiseStats.map((ys, i) => (
+              <div key={i} className="bo-card" style={{ padding: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, color: '#059669' }}>{ys.year || 'Unknown Year'}</h3>
+                  <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 12, background: '#ECFDF5', color: '#059669', fontWeight: 600 }}>
+                    {ys.count} student{ys.count !== 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* Avg Score Gauge */}
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--bo-text-secondary)', fontWeight: 500 }}>Average Score</span>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: scoreColor(ys.avgScore) }}>{ys.avgScore.toFixed(1)}%</span>
+                  </div>
+                  <div style={{ width: '100%', height: 8, borderRadius: 4, background: '#F3F4F6' }}>
+                    <div style={{
+                      width: `${Math.min(ys.avgScore, 100)}%`, height: '100%', borderRadius: 4,
+                      background: `linear-gradient(90deg, ${scoreColor(ys.avgScore)}CC, ${scoreColor(ys.avgScore)})`,
+                      transition: 'width 0.5s'
+                    }} />
+                  </div>
+                </div>
+
+                {/* Breakdown */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div style={{ padding: '8px 12px', borderRadius: 8, background: '#ECFDF5', textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#10B981' }}>{ys.topPerformersCount}</div>
+                    <div style={{ fontSize: 10, color: '#059669', fontWeight: 500, marginTop: 2 }}>Top Performers</div>
+                  </div>
+                  <div style={{ padding: '8px 12px', borderRadius: 8, background: '#FEF2F2', textAlign: 'center' }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: '#EF4444' }}>{ys.needAttentionCount}</div>
+                    <div style={{ fontSize: 10, color: '#DC2626', fontWeight: 500, marginTop: 2 }}>Need Attention</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {data.yearWiseStats.length === 0 && (
+            <div className="bo-card" style={{ padding: 60, textAlign: 'center' }}>
+              <BarChart3 size={40} style={{ color: 'var(--bo-text-muted)', opacity: 0.3, marginBottom: 12 }} />
+              <div style={{ fontSize: 15, fontWeight: 500 }}>No year-wise data available</div>
+            </div>
+          )}
+
+          {/* Year Comparison Bar Chart */}
+          {data.yearWiseStats.length > 1 && (
+            <div className="bo-card" style={{ padding: 20 }}>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Year-wise Score Comparison</h3>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 16, height: 200, padding: '0 20px' }}>
+                {data.yearWiseStats.map((ys, i) => {
+                  const maxScore = Math.max(...data.yearWiseStats.map(y => y.avgScore), 1);
+                  const barHeight = (ys.avgScore / maxScore) * 160;
+                  return (
+                    <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: scoreColor(ys.avgScore) }}>{ys.avgScore.toFixed(0)}%</span>
+                      <div style={{
+                        width: '100%', maxWidth: 60, height: barHeight, borderRadius: '8px 8px 0 0',
+                        background: `linear-gradient(180deg, ${scoreColor(ys.avgScore)}, ${scoreColor(ys.avgScore)}88)`,
+                        transition: 'height 0.5s',
+                      }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textAlign: 'center' }}>{ys.year}</span>
+                      <span style={{ fontSize: 10, color: 'var(--bo-text-muted)' }}>{ys.count} students</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Student Tables (Top, Attention, All) */}
+      {tab !== 'overview' && (
+        <div>
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--bo-text-muted)' }} />
+              <input
+                type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name or department..."
+                style={{ width: '100%', padding: '10px 12px 10px 36px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+            {allYears.length > 0 && (
+              <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
+                style={{ padding: '10px 12px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 13, background: 'white' }}>
+                <option value="all">All Years</option>
+                {allYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            )}
+            {allDepts.length > 1 && (
+              <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)}
+                style={{ padding: '10px 12px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 13, background: 'white' }}>
+                <option value="all">All Departments</option>
+                {allDepts.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+            {getStudentList().length > 0 ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bo-bg)', borderBottom: '1px solid var(--bo-border)' }}>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>#</th>
+                    <th onClick={() => handleSort('name')} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>
+                      Student {sortIcon('name')}
+                    </th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dept / Year</th>
+                    <th onClick={() => handleSort('score')} style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>
+                      Score {sortIcon('score')}
+                    </th>
+                    <th onClick={() => handleSort('completionRate')} style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>
+                      Completion {sortIcon('completionRate')}
+                    </th>
+                    <th onClick={() => handleSort('avgTestScore')} style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', cursor: 'pointer' }}>
+                      Test Score {sortIcon('avgTestScore')}
+                    </th>
+                    <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Courses</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tests</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getStudentList().map((st, idx) => (
+                    <tr key={st.id} style={{ borderBottom: '1px solid var(--bo-border)' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--bo-bg)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <td style={{ padding: '10px 14px', color: 'var(--bo-text-muted)', fontWeight: 500, fontSize: 12 }}>{idx + 1}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ fontWeight: 500 }}>{st.name}</div>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ fontSize: 13 }}>{st.department}</div>
+                        <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{st.year}</div>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '3px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700,
+                          background: `${scoreColor(st.score)}15`, color: scoreColor(st.score),
+                        }}>
+                          {st.score.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                          <div style={{ width: 50, height: 6, borderRadius: 3, background: '#E5E7EB' }}>
+                            <div style={{
+                              width: `${Math.min(st.completionRate, 100)}%`, height: '100%', borderRadius: 3,
+                              background: st.completionRate >= 70 ? '#10B981' : st.completionRate >= 40 ? '#F59E0B' : '#EF4444',
+                            }} />
+                          </div>
+                          <span style={{ fontSize: 12, fontWeight: 600 }}>{st.completionRate.toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 500, color: st.avgTestScore >= 60 ? '#10B981' : '#F59E0B' }}>
+                        {st.avgTestScore.toFixed(0)}%
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--bo-text-secondary)' }}>
+                        {st.coursesCompleted}/{st.totalCourses}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', color: 'var(--bo-text-secondary)' }}>
+                        {st.testsAttempted}
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                        <span style={{
+                          padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                          background: `${scoreColor(st.score)}12`, color: scoreColor(st.score),
+                        }}>
+                          {scoreBadge(st.score)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ padding: 60, textAlign: 'center' }}>
+                <Users size={40} style={{ color: 'var(--bo-text-muted)', opacity: 0.3, marginBottom: 12 }} />
+                <div style={{ fontSize: 15, fontWeight: 500 }}>No students found</div>
+                <div style={{ color: 'var(--bo-text-muted)', fontSize: 12, marginTop: 4 }}>
+                  {tab === 'top' ? 'No students with score ≥ 80% yet' :
+                    tab === 'attention' ? 'No students flagged — great!' : 'No student data available'}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Summary bar */}
+          {getStudentList().length > 0 && (
+            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--bo-text-muted)', textAlign: 'right' }}>
+              Showing {getStudentList().length} student{getStudentList().length !== 1 ? 's' : ''}
+              {yearFilter !== 'all' ? ` in ${yearFilter}` : ''}
+              {deptFilter !== 'all' ? ` in ${deptFilter}` : ''}
+            </div>
+          )}
+        </div>
+      )}
+    </CollegeLayout>
+  );
+};
+
+export default StudentPerformance;

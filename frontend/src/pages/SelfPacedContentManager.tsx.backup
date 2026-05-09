@@ -1,0 +1,408 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import './SelfPacedContent.css';
+
+interface SelfPacedResource {
+  id: string;
+  title: string;
+  description?: string;
+  resourceType: string;
+  fileUrl?: string;
+  content?: string;
+  subject?: string;
+  academicYear?: string;
+  tags: string[];
+  viewCount: number;
+  facultyName: string;
+  createdAt: string;
+}
+
+const SelfPacedContentManager: React.FC = () => {
+  const [resources, setResources] = useState<SelfPacedResource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedResource, setSelectedResource] = useState<SelfPacedResource | null>(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    resourceType: 'NOTE',
+    content: '',
+    subject: '',
+    academicYear: '',
+    tags: [] as string[],
+  });
+  const [file, setFile] = useState<File | null>(null);
+  const [tagInput, setTagInput] = useState('');
+
+  useEffect(() => {
+    fetchResources();
+  }, []);
+
+  const fetchResources = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/self-paced/my-resources`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      setResources(response.data);
+    } catch (error) {
+      console.error('Error fetching resources:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
+
+  const handleFileUpload = async (): Promise<string | null> => {
+    if (!file) return null;
+
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/self-paced/upload`,
+        uploadFormData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+      return response.data.fileUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Failed to upload file');
+      return null;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let fileUrl = null;
+    if (file) {
+      fileUrl = await handleFileUpload();
+      if (!fileUrl) return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        ...formData,
+        fileUrl,
+      };
+
+      if (selectedResource) {
+        await axios.put(
+          `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/self-paced/${selectedResource.id}`,
+          payload,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        alert('Resource updated successfully!');
+      } else {
+        await axios.post(
+          `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/self-paced`,
+          payload,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        alert('Resource created successfully!');
+      }
+
+      setShowCreateForm(false);
+      setFormData({
+        title: '',
+        description: '',
+        resourceType: 'NOTE',
+        content: '',
+        subject: '',
+        academicYear: '',
+        tags: [],
+      });
+      setFile(null);
+      setSelectedResource(null);
+      fetchResources();
+    } catch (error) {
+      console.error('Error saving resource:', error);
+      alert('Failed to save resource');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to archive this resource?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/self-paced/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      alert('Resource archived successfully!');
+      fetchResources();
+    } catch (error) {
+      console.error('Error deleting resource:', error);
+      alert('Failed to archive resource');
+    }
+  };
+
+  const handleEdit = (resource: SelfPacedResource) => {
+    setSelectedResource(resource);
+    setFormData({
+      title: resource.title,
+      description: resource.description || '',
+      resourceType: resource.resourceType,
+      content: resource.content || '',
+      subject: resource.subject || '',
+      academicYear: resource.academicYear || '',
+      tags: resource.tags,
+    });
+    setShowCreateForm(true);
+  };
+
+  const addTag = () => {
+    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
+      setFormData({ ...formData, tags: [...formData.tags, tagInput.trim()] });
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tag: string) => {
+    setFormData({ ...formData, tags: formData.tags.filter((t) => t !== tag) });
+  };
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="spinner"></div>
+        <p>Loading resources...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="self-paced-manager">
+      <div className="header">
+        <h1>📚 Self-Paced Learning Resources</h1>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setShowCreateForm(true);
+            setSelectedResource(null);
+            setFormData({
+              title: '',
+              description: '',
+              resourceType: 'NOTE',
+              content: '',
+              subject: '',
+              academicYear: '',
+              tags: [],
+            });
+          }}
+        >
+          + Create Resource
+        </button>
+      </div>
+
+      {showCreateForm && (
+        <div className="modal-overlay">
+          <div className="modal-content large">
+            <h2>{selectedResource ? 'Edit Resource' : 'Create New Resource'}</h2>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label>Title *</label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Resource Type *</label>
+                  <select
+                    value={formData.resourceType}
+                    onChange={(e) => setFormData({ ...formData, resourceType: e.target.value })}
+                  >
+                    <option value="NOTE">Note</option>
+                    <option value="VIDEO">Video</option>
+                    <option value="DOCUMENT">Document</option>
+                    <option value="REFERENCE">Reference Material</option>
+                    <option value="PRACTICE">Practice Exercise</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Subject</label>
+                  <input
+                    type="text"
+                    value={formData.subject}
+                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                    placeholder="e.g., Anatomy, Physiology"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Academic Year</label>
+                  <select
+                    value={formData.academicYear}
+                    onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                  >
+                    <option value="">All Years</option>
+                    <option value="YEAR_1">Year 1</option>
+                    <option value="YEAR_2">Year 2</option>
+                    <option value="YEAR_3_MINOR">Year 3 Minor</option>
+                    <option value="YEAR_3_MAJOR">Year 3 Major</option>
+                    <option value="YEAR_4">Year 4</option>
+                  </select>
+                </div>
+              </div>
+
+              {(formData.resourceType === 'NOTE' || formData.resourceType === 'REFERENCE') && (
+                <div className="form-group">
+                  <label>Content</label>
+                  <textarea
+                    value={formData.content}
+                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                    rows={10}
+                    placeholder="Write your content here..."
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label>Upload File (PDF, MP4, etc.)</label>
+                <input type="file" onChange={handleFileChange} accept=".pdf,.mp4,.doc,.docx" />
+                {file && <small>Selected: {file.name}</small>}
+              </div>
+
+              <div className="form-group">
+                <label>Tags</label>
+                <div className="tag-input">
+                  <input
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addTag();
+                      }
+                    }}
+                    placeholder="Add a tag and press Enter"
+                  />
+                  <button type="button" onClick={addTag} className="btn btn-sm">
+                    Add
+                  </button>
+                </div>
+                <div className="tags-list">
+                  {formData.tags.map((tag) => (
+                    <span key={tag} className="tag">
+                      {tag}
+                      <button type="button" onClick={() => removeTag(tag)}>
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary">
+                  {selectedResource ? 'Update' : 'Create'} Resource
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setSelectedResource(null);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <div className="resources-grid">
+        {resources.length === 0 ? (
+          <div className="empty-state">
+            <p>No resources created yet. Create your first self-paced learning resource!</p>
+          </div>
+        ) : (
+          resources.map((resource) => (
+            <div key={resource.id} className="resource-card">
+              <div className="resource-header">
+                <span className={`resource-type ${resource.resourceType.toLowerCase()}`}>
+                  {resource.resourceType}
+                </span>
+                <div className="resource-actions">
+                  <button className="btn-icon" onClick={() => handleEdit(resource)} title="Edit">
+                    ✏️
+                  </button>
+                  <button className="btn-icon" onClick={() => handleDelete(resource.id)} title="Archive">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+
+              <h3>{resource.title}</h3>
+              {resource.description && <p className="description">{resource.description}</p>}
+
+              <div className="resource-meta">
+                {resource.subject && <span className="meta-item">📚 {resource.subject}</span>}
+                {resource.academicYear && <span className="meta-item">🎓 {resource.academicYear}</span>}
+                <span className="meta-item">👁️ {resource.viewCount} views</span>
+              </div>
+
+              {resource.tags.length > 0 && (
+                <div className="tags-list">
+                  {resource.tags.map((tag) => (
+                    <span key={tag} className="tag small">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="resource-footer">
+                <small>Created {new Date(resource.createdAt).toLocaleDateString()}</small>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default SelfPacedContentManager;

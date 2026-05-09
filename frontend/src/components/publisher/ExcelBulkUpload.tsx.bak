@@ -1,0 +1,984 @@
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import learningUnitService from '../../services/learning-unit.service';
+import topicsService from '../../services/topics.service';
+import {
+  Upload, Download, FileSpreadsheet, Check, X, ChevronDown, ChevronRight,
+  BookOpen, Trash2, Send, AlertCircle, FileText, Video, BookMarked, Image
+} from 'lucide-react';
+
+interface ExcelRow {
+  id: string;
+  isbn: string;
+  title: string;
+  author: string;
+  description: string;
+  coverImageUrl: string;
+  fileUrl: string;
+  subject: string;
+  topic: string;
+  subTopic: string;
+  difficultyLevel: string;
+  estimatedDuration: number;
+  type: 'BOOK' | 'VIDEO' | 'EPUB';
+  deliveryType: 'REDIRECT' | 'EMBED' | 'STREAM';
+  watermarkEnabled: boolean;
+  downloadAllowed: boolean;
+  viewOnly: boolean;
+  sessionExpiryMinutes: number;
+  valid: boolean;
+  errors: string[];
+}
+
+interface ExcelBulkUploadProps {
+  onSuccess?: () => void;
+}
+
+// ── Excel (XML SpreadsheetML) template generators ──────────────────────────
+
+const xmlEscape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function makeDropdownXml(opts: string[]) {
+  return `<Data ss:Type="String">${xmlEscape(opts[0])}</Data>`;
+}
+
+function buildExcelXml(columns: Array<{ header: string; width?: number; dropdown?: string[]; example1: string; example2: string }>, sheetName: string): string {
+  const headerStyle = `<Style ss:ID="h"><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11" ss:Name="Calibri"/><Interior ss:Color="#1D4ED8" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#FFFFFF"/></Borders></Style>`;
+  const cellStyle = `<Style ss:ID="c"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:Size="11" ss:Name="Calibri"/></Style>`;
+  const reqStyle  = `<Style ss:ID="r"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:Bold="1" ss:Size="11" ss:Name="Calibri"/><Interior ss:Color="#FFF9C4" ss:Pattern="Solid"/></Style>`;
+  const exStyle   = `<Style ss:ID="ex"><Alignment ss:Vertical="Center" ss:WrapText="1"/><Font ss:Italic="1" ss:Color="#6B7280" ss:Size="11" ss:Name="Calibri"/><Interior ss:Color="#F3F4F6" ss:Pattern="Solid"/></Style>`;
+
+  const colDefs = columns.map(c => `<Column ss:Width="${c.width || 120}"/>`).join('');
+
+  const headerRow = `<Row ss:Height="32">${columns.map(c => `<Cell ss:StyleID="h"><Data ss:Type="String">${xmlEscape(c.header)}</Data></Cell>`).join('')}</Row>`;
+
+  const makeRow = (vals: string[]) =>
+    `<Row ss:Height="22">${vals.map((v, i) => {
+      const col = columns[i];
+      if (col.dropdown && col.dropdown.length > 0) {
+        return `<Cell ss:StyleID="c"><Data ss:Type="String">${xmlEscape(v || col.dropdown[0])}</Data></Cell>`;
+      }
+      return `<Cell ss:StyleID="c"><Data ss:Type="String">${xmlEscape(v)}</Data></Cell>`;
+    }).join('')}</Row>`;
+
+  // Example rows — first cell (ISBN/Code) uses EXAMPLE-001/EXAMPLE-002 as obviously fake identifiers
+  // The parser filters rows where first cell starts with "EXAMPLE-"
+  // Style-ID based detection won't work because Excel/LibreOffice preserves cell style when user edits cells
+  const makeExampleRow = (vals: string[]) =>
+    `<Row ss:Height="22">${vals.map(v =>
+      `<Cell ss:StyleID="ex"><Data ss:Type="String">${xmlEscape(v)}</Data></Cell>`
+    ).join('')}</Row>`;
+
+  const ex1Row = makeExampleRow(columns.map(c => c.example1));
+  const ex2Row = makeExampleRow(columns.map(c => c.example2));
+
+  // Note row
+  const noteRow = `<Row ss:Height="20"><Cell ss:MergeAcross="${columns.length - 1}" ss:StyleID="c"><Data ss:Type="String">💡 Tip: Replace the EXAMPLE rows above with your own data (change the EXAMPLE-001/EXAMPLE-002 code in column 1). Difficulty: K, KH, S, SH, P.</Data></Cell></Row>`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:x="urn:schemas-microsoft-com:office:excel">
+ <Styles>${headerStyle}${cellStyle}${reqStyle}${exStyle}</Styles>
+ <Worksheet ss:Name="${xmlEscape(sheetName)}">
+  <Table>${colDefs}${headerRow}${ex1Row}${ex2Row}${noteRow}</Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+   <FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane>
+  </WorksheetOptions>
+ </Worksheet>
+</Workbook>`;
+}
+
+const SUBJECTS = [
+  'Anatomy','Physiology','Biochemistry','Pharmacology','Pathology',
+  'Microbiology','Forensic Medicine','Community Medicine','Medicine',
+  'Surgery','Obstetrics & Gynaecology','Paediatrics','Orthopaedics',
+  'Ophthalmology','ENT','Dermatology','Psychiatry','Radiology','Anaesthesia',
+];
+const DIFF_OPTS = ['K','KH','S','SH','P'];
+const DELIVERY_OPTS = ['REDIRECT','EMBED','STREAM'];
+const BOOL_OPTS = ['false','true'];
+
+function downloadEbookTemplate() {
+  const cols = [
+    { header: 'ISBN *', width: 130, example1: 'EXAMPLE-BOOK-001', example2: 'EXAMPLE-BOOK-002' },
+    { header: 'Title *', width: 200, example1: "Harrison's Principles of Internal Medicine", example2: 'Robbins Pathology' },
+    { header: 'Author', width: 140, example1: 'Dennis Kasper et al', example2: 'Vinay Kumar' },
+    { header: 'Description *', width: 240, example1: 'Comprehensive medical textbook covering all body systems', example2: 'Complete pathology reference for medical students' },
+    { header: 'Cover Image URL', width: 160, example1: '/uploads/images/harrisons-cover.jpg', example2: '/uploads/images/robbins-cover.jpg' },
+    { header: 'File URL (PDF) *', width: 180, example1: '/uploads/books/harrisons.pdf', example2: '/uploads/books/robbins.pdf' },
+    { header: 'Subject *', width: 130, dropdown: SUBJECTS, example1: 'Medicine', example2: 'Pathology' },
+    { header: 'Topic', width: 130, example1: 'General Medicine', example2: 'General Pathology' },
+    { header: 'Sub-Topic', width: 130, example1: '', example2: 'Cell Injury' },
+    { header: 'Difficulty *', width: 80, dropdown: DIFF_OPTS, example1: 'K', example2: 'KH' },
+    { header: 'Duration (min)', width: 80, example1: '60', example2: '45' },
+    { header: 'Delivery Type', width: 100, dropdown: DELIVERY_OPTS, example1: 'REDIRECT', example2: 'REDIRECT' },
+    { header: 'Watermark', width: 80, dropdown: BOOL_OPTS, example1: 'true', example2: 'true' },
+    { header: 'Download Allowed', width: 100, dropdown: BOOL_OPTS, example1: 'false', example2: 'false' },
+    { header: 'View Only', width: 80, dropdown: BOOL_OPTS, example1: 'false', example2: 'true' },
+    { header: 'Session Expiry (min)', width: 110, example1: '120', example2: '120' },
+  ];
+  const xml = buildExcelXml(cols, 'EBook Upload');
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ebook_upload_template.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+}
+
+function downloadEpubTemplate() {
+  const cols = [
+    { header: 'ISBN *', width: 130, example1: 'EXAMPLE-EPUB-001', example2: 'EXAMPLE-EPUB-002' },
+    { header: 'Title *', width: 200, example1: 'Gray\'s Anatomy', example2: 'Guyton Physiology' },
+    { header: 'Author', width: 140, example1: 'Henry Gray', example2: 'Arthur C. Guyton' },
+    { header: 'Description *', width: 240, example1: 'Definitive anatomy reference with detailed illustrations', example2: 'Medical physiology textbook with interactive chapters' },
+    { header: 'Cover Image URL', width: 160, example1: '/uploads/images/grays-cover.jpg', example2: '/uploads/images/guyton-cover.jpg' },
+    { header: 'File URL (EPUB) *', width: 180, example1: '/uploads/books/grays-anatomy.epub', example2: '/uploads/books/guyton.epub' },
+    { header: 'Subject *', width: 130, dropdown: SUBJECTS, example1: 'Anatomy', example2: 'Physiology' },
+    { header: 'Topic', width: 130, example1: 'General Anatomy', example2: 'Cardiovascular' },
+    { header: 'Sub-Topic', width: 130, example1: 'Upper Limb', example2: 'Cardiac Cycle' },
+    { header: 'Difficulty *', width: 80, dropdown: DIFF_OPTS, example1: 'KH', example2: 'S' },
+    { header: 'Duration (min)', width: 80, example1: '90', example2: '60' },
+    { header: 'Watermark', width: 80, dropdown: BOOL_OPTS, example1: 'true', example2: 'true' },
+    { header: 'Download Allowed', width: 100, dropdown: BOOL_OPTS, example1: 'false', example2: 'false' },
+    { header: 'Session Expiry (min)', width: 110, example1: '180', example2: '120' },
+  ];
+  const xml = buildExcelXml(cols, 'EPUB Upload');
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'epub_upload_template.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+}
+
+function downloadVideoTemplate() {
+  const cols = [
+    { header: 'ISBN / Code *', width: 130, example1: 'EXAMPLE-VIDEO-001', example2: 'EXAMPLE-VIDEO-002' },
+    { header: 'Title *', width: 200, example1: 'Brachial Plexus Video Lecture', example2: 'Cardiac Cycle Animation' },
+    { header: 'Author / Presenter', width: 140, example1: 'Dr. R. Sharma', example2: 'Dr. A. Mehta' },
+    { header: 'Description *', width: 240, example1: 'Detailed video lecture on brachial plexus anatomy', example2: 'Animated explanation of the cardiac cycle' },
+    { header: 'Thumbnail URL', width: 160, example1: '/uploads/images/brachial-thumb.jpg', example2: '/uploads/images/cardiac-thumb.jpg' },
+    { header: 'Video File URL *', width: 180, example1: '/uploads/books/brachial-plexus.mp4', example2: '/uploads/books/cardiac-cycle.mp4' },
+    { header: 'Subject *', width: 130, dropdown: SUBJECTS, example1: 'Anatomy', example2: 'Physiology' },
+    { header: 'Topic', width: 130, example1: 'Upper Limb', example2: 'Cardiovascular System' },
+    { header: 'Sub-Topic', width: 130, example1: 'Brachial Plexus', example2: 'Cardiac Cycle' },
+    { header: 'Difficulty *', width: 80, dropdown: DIFF_OPTS, example1: 'S', example2: 'KH' },
+    { header: 'Duration (min)', width: 80, example1: '45', example2: '30' },
+    { header: 'Delivery Type', width: 100, dropdown: DELIVERY_OPTS, example1: 'STREAM', example2: 'STREAM' },
+    { header: 'Watermark', width: 80, dropdown: BOOL_OPTS, example1: 'true', example2: 'true' },
+    { header: 'Download Allowed', width: 100, dropdown: BOOL_OPTS, example1: 'false', example2: 'false' },
+    { header: 'Session Expiry (min)', width: 110, example1: '120', example2: '90' },
+  ];
+  const xml = buildExcelXml(cols, 'Video Upload');
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'video_upload_template.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+}
+
+function downloadImageTemplate() {
+  const cols = [
+    { header: 'ISBN / Code *', width: 130, example1: 'EXAMPLE-IMAGE-001', example2: 'EXAMPLE-IMAGE-002' },
+    { header: 'Title *', width: 200, example1: 'Brachial Plexus Diagram', example2: 'Cell Injury Histology Slide' },
+    { header: 'Author / Source', width: 140, example1: 'Gray\'s Atlas', example2: 'Robbins Pathology' },
+    { header: 'Description *', width: 240, example1: 'High-resolution diagram of brachial plexus formation', example2: 'H&E stained slide showing ischaemic cell changes' },
+    { header: 'Image File URL *', width: 200, example1: '/uploads/images/brachial-plexus.jpg', example2: '/uploads/images/cell-injury-slide.png' },
+    { header: 'Subject *', width: 130, dropdown: SUBJECTS, example1: 'Anatomy', example2: 'Pathology' },
+    { header: 'Topic', width: 130, example1: 'Upper Limb', example2: 'General Pathology' },
+    { header: 'Sub-Topic', width: 130, example1: 'Brachial Plexus', example2: 'Cell Injury' },
+    { header: 'Difficulty *', width: 80, dropdown: DIFF_OPTS, example1: 'KH', example2: 'S' },
+  ];
+  const xml = buildExcelXml(cols, 'Image Upload');
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'image_upload_template.xls';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+}
+
+const TEMPLATE_OPTIONS: Array<{ id: string; label: string; desc: string; icon: React.ReactNode; color: string; fn: () => void }> = [
+  { id: 'ebook',  label: 'eBook (PDF) Excel',  desc: 'ISBN-mapped PDF books — uploads/book/<ISBN>.pdf',    color: '#DC2626', icon: <FileText  size={16} style={{ color: '#DC2626' }} />, fn: downloadEbookTemplate  },
+  { id: 'epub',   label: 'EPUB Excel',          desc: 'Interactive EPUB content', color: '#2563EB', icon: <BookMarked size={16} style={{ color: '#2563EB' }} />, fn: downloadEpubTemplate   },
+  { id: 'video',  label: 'Video Excel',         desc: 'Video lectures / content', color: '#7C3AED', icon: <Video     size={16} style={{ color: '#7C3AED' }} />, fn: downloadVideoTemplate  },
+  { id: 'image',  label: 'Images Excel',        desc: 'Diagrams, slides & images', color: '#059669', icon: <Image    size={16} style={{ color: '#059669' }} />, fn: downloadImageTemplate  },
+];
+
+const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
+  const [rows, setRows] = useState<ExcelRow[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<{ success: number; failed: number; errors: string[] } | null>(null);
+  const [error, setError] = useState('');
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [previewOpen, setPreviewOpen] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const diffLevels = [
+    { value: 'K', label: 'Knows' },
+    { value: 'KH', label: 'Knows How' },
+    { value: 'S', label: 'Shows' },
+    { value: 'SH', label: 'Shows How' },
+    { value: 'P', label: 'Performs' },
+  ];
+
+  useEffect(() => {
+    topicsService.getSubjects().then(setSubjects).catch(() => {});
+  }, []);
+
+  const generateId = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const parseCSVLine = (line: string): string[] => {
+    const result: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+          current += '"'; i++;
+        } else { inQuotes = !inQuotes; }
+      } else if (ch === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else { current += ch; }
+    }
+    result.push(current.trim());
+    return result;
+  };
+
+  const validateRow = (row: ExcelRow): ExcelRow => {
+    const errors: string[] = [];
+    if (!row.title) errors.push('Title is required');
+    if (!row.fileUrl) errors.push('File URL is required');
+    if (!row.subject) errors.push('Subject is required');
+    return { ...row, valid: errors.length === 0, errors };
+  };
+
+  const handleFileImport = useCallback((file: File) => {
+    setError('');
+    setResult(null);
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const raw = ev.target?.result;
+        if (!raw) { setError('File is empty'); return; }
+
+        // Detect binary XLSX (ZIP starts with PK signature) — not supported without a library
+        if (typeof raw !== 'string') { setError('Unexpected file data.'); return; }
+        const text = raw as string;
+        if (!text.trim()) { setError('File is empty'); return; }
+
+        // Check for binary XLSX (PK header visible in text representation)
+        if (text.startsWith('PK') || text.charCodeAt(0) === 0x50 && text.charCodeAt(1) === 0x4B) {
+          setError('Binary .xlsx files are not supported. Please save the template as ".xls" (SpreadsheetML) or as a CSV file.');
+          return;
+        }
+
+        // ── Helpers ─────────────────────────────────────────────────────────
+        // Namespace-safe attribute getter: tries qualified name first, then local name
+        const SS_NS = 'urn:schemas-microsoft-com:office:spreadsheet';
+        const ssAttr = (el: Element, localName: string): string | null =>
+          el.getAttributeNS(SS_NS, localName) ??
+          el.getAttribute(`ss:${localName}`) ??
+          el.getAttribute(localName);
+
+        // Namespace-safe child element getter (getElementsByTagName ignores namespace)
+        const getChildren = (parent: Element | Document, tag: string): Element[] =>
+          Array.from(parent.getElementsByTagName(tag));
+
+        // ── Parse into rows of strings ───────────────────────────────────────
+        let allRows: string[][] = [];
+        const trimmed = text.trim();
+        const isXml = trimmed.startsWith('<?xml') || trimmed.startsWith('<Workbook') ||
+          trimmed.includes('urn:schemas-microsoft-com:office:spreadsheet');
+
+        if (isXml) {
+          const doc = new DOMParser().parseFromString(text, 'text/xml');
+          const parseError = doc.querySelector('parsererror');
+          if (parseError) { setError('Could not parse the file as XML. Please use the downloaded template or a plain CSV file.'); return; }
+
+          getChildren(doc, 'Row').forEach(rowEl => {
+            const cells = getChildren(rowEl, 'Cell');
+
+            // Skip note/tip rows (MergeAcross means it spans all columns — it's a note)
+            if (cells.length > 0 && ssAttr(cells[0], 'MergeAcross') !== null) return;
+
+            const row: string[] = [];
+            cells.forEach(cell => {
+              const idxRaw = ssAttr(cell, 'Index');
+              const targetIdx = idxRaw ? parseInt(idxRaw, 10) - 1 : row.length;
+              // Pad missing (empty) cells
+              while (row.length < targetIdx) row.push('');
+              const dataEl = getChildren(cell, 'Data')[0];
+              row.push(dataEl?.textContent?.trim() ?? '');
+            });
+            if (row.some(c => c !== '')) allRows.push(row);
+          });
+
+          // Remove leftover note rows (first cell starts with '💡' or '*')
+          allRows = allRows.filter((r, i) =>
+            i === 0 || (!r[0]?.startsWith('*') && !r[0]?.startsWith('💡')));
+        } else {
+          // CSV / plain-text format
+          allRows = text.split(/\r?\n/).filter(l => l.trim()).map(l => parseCSVLine(l));
+        }
+
+        // Remove template example rows:
+        // - New templates: ISBN column starts with "EXAMPLE-" (EXAMPLE-BOOK-001, EXAMPLE-VIDEO-002, etc.)
+        // - Old templates (pre-fix): exact ISBN+title pair matches a known example
+        // Using content-based detection instead of StyleID is safe because
+        // Excel/LibreOffice preserves the "ex" StyleID when users edit cells
+        const OLD_EXAMPLE_PAIRS = new Map([
+          ['978-0-07-166351-5', "Harrison's Principles of Internal Medicine"],
+          ['978-93-5152-366-2', 'Robbins Pathology'],
+          ['VID-ANAT-001', 'Brachial Plexus Video Lecture'],
+          ['VID-PHYS-002', 'Cardiac Cycle Animation'],
+          ['IMG-ANAT-001', 'Brachial Plexus Diagram'],
+          ['IMG-PATH-002', 'Cell Injury Histology Slide'],
+          // Old EPUB examples
+          ['978-0-07-166351-5', "Gray's Anatomy"],
+          ['978-93-5152-366-2', 'Guyton Physiology'],
+        ]);
+        allRows = allRows.filter((r, i) => {
+          if (i === 0) return true;
+          const isbn = r[0]?.trim() ?? '';
+          // New templates: ISBN cell starts with "EXAMPLE-"
+          if (isbn.toUpperCase().startsWith('EXAMPLE-')) return false;
+          // Old templates: exact ISBN + title pair
+          const title = r[1]?.trim();
+          if (title && OLD_EXAMPLE_PAIRS.get(isbn) === title) return false;
+          return true;
+        });
+
+        if (allRows.length < 2) {
+          setError('No data rows found. Please add your own data rows to the template (replace the EXAMPLE- rows with your content).');
+          return;
+        }
+
+        const headers = allRows[0].map(h => h.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+
+        const findCol = (names: string[]) =>
+          headers.findIndex(h => names.some(n => h.includes(n)));
+
+        const isbnIdx     = findCol(['isbn', 'isbncode', 'code']);
+        const titleIdx    = findCol(['title', 'bookname', 'name']);
+        const authorIdx   = findCol(['author', 'presenter', 'source']);
+        const descIdx     = findCol(['description', 'desc']);
+        const coverIdx    = findCol(['cover', 'coverimage', 'thumbnail']);
+        const subjectIdx  = findCol(['subject']);
+        const topicIdx    = findCol(['topic']);
+        const subTopicIdx = findCol(['subtopic', 'sub_topic', 'subtop']);
+        const diffIdx     = findCol(['difficulty', 'level']);
+        const durationIdx = findCol(['duration', 'minutes', 'min']);
+        const typeIdx     = findCol(['type', 'contenttype']);
+        const deliveryIdx = findCol(['delivery', 'deliverytype']);
+        const watermarkIdx  = findCol(['watermark']);
+        const downloadIdx   = findCol(['download', 'downloadallowed']);
+        const viewOnlyIdx   = findCol(['viewonly', 'view_only']);
+        const sessionIdx    = findCol(['session', 'sessionexpiry', 'expiry']);
+
+        // File URL: prefer specific column names, avoid cover column
+        // Try specific names first, then any remaining *url* column
+        const fileUrlSpecificIdx = findCol(['fileurlpdf', 'fileurlepub', 'videofileurl', 'imagefileurl', 'fileurl', 'bookurl', 'contenturl', 'videourl', 'epuburl', 'pdfurl']);
+        const resolvedFileUrlIdx = fileUrlSpecificIdx >= 0
+          ? fileUrlSpecificIdx
+          : headers.findIndex((h, i) => i !== coverIdx && h.includes('url'));
+
+        if (titleIdx < 0 && resolvedFileUrlIdx < 0) {
+          setError(`Could not find Title or File URL columns. Found headers: ${allRows[0].slice(0, 6).join(', ')}…`);
+          return;
+        }
+
+        const validDiff = diffLevels.map(d => d.value);
+        const newRows: ExcelRow[] = [];
+
+        const parseBool = (val: string | undefined, fallback: boolean) => {
+          if (!val) return fallback;
+          const v = val.trim().toLowerCase();
+          return v === 'true' || v === 'yes' || v === '1';
+        };
+
+        const guessType = (url: string): 'BOOK' | 'VIDEO' | 'EPUB' => {
+          const u = (url || '').toLowerCase();
+          if (u.endsWith('.epub')) return 'EPUB';
+          if (u.match(/\.(mp4|webm|mov|avi)$/)) return 'VIDEO';
+          return 'BOOK';
+        };
+
+        for (let i = 1; i < allRows.length; i++) {
+          const cols = allRows[i];
+          if (cols.every(c => !c)) continue;
+
+          const get = (idx: number) => (idx >= 0 ? cols[idx] ?? '' : '');
+          const rawDiff    = get(diffIdx).toUpperCase();
+          const rawDelivery = get(deliveryIdx).toUpperCase();
+          const fileUrl    = get(resolvedFileUrlIdx);
+          let rawType = get(typeIdx).toUpperCase();
+          if (!rawType) rawType = guessType(fileUrl);
+
+          const row: ExcelRow = {
+            id: generateId(),
+            isbn:      get(isbnIdx),
+            title:     get(titleIdx),
+            author:    get(authorIdx),
+            description: get(descIdx),
+            coverImageUrl: get(coverIdx),
+            fileUrl,
+            subject:   get(subjectIdx),
+            topic:     get(topicIdx),
+            subTopic:  get(subTopicIdx),
+            difficultyLevel: validDiff.includes(rawDiff) ? rawDiff : 'K',
+            estimatedDuration: durationIdx >= 0 ? parseInt(cols[durationIdx]) || 30 : 30,
+            type: (['VIDEO', 'EPUB'].includes(rawType) ? rawType : 'BOOK') as 'BOOK' | 'VIDEO' | 'EPUB',
+            deliveryType: (['REDIRECT', 'EMBED', 'STREAM'].includes(rawDelivery)
+              ? rawDelivery
+              : rawType === 'EPUB' ? 'EMBED' : 'REDIRECT') as 'REDIRECT' | 'EMBED' | 'STREAM',
+            watermarkEnabled:     parseBool(get(watermarkIdx) || undefined, true),
+            downloadAllowed:      parseBool(get(downloadIdx) || undefined, false),
+            viewOnly:             parseBool(get(viewOnlyIdx) || undefined, rawType === 'EPUB'),
+            sessionExpiryMinutes: sessionIdx >= 0 ? parseInt(cols[sessionIdx]) || 120 : 120,
+            valid: true,
+            errors: [],
+          };
+
+          if (!row.title && !row.fileUrl) continue;
+          newRows.push(validateRow(row));
+        }
+
+        if (newRows.length === 0) {
+          setError('No data rows found. Make sure you have added rows below the header, and that the Title and File URL columns are filled in.');
+          return;
+        }
+        setRows(newRows);
+      } catch (err: any) {
+        console.error('[ExcelBulkUpload] parse error:', err);
+        setError('Failed to parse the file. Please use the downloaded template or a plain CSV file.');
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleFileImport(file);
+  };
+
+  const removeRow = (id: string) => setRows(prev => prev.filter(r => r.id !== id));
+
+  const updateRow = (id: string, field: keyof ExcelRow, value: any) => {
+    setRows(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, [field]: value };
+      return validateRow(updated);
+    }));
+  };
+
+  const handlePublishAll = async () => {
+    setError('');
+    setResult(null);
+
+    const validRows = rows.filter(r => r.valid);
+    if (validRows.length === 0) {
+      setError('No valid rows to publish. Please fix errors first.');
+      return;
+    }
+
+    setUploading(true);
+    let success = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    // Normalize a URL to a relative /uploads/... path — strips any http://host:port prefix
+    const toRelUrl = (url: string) => {
+      if (!url) return url;
+      try {
+        const parsed = new URL(url);
+        return parsed.pathname; // e.g. /uploads/books/filename.pdf
+      } catch {
+        return url; // already relative
+      }
+    };
+
+    for (const row of validRows) {
+      try {
+        // Map EPUB → BOOK type for backend (EPUB is a book subtype)
+        const backendType = row.type === 'EPUB' ? 'BOOK' : row.type;
+        const fileFormat = row.type === 'EPUB' ? 'EPUB' : row.type === 'VIDEO' ? 'VIDEO' : 'PDF';
+
+        // Ensure description meets 20-char minimum
+        let desc = row.description || row.title || '';
+        if (desc.length < 20) desc = desc.padEnd(20, ' — content uploaded via bulk import');
+
+        await learningUnitService.create({
+          type: backendType as any,
+          title: row.title,
+          description: desc,
+          subject: row.subject,
+          topic: row.topic || row.subject,
+          subTopic: row.subTopic || undefined,
+          difficultyLevel: row.difficultyLevel as any,
+          estimatedDuration: row.estimatedDuration,
+          secureAccessUrl: toRelUrl(row.fileUrl),
+          thumbnailUrl: row.coverImageUrl ? toRelUrl(row.coverImageUrl) : undefined,
+          coverImageUrl: row.coverImageUrl ? toRelUrl(row.coverImageUrl) : undefined,
+          deliveryType: row.deliveryType as any,
+          watermarkEnabled: row.watermarkEnabled,
+          downloadAllowed: row.downloadAllowed,
+          viewOnly: row.viewOnly,
+          sessionExpiryMinutes: row.sessionExpiryMinutes,
+          competencyIds: [],
+          author: row.author || undefined,
+          fileFormat,
+          edition: row.isbn ? `ISBN: ${row.isbn}` : undefined,
+        } as any);
+        success++;
+      } catch (err: any) {
+        failed++;
+        const msg = err?.response?.data?.message;
+        const label = row.isbn ? `[${row.isbn}] "${row.title}"` : `"${row.title}"`;
+        errors.push(`${label}: ${Array.isArray(msg) ? msg.join(', ') : msg || 'Failed'}`);
+      }
+    }
+
+    setResult({ success, failed, errors });
+    if (success > 0 && onSuccess) onSuccess();
+    if (failed === 0) setRows([]);
+    setUploading(false);
+  };
+
+  const validCount = rows.filter(r => r.valid).length;
+  const invalidCount = rows.filter(r => !r.valid).length;
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '8px 10px', borderRadius: 6,
+    border: '1px solid var(--bo-border)', fontSize: 13,
+    background: '#fff', color: 'var(--bo-text-primary)',
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+        <div>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 4 }}>
+            Bulk Upload Content
+          </h3>
+          <p style={{ fontSize: 13, color: 'var(--bo-text-secondary)' }}>
+            Download a format-specific Excel template, fill in ISBN + details + file URLs, then import here.
+          </p>
+        </div>
+
+        {/* Template download dropdown */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowTemplates(p => !p)}
+            className="bo-btn bo-btn-outline"
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={14} /> Download Template <ChevronDown size={13} />
+          </button>
+          {showTemplates && (
+            <div style={{
+              position: 'absolute', right: 0, top: '110%', zIndex: 100, background: '#fff',
+              border: '1px solid var(--bo-border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              minWidth: 220, padding: 8,
+            }}>
+              {TEMPLATE_OPTIONS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { t.fn(); setShowTemplates(false); }}
+                  style={{
+                    width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                    borderRadius: 7, textAlign: 'left',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  {t.icon}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--bo-text-primary)' }}>{t.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{t.desc}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Workflow steps */}
+      <div style={{
+        display: 'flex', gap: 12, marginBottom: 20, padding: '12px 16px',
+        background: '#FFFBEB', border: '1px solid #FED7AA', borderRadius: 10,
+      }}>
+        <AlertCircle size={18} style={{ color: '#D97706', flexShrink: 0, marginTop: 2 }} />
+        <div style={{ fontSize: 13, color: '#92400E', lineHeight: 1.6 }}>
+          <strong>Workflow:</strong> First upload files in the <strong>File Upload Hub</strong> to get URLs,
+          then fill the template with book details + URLs, and upload the CSV here.
+        </div>
+      </div>
+
+      {error && (
+        <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <X size={14} style={{ flexShrink: 0 }} /> <span style={{ flex: 1 }}>{error}</span>
+          <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: 2, display: 'flex', alignItems: 'center' }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Drop zone */}
+      {rows.length === 0 && (
+        <div
+          style={{
+            border: `2px dashed ${dragOver ? 'var(--bo-primary, #c47335)' : 'var(--bo-border)'}`,
+            borderRadius: 12, padding: '50px 24px', textAlign: 'center',
+            cursor: 'pointer',
+            background: dragOver ? 'rgba(196, 115, 53, 0.04)' : 'var(--bo-bg)',
+            transition: 'all 0.2s', marginBottom: 20,
+          }}
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <FileSpreadsheet size={44} style={{ color: 'var(--bo-text-muted)', marginBottom: 12 }} />
+          <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--bo-text-primary)', marginBottom: 4 }}>
+            Drop your CSV / Excel file here or click to browse
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>
+            First column: <strong>ISBN</strong> · Then: Title, Author, Description, Cover URL, File URL, Subject, Topic, Difficulty…
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.txt,.xls,.xlsx"
+        style={{ display: 'none' }}
+        onChange={e => { if (e.target.files?.[0]) handleFileImport(e.target.files[0]); e.target.value = ''; }}
+      />
+
+      {/* Preview table */}
+      {rows.length > 0 && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--bo-text-primary)' }}>
+                Preview ({rows.length} items)
+              </span>
+              {validCount > 0 && (
+                <span style={{ padding: '2px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: '#ECFDF5', color: '#059669' }}>
+                  {validCount} valid
+                </span>
+              )}
+              {invalidCount > 0 && (
+                <span style={{ padding: '2px 10px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: '#FEF2F2', color: '#DC2626' }}>
+                  {invalidCount} with errors
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => { fileInputRef.current?.click(); }}
+                className="bo-btn bo-btn-outline" style={{ fontSize: 12 }}
+              >
+                <Upload size={14} /> Re-import
+              </button>
+              <button
+                onClick={() => setRows([])}
+                className="bo-btn bo-btn-outline" style={{ fontSize: 12, color: '#EF4444' }}
+              >
+                <Trash2 size={14} /> Clear All
+              </button>
+            </div>
+          </div>
+
+          <div className="bo-card" style={{ overflow: 'hidden', marginBottom: 16 }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bo-bg)', borderBottom: '1px solid var(--bo-border)' }}>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', width: 30 }}>#</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', minWidth: 110 }}>ISBN</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase' }}>Cover</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', minWidth: 160 }}>Title / Author</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase' }}>Type</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase' }}>Subject / Topic</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase' }}>Level</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase' }}>Duration</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase' }}>Status</th>
+                    <th style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', width: 60 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row, idx) => (
+                    <React.Fragment key={row.id}>
+                      <tr
+                        style={{
+                          borderBottom: '1px solid var(--bo-border)',
+                          background: !row.valid ? '#FEF2F2' : 'transparent',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setPreviewOpen(previewOpen === row.id ? null : row.id)}
+                        onMouseEnter={e => { if (row.valid) e.currentTarget.style.background = 'var(--bo-bg)'; }}
+                        onMouseLeave={e => { if (row.valid) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <td style={{ padding: '10px 12px', color: 'var(--bo-text-muted)' }}>{idx + 1}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          {row.isbn ? (
+                            <code style={{ fontSize: 11, background: '#F0F9FF', color: '#0369A1', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>{row.isbn}</code>
+                          ) : (
+                            <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          {row.coverImageUrl ? (
+                            <div style={{ width: 36, height: 48, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--bo-border)', background: '#F3F4F6' }}>
+                              <img
+                                src={row.coverImageUrl.startsWith('/') ? `${window.location.origin}/api${row.coverImageUrl}` : row.coverImageUrl}
+                                alt=""
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                              />
+                            </div>
+                          ) : (
+                            <div style={{ width: 36, height: 48, borderRadius: 4, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <BookOpen size={14} style={{ color: 'var(--bo-text-muted)' }} />
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ fontWeight: 500, color: 'var(--bo-text-primary)', marginBottom: 2 }}>{row.title || '—'}</div>
+                          {row.author && <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{row.author}</div>}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                            background: row.type === 'VIDEO' ? '#EFF6FF' : '#F0FDF4',
+                            color: row.type === 'VIDEO' ? '#2563EB' : '#059669',
+                          }}>
+                            {row.type}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ fontSize: 12, fontWeight: 500 }}>{row.subject || '—'}</div>
+                          {row.topic && <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{row.topic}</div>}
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                            background: '#E5E7EB', color: 'var(--bo-text-secondary)',
+                          }}>
+                            {row.difficultyLevel}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 12px', fontSize: 12 }}>
+                          {row.estimatedDuration} min
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          {row.valid ? (
+                            <Check size={16} style={{ color: '#10B981' }} />
+                          ) : (
+                            <span style={{ color: '#EF4444', fontSize: 11, fontWeight: 600 }}>
+                              {row.errors.length} error{row.errors.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => setPreviewOpen(previewOpen === row.id ? null : row.id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 2 }}
+                            >
+                              {previewOpen === row.id ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            </button>
+                            <button
+                              onClick={() => removeRow(row.id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 2 }}
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Expanded preview / edit  */}
+                      {previewOpen === row.id && (
+                        <tr>
+                          <td colSpan={10} style={{ padding: 0 }}>
+                            <div style={{ padding: '16px 20px', background: 'var(--bo-bg)', borderTop: '1px solid var(--bo-border)' }}>
+                              {!row.valid && (
+                                <div style={{ padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, fontSize: 12, color: '#DC2626', marginBottom: 12 }}>
+                                  {row.errors.map((e, i) => <div key={i}>• {e}</div>)}
+                                </div>
+                              )}
+
+                              {/* Row 1: Core info */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>ISBN / Code</label>
+                                  <input style={inputStyle} value={row.isbn} onChange={e => updateRow(row.id, 'isbn', e.target.value)} placeholder="e.g. 978-0-07-166351-5" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Title *</label>
+                                  <input style={inputStyle} value={row.title} onChange={e => updateRow(row.id, 'title', e.target.value)} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Author</label>
+                                  <input style={inputStyle} value={row.author} onChange={e => updateRow(row.id, 'author', e.target.value)} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Type</label>
+                                  <select style={{ ...inputStyle, cursor: 'pointer' }} value={row.type} onChange={e => updateRow(row.id, 'type', e.target.value)}>
+                                    <option value="BOOK">Book (PDF)</option>
+                                    <option value="EPUB">EPUB</option>
+                                    <option value="VIDEO">Video</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Delivery Type</label>
+                                  <select style={{ ...inputStyle, cursor: 'pointer' }} value={row.deliveryType} onChange={e => updateRow(row.id, 'deliveryType', e.target.value)}>
+                                    <option value="REDIRECT">Redirect (Online)</option>
+                                    <option value="EMBED">Embed (In-App)</option>
+                                    <option value="STREAM">Stream</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Row 2: Subject, Topic, Sub-Topic */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Subject *</label>
+                                  <select style={{ ...inputStyle, cursor: 'pointer' }} value={row.subject} onChange={e => updateRow(row.id, 'subject', e.target.value)}>
+                                    <option value="">Select Subject</option>
+                                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Topic</label>
+                                  <input style={inputStyle} value={row.topic} onChange={e => updateRow(row.id, 'topic', e.target.value)} placeholder="e.g. Cardiovascular System" />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Sub-Topic</label>
+                                  <input style={inputStyle} value={row.subTopic} onChange={e => updateRow(row.id, 'subTopic', e.target.value)} placeholder="e.g. Valvular Heart Disease" />
+                                </div>
+                              </div>
+
+                              {/* Row 3: URLs */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>File URL *</label>
+                                  <input style={inputStyle} value={row.fileUrl} onChange={e => updateRow(row.id, 'fileUrl', e.target.value)} placeholder="/uploads/books/..." />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Cover Image URL</label>
+                                  <input style={inputStyle} value={row.coverImageUrl} onChange={e => updateRow(row.id, 'coverImageUrl', e.target.value)} placeholder="/uploads/images/..." />
+                                </div>
+                              </div>
+
+                              {/* Row 4: Difficulty, Duration, Session Expiry */}
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Difficulty Level</label>
+                                  <select style={{ ...inputStyle, cursor: 'pointer' }} value={row.difficultyLevel} onChange={e => updateRow(row.id, 'difficultyLevel', e.target.value)}>
+                                    {diffLevels.map(d => <option key={d.value} value={d.value}>{d.value} — {d.label}</option>)}
+                                  </select>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Duration (minutes)</label>
+                                  <input type="number" style={inputStyle} value={row.estimatedDuration} min={1}
+                                    onChange={e => updateRow(row.id, 'estimatedDuration', parseInt(e.target.value) || 30)} />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Session Expiry (minutes)</label>
+                                  <input type="number" style={inputStyle} value={row.sessionExpiryMinutes} min={5}
+                                    onChange={e => updateRow(row.id, 'sessionExpiryMinutes', parseInt(e.target.value) || 120)} />
+                                </div>
+                              </div>
+
+                              {/* Row 5: Toggles */}
+                              <div style={{ display: 'flex', gap: 24, marginBottom: 12, padding: '10px 0' }}>
+                                {([
+                                  { field: 'watermarkEnabled' as const, label: 'Watermark Enabled' },
+                                  { field: 'downloadAllowed' as const, label: 'Download Allowed' },
+                                  { field: 'viewOnly' as const, label: 'View Only (no print/copy)' },
+                                ] as const).map(toggle => (
+                                  <label key={toggle.field} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={row[toggle.field]}
+                                      onChange={e => updateRow(row.id, toggle.field, e.target.checked)}
+                                      style={{ width: 16, height: 16, accentColor: 'var(--bo-accent)', cursor: 'pointer' }}
+                                    />
+                                    <span style={{ color: 'var(--bo-text-primary)', fontWeight: 500 }}>{toggle.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+
+                              {/* Row 6: Description */}
+                              <div>
+                                <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-muted)', marginBottom: 4, display: 'block' }}>Description</label>
+                                <textarea style={{ ...inputStyle, minHeight: 60 }} value={row.description} onChange={e => updateRow(row.id, 'description', e.target.value)}
+                                  placeholder="Enter a description (minimum 20 characters for backend validation)" />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Publish button */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, alignItems: 'center' }}>
+            <span style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>
+              {validCount} of {rows.length} ready to publish
+            </span>
+            <button
+              onClick={handlePublishAll}
+              className="bo-btn bo-btn-primary"
+              disabled={uploading || validCount === 0}
+              style={{ padding: '10px 24px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}
+            >
+              {uploading ? (
+                'Publishing...'
+              ) : (
+                <><Send size={16} /> Publish All ({validCount})</>
+              )}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Result */}
+      {result && (
+        <div className="bo-card" style={{ padding: 20, marginTop: 20, borderLeft: `4px solid ${result.failed === 0 ? '#10B981' : '#F59E0B'}` }}>
+          <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: result.failed === 0 ? '#10B981' : 'var(--bo-text-primary)' }}>
+            {result.failed === 0 ? 'All published successfully!' : 'Publishing completed with errors'}
+          </h4>
+          <div style={{ display: 'flex', gap: 24, marginBottom: result.errors.length > 0 ? 12 : 0 }}>
+            <div style={{ fontSize: 13 }}>
+              <span style={{ color: '#10B981', fontWeight: 700, fontSize: 20 }}>{result.success}</span>
+              <span style={{ color: 'var(--bo-text-muted)', marginLeft: 6 }}>published</span>
+            </div>
+            {result.failed > 0 && (
+              <div style={{ fontSize: 13 }}>
+                <span style={{ color: '#EF4444', fontWeight: 700, fontSize: 20 }}>{result.failed}</span>
+                <span style={{ color: 'var(--bo-text-muted)', marginLeft: 6 }}>failed</span>
+              </div>
+            )}
+          </div>
+          {result.errors.length > 0 && (
+            <div style={{ fontSize: 12, color: '#EF4444', maxHeight: 120, overflowY: 'auto', background: 'var(--bo-bg)', padding: 10, borderRadius: 6 }}>
+              {result.errors.map((e, i) => <div key={i} style={{ marginBottom: 4 }}>• {e}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ExcelBulkUpload;

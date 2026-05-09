@@ -1,0 +1,817 @@
+import { PrismaClient, CompetencyStatus } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+/**
+ * MCI Competency Based Undergraduate Curriculum
+ * Source: Medical Council of India UG Curriculum Vol I, II, III
+ * 
+ * This seed file contains all medical competencies from the official MCI curriculum.
+ * Each competency is mapped to subjects, topics, and difficulty levels.
+ */
+
+interface MCICompetency {
+  code: string;
+  subject: string;
+  subjectCode: string;
+  topic: string;
+  description: string;
+  domain: 'Knowledge' | 'Skills' | 'Attitude' | 'Communication';
+  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  isCore: boolean;
+}
+
+const mciCompetencies: MCICompetency[] = [
+  // ==================== VOLUME I: BASIC SCIENCES ====================
+  
+  // HUMAN ANATOMY (AN)
+  {
+    code: 'AN1.1',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Anatomical Terminology',
+    description: 'Demonstrate normal anatomical position, various planes, relation, comparison, laterality & movement in our body',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'AN1.2',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Anatomical Terminology',
+    description: 'Describe composition of bone and bone marrow',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'AN2.1',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Bones and Joints',
+    description: 'Describe parts, blood and nerve supply of a long bone',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'AN2.2',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Bones and Joints',
+    description: 'Enumerate laws of ossification',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: false,
+  },
+  {
+    code: 'AN2.3',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Bones and Joints',
+    description: 'Explain the role of joints and joint movement',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'AN3.1',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Upper Limb',
+    description: 'Describe & identify scapula, clavicle, humerus, radius, ulna, scaphoid, lunate bones',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'AN3.2',
+    subject: 'Anatomy',
+    subjectCode: 'AN',
+    topic: 'Upper Limb',
+    description: 'Identify & describe boundaries and contents of axilla',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // PHYSIOLOGY (PY)
+  {
+    code: 'PY1.1',
+    subject: 'Physiology',
+    subjectCode: 'PY',
+    topic: 'General Physiology',
+    description: 'Describe the organization of cell and its sub cellular components',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'PY1.2',
+    subject: 'Physiology',
+    subjectCode: 'PY',
+    topic: 'General Physiology',
+    description: 'Explain structure and functions of cell membrane and transport across cell membrane',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PY1.3',
+    subject: 'Physiology',
+    subjectCode: 'PY',
+    topic: 'General Physiology',
+    description: 'Describe the molecular and ionic basis of resting membrane potential',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PY2.1',
+    subject: 'Physiology',
+    subjectCode: 'PY',
+    topic: 'Blood',
+    description: 'Describe the composition and functions of blood',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'PY2.2',
+    subject: 'Physiology',
+    subjectCode: 'PY',
+    topic: 'Blood',
+    description: 'Explain the physiological basis of grouping of blood and its importance in blood transfusion',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PY2.3',
+    subject: 'Physiology',
+    subjectCode: 'PY',
+    topic: 'Blood',
+    description: 'Describe the formation, functions and variations of blood cells (RBC, WBC, Platelets)',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // BIOCHEMISTRY (BI)
+  {
+    code: 'BI1.1',
+    subject: 'Biochemistry',
+    subjectCode: 'BI',
+    topic: 'Biomolecules',
+    description: 'Describe structure and functions of water and pH',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'BI1.2',
+    subject: 'Biochemistry',
+    subjectCode: 'BI',
+    topic: 'Biomolecules',
+    description: 'Describe structure, function and classification of amino acids',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'BI1.3',
+    subject: 'Biochemistry',
+    subjectCode: 'BI',
+    topic: 'Biomolecules',
+    description: 'Describe the classification, structure and role of proteins',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'BI2.1',
+    subject: 'Biochemistry',
+    subjectCode: 'BI',
+    topic: 'Enzymes',
+    description: 'Describe classification, structure and properties of enzymes',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'BI2.2',
+    subject: 'Biochemistry',
+    subjectCode: 'BI',
+    topic: 'Enzymes',
+    description: 'Explain the principles of enzyme kinetics and enzyme inhibition',
+    domain: 'Knowledge',
+    level: 'Advanced',
+    isCore: true,
+  },
+  
+  // ==================== VOLUME II: PARA-CLINICAL ====================
+  
+  // PATHOLOGY (PA)
+  {
+    code: 'PA1.1',
+    subject: 'Pathology',
+    subjectCode: 'PA',
+    topic: 'General Pathology',
+    description: 'Describe the concepts of cell injury, necrosis and apoptosis',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PA1.2',
+    subject: 'Pathology',
+    subjectCode: 'PA',
+    topic: 'General Pathology',
+    description: 'Describe intracellular accumulations & pathologic calcification',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PA2.1',
+    subject: 'Pathology',
+    subjectCode: 'PA',
+    topic: 'Inflammation',
+    description: 'Describe the etiology, pathogenesis, pathology & complications of acute & chronic inflammation',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PA2.2',
+    subject: 'Pathology',
+    subjectCode: 'PA',
+    topic: 'Inflammation',
+    description: 'Describe healing by first and second intention, repair and regeneration',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // MICROBIOLOGY (MI)
+  {
+    code: 'MI1.1',
+    subject: 'Microbiology',
+    subjectCode: 'MI',
+    topic: 'General Microbiology',
+    description: 'Describe morphology, physiology and laboratory diagnosis of bacteria',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'MI1.2',
+    subject: 'Microbiology',
+    subjectCode: 'MI',
+    topic: 'General Microbiology',
+    description: 'Describe the etiology, epidemiology, pathogenesis and prevention of bacterial infections',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'MI2.1',
+    subject: 'Microbiology',
+    subjectCode: 'MI',
+    topic: 'Immunology',
+    description: 'Enumerate and describe the components of immune system',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'MI2.2',
+    subject: 'Microbiology',
+    subjectCode: 'MI',
+    topic: 'Immunology',
+    description: 'Explain innate and acquired immunity',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // PHARMACOLOGY (PH)
+  {
+    code: 'PH1.1',
+    subject: 'Pharmacology',
+    subjectCode: 'PH',
+    topic: 'General Pharmacology',
+    description: 'Describe general pharmacological principles including pharmacokinetics and pharmacodynamics',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PH1.2',
+    subject: 'Pharmacology',
+    subjectCode: 'PH',
+    topic: 'General Pharmacology',
+    description: 'Describe mechanisms of drug action and drug receptor interactions',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PH1.3',
+    subject: 'Pharmacology',
+    subjectCode: 'PH',
+    topic: 'General Pharmacology',
+    description: 'Explain adverse drug reactions and therapeutic drug monitoring',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PH2.1',
+    subject: 'Pharmacology',
+    subjectCode: 'PH',
+    topic: 'Autonomic Nervous System',
+    description: 'Describe pharmacology of cholinergic and anticholinergic agents',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // FORENSIC MEDICINE (FM)
+  {
+    code: 'FM1.1',
+    subject: 'Forensic Medicine',
+    subjectCode: 'FM',
+    topic: 'Legal Procedures',
+    description: 'Describe legal procedures in medical practice',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'FM1.2',
+    subject: 'Forensic Medicine',
+    subjectCode: 'FM',
+    topic: 'Legal Procedures',
+    description: 'Explain medico-legal aspects of death',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'FM2.1',
+    subject: 'Forensic Medicine',
+    subjectCode: 'FM',
+    topic: 'Autopsy',
+    description: 'Describe autopsy procedures and post-mortem changes',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // ==================== VOLUME III: CLINICAL ====================
+  
+  // COMMUNITY MEDICINE (CM)
+  {
+    code: 'CM1.1',
+    subject: 'Community Medicine',
+    subjectCode: 'CM',
+    topic: 'Introduction to Community Medicine',
+    description: 'Describe concepts of health and disease',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'CM1.2',
+    subject: 'Community Medicine',
+    subjectCode: 'CM',
+    topic: 'Introduction to Community Medicine',
+    description: 'Explain determinants of health and disease',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'CM2.1',
+    subject: 'Community Medicine',
+    subjectCode: 'CM',
+    topic: 'Epidemiology',
+    description: 'Describe principles and methods of epidemiology',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // GENERAL MEDICINE (IM)
+  {
+    code: 'IM1.1',
+    subject: 'General Medicine',
+    subjectCode: 'IM',
+    topic: 'Introduction to Medicine',
+    description: 'Obtain a detailed history in a patient with symptoms of cardiovascular system',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'IM1.2',
+    subject: 'General Medicine',
+    subjectCode: 'IM',
+    topic: 'Introduction to Medicine',
+    description: 'Perform cardiovascular examination in a patient',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'IM2.1',
+    subject: 'General Medicine',
+    subjectCode: 'IM',
+    topic: 'Cardiovascular System',
+    description: 'Describe etiology and pathogenesis of hypertension',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // GENERAL SURGERY (SU)
+  {
+    code: 'SU1.1',
+    subject: 'General Surgery',
+    subjectCode: 'SU',
+    topic: 'Introduction to Surgery',
+    description: 'Obtain an appropriate history relevant to Surgery in a patient',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'SU1.2',
+    subject: 'General Surgery',
+    subjectCode: 'SU',
+    topic: 'Introduction to Surgery',
+    description: 'Perform general physical and systemic examination in a patient',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'SU2.1',
+    subject: 'General Surgery',
+    subjectCode: 'SU',
+    topic: 'Wounds and Healing',
+    description: 'Describe types of wounds and mechanism of wound healing',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // OBSTETRICS & GYNAECOLOGY (OG)
+  {
+    code: 'OG1.1',
+    subject: 'Obstetrics & Gynaecology',
+    subjectCode: 'OG',
+    topic: 'Basic Sciences',
+    description: 'Describe anatomy of pelvis and fetal skull',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'OG1.2',
+    subject: 'Obstetrics & Gynaecology',
+    subjectCode: 'OG',
+    topic: 'Basic Sciences',
+    description: 'Describe menstrual cycle and hormonal changes',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'OG2.1',
+    subject: 'Obstetrics & Gynaecology',
+    subjectCode: 'OG',
+    topic: 'Antenatal Care',
+    description: 'Demonstrate obstetric examination and recording of findings',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // PEDIATRICS (PE)
+  {
+    code: 'PE1.1',
+    subject: 'Pediatrics',
+    subjectCode: 'PE',
+    topic: 'Growth and Development',
+    description: 'Describe normal growth and development of children',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'PE1.2',
+    subject: 'Pediatrics',
+    subjectCode: 'PE',
+    topic: 'Growth and Development',
+    description: 'Plot and interpret growth charts',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PE2.1',
+    subject: 'Pediatrics',
+    subjectCode: 'PE',
+    topic: 'Nutrition',
+    description: 'Describe assessment of nutritional status of children',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // OPHTHALMOLOGY (OP)
+  {
+    code: 'OP1.1',
+    subject: 'Ophthalmology',
+    subjectCode: 'OP',
+    topic: 'Anatomy of Eye',
+    description: 'Describe anatomy of eye and ocular adnexa',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'OP1.2',
+    subject: 'Ophthalmology',
+    subjectCode: 'OP',
+    topic: 'Anatomy of Eye',
+    description: 'Describe physiology of vision',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'OP2.1',
+    subject: 'Ophthalmology',
+    subjectCode: 'OP',
+    topic: 'Refractive Errors',
+    description: 'Describe types of refractive errors and their management',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // ENT (EN)
+  {
+    code: 'EN1.1',
+    subject: 'ENT',
+    subjectCode: 'EN',
+    topic: 'Anatomy of ENT',
+    description: 'Describe anatomy and physiology of ear',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'EN1.2',
+    subject: 'ENT',
+    subjectCode: 'EN',
+    topic: 'Anatomy of ENT',
+    description: 'Describe anatomy and physiology of nose and paranasal sinuses',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'EN2.1',
+    subject: 'ENT',
+    subjectCode: 'EN',
+    topic: 'Ear Diseases',
+    description: 'Describe common ear infections and their management',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // ORTHOPEDICS (OR)
+  {
+    code: 'OR1.1',
+    subject: 'Orthopedics',
+    subjectCode: 'OR',
+    topic: 'Musculoskeletal System',
+    description: 'Describe anatomy of musculoskeletal system',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'OR1.2',
+    subject: 'Orthopedics',
+    subjectCode: 'OR',
+    topic: 'Musculoskeletal System',
+    description: 'Perform musculoskeletal examination',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'OR2.1',
+    subject: 'Orthopedics',
+    subjectCode: 'OR',
+    topic: 'Fractures',
+    description: 'Describe types and management of fractures',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // PSYCHIATRY (PS)
+  {
+    code: 'PS1.1',
+    subject: 'Psychiatry',
+    subjectCode: 'PS',
+    topic: 'Introduction to Psychiatry',
+    description: 'Describe concepts of normal and abnormal behavior',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'PS1.2',
+    subject: 'Psychiatry',
+    subjectCode: 'PS',
+    topic: 'Introduction to Psychiatry',
+    description: 'Perform psychiatric history and mental status examination',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'PS2.1',
+    subject: 'Psychiatry',
+    subjectCode: 'PS',
+    topic: 'Psychopathology',
+    description: 'Describe classification of psychiatric disorders',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // DERMATOLOGY (DE)
+  {
+    code: 'DE1.1',
+    subject: 'Dermatology',
+    subjectCode: 'DE',
+    topic: 'Skin Anatomy',
+    description: 'Describe anatomy and physiology of skin',
+    domain: 'Knowledge',
+    level: 'Beginner',
+    isCore: true,
+  },
+  {
+    code: 'DE1.2',
+    subject: 'Dermatology',
+    subjectCode: 'DE',
+    topic: 'Skin Anatomy',
+    description: 'Perform dermatological examination',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'DE2.1',
+    subject: 'Dermatology',
+    subjectCode: 'DE',
+    topic: 'Common Skin Conditions',
+    description: 'Describe common skin infections and their management',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // RADIOLOGY (RA)
+  {
+    code: 'RA1.1',
+    subject: 'Radiology',
+    subjectCode: 'RA',
+    topic: 'Principles of Radiology',
+    description: 'Describe principles of diagnostic imaging',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'RA1.2',
+    subject: 'Radiology',
+    subjectCode: 'RA',
+    topic: 'Principles of Radiology',
+    description: 'Explain radiation safety and protection',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'RA2.1',
+    subject: 'Radiology',
+    subjectCode: 'RA',
+    topic: 'Chest Radiology',
+    description: 'Interpret normal chest X-ray',
+    domain: 'Skills',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  
+  // ANAESTHESIA (AN)
+  {
+    code: 'AN1.1 (Anaesthesia)',
+    subject: 'Anaesthesia',
+    subjectCode: 'AN',
+    topic: 'Basic Anaesthesia',
+    description: 'Describe principles of general and local anaesthesia',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+  {
+    code: 'AN1.2 (Anaesthesia)',
+    subject: 'Anaesthesia',
+    subjectCode: 'AN',
+    topic: 'Basic Anaesthesia',
+    description: 'Describe pre-operative assessment and preparation',
+    domain: 'Knowledge',
+    level: 'Intermediate',
+    isCore: true,
+  },
+];
+
+async function seedMCICompetencies() {
+  console.log('🏥 Starting MCI Competency Seeding...\n');
+
+  // Get Bitflow Owner user
+  const bitflowOwner = await prisma.users.findFirst({
+    where: { role: 'BITFLOW_OWNER' },
+  });
+
+  if (!bitflowOwner) {
+    throw new Error('Bitflow Owner not found. Please run seed-phase0 first.');
+  }
+
+  let created = 0;
+  let skipped = 0;
+
+  for (const comp of mciCompetencies) {
+    // Check if competency already exists
+    const existing = await prisma.competencies.findFirst({
+      where: {
+        code: comp.code,
+        subject: comp.subject,
+      },
+    });
+
+    if (existing) {
+      skipped++;
+      continue;
+    }
+
+    // Create competency
+    await prisma.competencies.create({
+      data: {
+        id: `comp_mci_${comp.code.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+        code: comp.code,
+        title: comp.description.substring(0, 100), // Truncate for title
+        description: `${comp.topic}: ${comp.description}`,
+        subject: comp.subject,
+        domain: comp.domain === 'Knowledge' ? 'COGNITIVE' : comp.domain === 'Skills' ? 'PSYCHOMOTOR' : 'AFFECTIVE',
+        academicLevel: comp.level === 'Beginner' ? 'UNDERGRADUATE_YEAR_1' : 
+                       comp.level === 'Intermediate' ? 'UNDERGRADUATE_YEAR_3' : 'POSTGRADUATE',
+        status: CompetencyStatus.ACTIVE,
+        version: 1,
+        createdBy: bitflowOwner.id,
+        updatedAt: new Date(),
+      },
+    });
+
+    created++;
+  }
+
+  console.log(`\n✅ MCI Competency Seeding Complete!`);
+  console.log(`   Created: ${created} competencies`);
+  console.log(`   Skipped: ${skipped} (already exist)`);
+  console.log(`   Total MCI Competencies: ${mciCompetencies.length}\n`);
+}
+
+async function main() {
+  try {
+    await seedMCICompetencies();
+  } catch (error) {
+    console.error('Error seeding MCI competencies:', error);
+    throw error;
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();

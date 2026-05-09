@@ -1,0 +1,427 @@
+/* ============================================
+   COLLEGE ADMIN DASHBOARD — Clinical Editorial
+   Medical College Administration
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-display: 'Crimson Pro', Georgia, serif;
+  --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  
+  --clinical-teal: #006B5C;
+  --clinical-teal-dark: #004D3F;
+  --amber-highlight: #D97706;
+  
+  --paper: #FDFDFB;
+  --surface: #FFFFFF;
+  --border: #D1D5DB;
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
+  
+  --success: #059669;
+  --success-bg: #ECFDF5;
+  --warning: #D97706;
+  --error: #DC2626;
+  
+  --space-2: 8px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+  
+  --transition-editorial: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Tabs Navigation */
+.college-admin-tabs {
+  display: flex;
+  gap: var(--space-2);
+  border-bottom: 2px solid var(--border);
+  margin-bottom: var(--space-8);
+  overflow-x: auto;
+}
+
+.college-admin-tab {
+  padding: var(--space-4) var(--space-6);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-editorial);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.college-admin-tab:hover {
+  color: var(--clinical-teal);
+  background: rgba(0, 107, 92, 0.05);
+}
+
+.college-admin-tab.active {
+  color: var(--clinical-teal);
+  border-bottom-color: var(--amber-highlight);
+  font-weight: 700;
+}
+
+/* Data Tables */
+.college-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  margin-bottom: var(--space-6);
+}
+
+.college-data-table thead {
+  background: var(--paper);
+  border-bottom: 2px solid var(--border);
+}
+
+.college-data-table th {
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.college-data-table td {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.college-data-table tbody tr:hover {
+  background: var(--paper);
+}
+
+/* Action Buttons */
+.table-action-btn {
+  padding: var(--space-2) 12px;
+  border: 1px solid;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-editorial);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: var(--space-2);
+}
+
+.table-action-btn.view {
+  background: #EFF6FF;
+  color: #1E40AF;
+  border-color: #BFDBFE;
+}
+
+.table-action-btn.view:hover {
+  background: #1E40AF;
+  color: white;
+}
+
+.table-action-btn.edit {
+  background: var(--paper);
+  color: var(--clinical-teal);
+  border-color: var(--border);
+}
+
+.table-action-btn.edit:hover {
+  background: var(--clinical-teal);
+  color: white;
+  border-color: var(--clinical-teal);
+}
+
+.table-action-btn.delete {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FECACA;
+}
+
+.table-action-btn.delete:hover {
+  background: #DC2626;
+  color: white;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid;
+}
+
+.status-badge.active {
+  background: var(--success-bg);
+  color: var(--success);
+  border-color: #A7F3D0;
+}
+
+.status-badge.inactive {
+  background: var(--paper);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.status-badge.expired {
+  background: #FEF2F2;
+  color: var(--error);
+  border-color: #FECACA;
+}
+
+/* Stats Cards */
+.college-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-8);
+}
+
+.college-stat-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  padding: var(--space-6);
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: all var(--transition-editorial);
+}
+
+.college-stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  background: var(--clinical-teal);
+  opacity: 0;
+  transition: opacity var(--transition-editorial);
+}
+
+.college-stat-card:hover {
+  border-color: var(--clinical-teal);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+  transform: translateX(4px);
+}
+
+.college-stat-card:hover::before {
+  opacity: 1;
+}
+
+.stat-header {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.stat-number {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--clinical-teal);
+  line-height: 1;
+  margin-bottom: var(--space-2);
+}
+
+.stat-footer {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+  margin-top: var(--space-4);
+}
+
+/* Filters Bar */
+.college-filters {
+  display: flex;
+  gap: var(--space-5);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 2px solid var(--border);
+}
+
+.filter-item {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.filter-select,
+.filter-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: all var(--transition-editorial);
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  border-color: var(--clinical-teal);
+  box-shadow: 0 0 0 2px rgba(0, 107, 92, 0.1);
+}
+
+/* Modals */
+.college-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.college-modal {
+  background: var(--surface);
+  border: 3px solid var(--clinical-teal);
+  padding: var(--space-8);
+  max-width: 600px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--clinical-teal);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-5);
+  border-bottom: 2px solid var(--border);
+}
+
+.form-group {
+  margin-bottom: var(--space-5);
+}
+
+.form-label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  outline: none;
+  transition: all var(--transition-editorial);
+}
+
+.form-input:focus,
+.form-select:focus {
+  border-color: var(--clinical-teal);
+  box-shadow: 0 0 0 2px rgba(0, 107, 92, 0.1);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.btn-primary {
+  padding: 12px 24px;
+  background: var(--clinical-teal);
+  color: white;
+  border: none;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-editorial);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.btn-primary:hover {
+  background: var(--clinical-teal-dark);
+}
+
+.btn-secondary {
+  padding: 12px 24px;
+  background: var(--surface);
+  color: var(--clinical-teal);
+  border: 2px solid var(--clinical-teal);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-editorial);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.btn-secondary:hover {
+  background: var(--clinical-teal);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .college-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .college-filters {
+    flex-direction: column;
+  }
+
+  .college-data-table {
+    font-size: 12px;
+  }
+}

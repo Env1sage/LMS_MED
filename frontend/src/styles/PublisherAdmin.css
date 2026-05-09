@@ -1,0 +1,47 @@
+/* ============================================
+   PUBLISHER ADMIN — Clinical Editorial
+   Medical Publishing, Academic Precision
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-display: 'Crimson Pro', Georgia, serif;
+  --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+  
+  --clinical-teal: #006B5C;
+  --clinical-teal-dark: #004D3F;
+  --amber-highlight: #D97706;
+  
+  --paper: #FDFDFB;
+  --surface: #FFFFFF;
+  --border: #D1D5DB;
+  --text-primary: #1F2937;
+  --text-secondary: #4B5563;
+}
+
+.publisher-dashboard {
+  min-height: 100vh;
+  background: var(--paper);
+  font-family: var(--font-body);
+}
+
+.dashboard-header {
+  background: var(--surface);
+  padding: 32px 48px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 48px;
+}
+
+.dashboard-header h1 {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--clinical-teal);
+  margin: 0 0 8px 0;
+}
+
+.dashboard-content {
+  padding: 0 48px 48px;
+}

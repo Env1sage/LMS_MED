@@ -1,0 +1,79 @@
+// Replace these methods in bitflow-owner.service.ts starting around line 2520
+
+  async getLocationBasedAnalytics(filters: { state?: string; city?: string; pincode?: string }) {
+    // Simplified version using available fields
+    return {
+      byState: [],
+      byCity: [],
+      byPincode: [],
+    };
+  }
+
+  async getDetailedStudentProgress(filters: {
+    page?: number;
+    limit?: number;
+    collegeId?: string;
+    state?: string;
+    city?: string;
+    search?: string;
+  }) {
+    // Simplified version - return empty for now
+    return {
+      students: [],
+      total: 0,
+      page: filters.page || 1,
+      totalPages: 1,
+    };
+  }
+
+  async getWeeklyActivitySummary(filters: { startDate?: string; endDate?: string }) {
+    const now = new Date();
+    const weekStart = filters.startDate ? new Date(filters.startDate) : new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekEnd = filters.endDate ? new Date(filters.endDate) : now;
+
+    const logins = await this.prisma.audit_logs.count({
+      where: {
+        action: 'LOGIN_SUCCESS',
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    const newUsers = await this.prisma.users.count({
+      where: {
+        createdAt: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    const failedLogins = await this.prisma.audit_logs.count({
+      where: {
+        action: 'LOGIN_FAILED',
+        timestamp: { gte: weekStart, lte: weekEnd },
+      },
+    });
+
+    return {
+      weekStartDate: weekStart.toISOString().split('T')[0],
+      weekEndDate: weekEnd.toISOString().split('T')[0],
+      userActivity: {
+        totalLogins: logins,
+        uniqueUsers: 0,
+        newUsers,
+        avgSessionDuration: 0,
+      },
+      contentActivity: {
+        contentAccessed: 0,
+        coursesStarted: 0,
+        coursesCompleted: 0,
+        testsAttempted: 0,
+        practiceSessionsCompleted: 0,
+      },
+      topActiveColleges: [],
+      topActiveStudents: [],
+      securityEvents: {
+        failedLoginAttempts: failedLogins,
+        suspiciousActivities: 0,
+        blockedAccessAttempts: 0,
+      },
+    };
+  }
+}

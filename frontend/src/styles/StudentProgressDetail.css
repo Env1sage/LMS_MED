@@ -1,0 +1,380 @@
+/* ==============================================
+   STUDENT PROGRESS DETAIL - Extended Styles
+   Uses FacultyPortal.css as base
+   ============================================== */
+
+/* === STUDENT INFO CARD === */
+.student-progress-detail .student-info-card {
+  background: var(--faculty-surface, #ffffff);
+  border-radius: var(--faculty-radius-xl, 16px);
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: var(--faculty-shadow, 0 4px 6px -1px rgb(0 0 0 / 0.1));
+  border: 1px solid var(--faculty-border-light, #f1f5f9);
+}
+
+.student-progress-detail .info-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.student-progress-detail .info-item label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--faculty-text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.student-progress-detail .info-item span {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--faculty-text-primary, #0f172a);
+}
+
+/* === ASSIGNMENT INFO === */
+.student-progress-detail .assignment-info {
+  background: var(--faculty-surface, #ffffff);
+  border-radius: var(--faculty-radius-xl, 16px);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--faculty-shadow, 0 4px 6px -1px rgb(0 0 0 / 0.1));
+  border: 1px solid var(--faculty-border-light, #f1f5f9);
+}
+
+.student-progress-detail .info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.student-progress-detail .info-box {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 18px;
+  border-radius: var(--faculty-radius-lg, 12px);
+  text-align: center;
+  border: 1px solid var(--faculty-border-light, #f1f5f9);
+}
+
+.student-progress-detail .info-box label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--faculty-text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.student-progress-detail .info-box span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--faculty-text-primary, #0f172a);
+}
+
+/* === PROGRESS SUMMARY === */
+.student-progress-detail .progress-summary {
+  background: var(--faculty-surface, #ffffff);
+  border-radius: var(--faculty-radius-xl, 16px);
+  padding: 32px;
+  margin-bottom: 24px;
+  box-shadow: var(--faculty-shadow, 0 4px 6px -1px rgb(0 0 0 / 0.1));
+  border: 1px solid var(--faculty-border-light, #f1f5f9);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+}
+
+.student-progress-detail .summary-card {
+  text-align: center;
+}
+
+.student-progress-detail .summary-value {
+  font-size: 4rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--faculty-primary, #4f46e5) 0%, var(--faculty-secondary, #06b6d4) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1;
+}
+
+.student-progress-detail .summary-label {
+  font-size: 1rem;
+  color: var(--faculty-text-muted, #94a3b8);
+  margin: 12px 0 20px 0;
+  font-weight: 500;
+}
+
+.student-progress-detail .progress-bar-large {
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: var(--faculty-radius-full, 9999px);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.student-progress-detail .progress-bar-large .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--faculty-primary, #4f46e5) 0%, var(--faculty-secondary, #06b6d4) 100%);
+  border-radius: var(--faculty-radius-full, 9999px);
+  transition: width 0.6s ease;
+}
+
+.student-progress-detail .summary-stats {
+  display: flex;
+  justify-content: space-around;
+}
+
+.student-progress-detail .summary-stats .stat {
+  text-align: center;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: var(--faculty-radius-lg, 12px);
+}
+
+.student-progress-detail .summary-stats .stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--faculty-text-primary, #0f172a);
+  margin-bottom: 4px;
+}
+
+.student-progress-detail .summary-stats .stat-label {
+  font-size: 0.8rem;
+  color: var(--faculty-text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+/* === STEPS PROGRESS === */
+.student-progress-detail .steps-progress {
+  background: var(--faculty-surface, #ffffff);
+  border-radius: var(--faculty-radius-xl, 16px);
+  padding: 32px;
+  box-shadow: var(--faculty-shadow, 0 4px 6px -1px rgb(0 0 0 / 0.1));
+  border: 1px solid var(--faculty-border-light, #f1f5f9);
+}
+
+.student-progress-detail .steps-progress h2 {
+  margin: 0 0 28px 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--faculty-text-primary, #0f172a);
+}
+
+/* === TIMELINE === */
+.student-progress-detail .steps-timeline {
+  position: relative;
+}
+
+.student-progress-detail .step-item {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.student-progress-detail .step-item:last-child {
+  margin-bottom: 0;
+}
+
+.student-progress-detail .step-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 48px;
+  position: relative;
+}
+
+.student-progress-detail .connector-line {
+  position: absolute;
+  top: -28px;
+  width: 3px;
+  height: 28px;
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.student-progress-detail .step-item.completed .connector-line {
+  background: linear-gradient(180deg, var(--faculty-success, #10b981) 0%, #059669 100%);
+}
+
+.student-progress-detail .step-dot {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  z-index: 1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.student-progress-detail .step-dot.completed {
+  background: linear-gradient(135deg, var(--faculty-success, #10b981) 0%, #059669 100%);
+  color: white;
+  font-size: 1.1rem;
+}
+
+.student-progress-detail .step-dot.pending {
+  background: white;
+  border: 3px solid var(--faculty-primary, #4f46e5);
+  color: var(--faculty-primary, #4f46e5);
+}
+
+.student-progress-detail .step-dot.locked {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  color: var(--faculty-text-muted, #94a3b8);
+  font-size: 1.1rem;
+}
+
+/* === STEP CONTENT === */
+.student-progress-detail .step-content {
+  flex: 1;
+  background: linear-gradient(135deg, #fafbfc 0%, #f8fafc 100%);
+  border-radius: var(--faculty-radius-lg, 12px);
+  padding: 24px;
+  border: 1px solid var(--faculty-border-light, #f1f5f9);
+  transition: all 0.2s ease;
+}
+
+.student-progress-detail .step-item.completed .step-content {
+  border-color: var(--faculty-success, #10b981);
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.student-progress-detail .step-item.locked .step-content {
+  opacity: 0.65;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.student-progress-detail .step-content .step-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.student-progress-detail .step-content .step-number {
+  font-weight: 700;
+  color: var(--faculty-primary, #4f46e5);
+  font-size: 0.85rem;
+}
+
+.student-progress-detail .step-content .step-type {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+  padding: 4px 14px;
+  border-radius: var(--faculty-radius-full, 9999px);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--faculty-text-secondary, #475569);
+}
+
+.student-progress-detail .mandatory-tag {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  color: #b91c1c;
+  padding: 4px 12px;
+  border-radius: var(--faculty-radius-full, 9999px);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.student-progress-detail .step-title {
+  margin: 0 0 12px 0;
+  color: var(--faculty-text-primary, #0f172a);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.student-progress-detail .step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 0.85rem;
+  color: var(--faculty-text-muted, #94a3b8);
+  margin-bottom: 16px;
+}
+
+.student-progress-detail .step-progress {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.student-progress-detail .step-progress .progress-bar-mini {
+  flex: 1;
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: var(--faculty-radius-full, 9999px);
+  overflow: hidden;
+}
+
+.student-progress-detail .step-progress .progress-bar-mini .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--faculty-primary, #4f46e5) 0%, var(--faculty-secondary, #06b6d4) 100%);
+  transition: width 0.5s ease;
+  border-radius: var(--faculty-radius-full, 9999px);
+}
+
+.student-progress-detail .step-progress .progress-bar-mini .progress-fill.locked {
+  background: linear-gradient(90deg, #cbd5e1 0%, #94a3b8 100%);
+}
+
+.student-progress-detail .step-progress .progress-text {
+  font-weight: 700;
+  color: var(--faculty-primary, #4f46e5);
+  min-width: 48px;
+  font-size: 0.95rem;
+}
+
+.student-progress-detail .locked-message {
+  margin-top: 14px;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: var(--faculty-radius, 8px);
+  color: #92400e;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .student-progress-detail .progress-summary {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .student-progress-detail .summary-stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .student-progress-detail .step-item {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .student-progress-detail .step-connector {
+    flex-direction: row;
+    width: 100%;
+    justify-content: flex-start;
+    padding-left: 8px;
+  }
+
+  .student-progress-detail .connector-line {
+    display: none;
+  }
+}

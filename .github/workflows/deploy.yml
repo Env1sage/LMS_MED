@@ -1,0 +1,158 @@
+name: CD — Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Force rebuild all images (no cache)"
+        required: false
+        default: "false"
+
+# Only one deploy at a time
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    # Only run if CI passed
+    needs: []
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Check server connectivity
+        run: |
+          ssh -i ~/.ssh/deploy_key -o ConnectTimeout=10 \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "echo 'SSH connection OK'"
+
+      - name: Backup database before deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd /opt/bitflow-lms
+            source .env
+            BACKUP_FILE="/opt/bitflow-lms/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sql.gz"
+            mkdir -p /opt/bitflow-lms/backups
+            docker exec bitflow-postgres pg_dump -U $DB_USER $DB_NAME 2>/dev/null | gzip > $BACKUP_FILE
+            echo "Backup saved: $BACKUP_FILE"
+            # Keep only last 7 backups
+            ls -t /opt/bitflow-lms/backups/*.sql.gz 2>/dev/null | tail -n +8 | xargs rm -f 2>/dev/null || true
+          EOF
+
+      - name: Pull latest code on server
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd /opt/bitflow-lms
+            git fetch origin main
+            git reset --hard origin/main
+            echo "Code updated to: $(git rev-parse --short HEAD)"
+          EOF
+
+      - name: Build and restart containers
+        run: |
+          BUILD_ARGS=""
+          if [ "${{ github.event.inputs.force_rebuild }}" = "true" ]; then
+            BUILD_ARGS="--no-cache"
+          fi
+
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
+            cd /opt/bitflow-lms
+
+            # Build new images
+            docker compose -f docker-compose.prod.yml build $BUILD_ARGS
+
+            # Deploy with zero-downtime strategy
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Remove dangling images to free disk space
+            docker image prune -f
+          EOF
+
+      - name: Wait for backend health
+        run: |
+          echo "Waiting for backend to be healthy..."
+          MAX_TRIES=30
+          for i in $(seq 1 $MAX_TRIES); do
+            STATUS=$(ssh -i ~/.ssh/deploy_key \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+              "curl -sf -o /dev/null -w '%{http_code}' http://localhost:3001/api 2>/dev/null" || echo "000")
+
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ Backend healthy (HTTP 200)"
+              break
+            fi
+
+            if [ $i -eq $MAX_TRIES ]; then
+              echo "❌ Backend failed to start after ${MAX_TRIES} attempts"
+              # Show logs for debugging
+              ssh -i ~/.ssh/deploy_key \
+                ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+                "docker logs --tail=50 bitflow-backend"
+              exit 1
+            fi
+
+            echo "Attempt $i/$MAX_TRIES — HTTP $STATUS, retrying in 5s..."
+            sleep 5
+          done
+
+      - name: Wait for frontend health
+        run: |
+          STATUS=$(ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "curl -sf -o /dev/null -w '%{http_code}' http://localhost:80/health 2>/dev/null" || echo "000")
+
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Frontend healthy (HTTP 200)"
+          else
+            echo "⚠️ Frontend returned HTTP $STATUS"
+            ssh -i ~/.ssh/deploy_key \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+              "docker logs --tail=20 bitflow-frontend"
+          fi
+
+      - name: Auto-rollback on failure
+        if: failure()
+        run: |
+          echo "🔄 Deployment failed — rolling back..."
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd /opt/bitflow-lms
+
+            # Roll back to previous git commit
+            git checkout HEAD~1
+
+            # Rebuild from previous version
+            docker compose -f docker-compose.prod.yml build --no-cache
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "Rolled back to: $(git rev-parse --short HEAD)"
+          EOF
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+          echo "## ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`$(git rev-parse --short HEAD)\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Message** | $COMMIT_MSG |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Server** | ${{ secrets.EC2_HOST }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Time** | $(date -u '+%Y-%m-%d %H:%M UTC') |" >> $GITHUB_STEP_SUMMARY

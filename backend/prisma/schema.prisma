@@ -1,0 +1,1573 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model audit_logs {
+  id          String      @id
+  userId      String?
+  collegeId   String?
+  publisherId String?
+  action      AuditAction
+  entityType  String?
+  entityId    String?
+  description String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime    @default(now())
+  colleges    colleges?   @relation(fields: [collegeId], references: [id])
+  publishers  publishers? @relation(fields: [publisherId], references: [id])
+  users       users?      @relation(fields: [userId], references: [id])
+
+  @@index([action])
+  @@index([collegeId])
+  @@index([publisherId])
+  @@index([timestamp])
+  @@index([userId])
+}
+
+model colleges {
+  id                    String                 @id
+  name                  String
+  code                  String                 @unique
+  status                CollegeStatus          @default(ACTIVE)
+  emailDomain           String?
+  adminContactEmail     String?
+  address               String?
+  city                  String?
+  state                 String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime
+  logoUrl               String?
+  pincode               String?
+  taluka                String?
+  contactNumber         String?
+  contactPerson         String?
+  subscriptionStartDate DateTime?
+  subscriptionEndDate   DateTime?
+  maxStudents           Int?
+  licenseType           String?                @default("STANDARD")
+  audit_logs           audit_logs[]
+  college_packages     college_packages[]
+  courses              courses[]
+  departments          departments[]
+  guest_lectures       guest_lectures[]
+  institution_policy   institution_policies?
+  notifications        notifications[]
+  ratings              ratings[]
+  self_paced_resources self_paced_resources[]
+  students             students[]
+  users                users[]
+}
+
+model ratings {
+  id          String     @id @default(uuid())
+  studentId   String
+  collegeId   String
+  ratingType  RatingType
+  entityId    String
+  rating      Int
+  feedback    String?
+  isAnonymous Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  college     colleges   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  student     students   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, ratingType, entityId])
+  @@index([studentId])
+  @@index([collegeId])
+  @@index([ratingType])
+  @@index([entityId])
+  @@index([rating])
+}
+
+model packages {
+  id               String             @id @default(uuid())
+  publisherId      String
+  name             String
+  description      String?
+  status           PackageStatus      @default(ACTIVE)
+  subjects         String[]
+  contentTypes     LearningUnitType[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  college_packages college_packages[]
+  publisher        publishers         @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+
+  @@index([publisherId])
+  @@index([status])
+}
+
+model college_packages {
+  id         String                  @id @default(uuid())
+  collegeId  String
+  packageId  String
+  startDate  DateTime
+  endDate    DateTime?
+  status     PackageAssignmentStatus @default(ACTIVE)
+  assignedBy String
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  college    colleges                @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  package    packages                @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@unique([collegeId, packageId])
+  @@index([collegeId])
+  @@index([packageId])
+  @@index([status])
+}
+
+model departments {
+  id                  String                @id @default(uuid())
+  collegeId           String
+  name                String
+  code                String
+  hodId               String?
+  status              DepartmentStatus      @default(ACTIVE)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  college             colleges              @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  hod                 users?                @relation("DepartmentHOD", fields: [hodId], references: [id])
+  faculty_assignments faculty_assignments[]
+  notifications       notifications[]
+  student_departments student_departments[]
+
+  @@unique([collegeId, code])
+  @@index([collegeId])
+  @@index([hodId])
+}
+
+model faculty_assignments {
+  id           String              @id @default(uuid())
+  userId       String
+  departmentId String
+  permissionId String
+  subjects     String[]
+  status       FacultyStatus       @default(ACTIVE)
+  assignedAt   DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  department   departments         @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  permissions  faculty_permissions @relation(fields: [permissionId], references: [id])
+  user         users               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@index([userId])
+  @@index([departmentId])
+}
+
+model faculty_permissions {
+  id                  String                @id @default(uuid())
+  name                String
+  collegeId           String
+  canCreateCourses    Boolean               @default(false)
+  canEditCourses      Boolean               @default(false)
+  canDeleteCourses    Boolean               @default(false)
+  canCreateMcqs       Boolean               @default(false)
+  canEditMcqs         Boolean               @default(false)
+  canDeleteMcqs       Boolean               @default(false)
+  canViewAnalytics    Boolean               @default(false)
+  canAssignStudents   Boolean               @default(false)
+  canScheduleLectures Boolean               @default(false)
+  canUploadNotes      Boolean               @default(false)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  faculty_assignments faculty_assignments[]
+
+  @@unique([collegeId, name])
+  @@index([collegeId])
+}
+
+model student_departments {
+  id           String      @id @default(uuid())
+  studentId    String
+  departmentId String
+  assignedAt   DateTime    @default(now())
+  department   departments @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  student      students    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, departmentId])
+  @@index([studentId])
+  @@index([departmentId])
+}
+
+model students {
+  id                          String                        @id @default(uuid())
+  collegeId                   String
+  userId                      String                        @unique
+  fullName                    String
+  yearOfAdmission             Int
+  expectedPassingYear         Int
+  currentAcademicYear         AcademicYear
+  status                      StudentStatus                 @default(ACTIVE)
+  createdAt                   DateTime                      @default(now())
+  updatedAt                   DateTime                      @updatedAt
+  course_assignments          course_assignments[]
+  guest_lecture_registrations guest_lecture_registrations[]
+  practice_sessions           practice_sessions[]
+  ratings                     ratings[]
+  self_paced_access_logs      self_paced_access_logs[]
+  step_progress               step_progress[]
+  student_departments         student_departments[]
+  student_library             student_library[]
+  student_progress            student_progress[]
+  college                     colleges                      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  user                        users                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test_assignments            test_assignments[]
+  test_attempts               test_attempts[]
+
+  @@index([collegeId])
+  @@index([currentAcademicYear])
+  @@index([status])
+  @@index([userId])
+}
+
+model competencies {
+  id                  String                @id
+  code                String                @unique
+  title               String
+  description         String
+  subject             String
+  topicId             String?
+  domain              CompetencyDomain
+  academicLevel       AcademicLevel
+  status              CompetencyStatus      @default(ACTIVE)
+  version             Int                   @default(1)
+  deprecatedAt        DateTime?
+  replacedBy          String?
+  createdBy           String
+  reviewedBy          String?
+  activatedAt         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  topic               topics?               @relation(fields: [topicId], references: [id])
+  course_competencies course_competencies[]
+
+  @@index([academicLevel])
+  @@index([code])
+  @@index([domain])
+  @@index([status])
+  @@index([subject])
+  @@index([topicId])
+}
+
+model topics {
+  id                   String                 @id @default(uuid())
+  subject              String
+  name                 String
+  code                 String                 @unique
+  description          String?
+  academicYear         AcademicYear?
+  status               ContentStatus          @default(ACTIVE)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  competencies         competencies[]
+  learning_units       learning_units[]
+  mcqs                 mcqs[]
+  self_paced_resources self_paced_resources[]
+
+  @@index([subject])
+  @@index([academicYear])
+  @@index([status])
+}
+
+model course_assignments {
+  id             String           @id
+  courseId       String
+  studentId      String
+  assignedBy     String
+  assignmentType AssignmentType   @default(INDIVIDUAL)
+  status         AssignmentStatus @default(ASSIGNED)
+  dueDate        DateTime?
+  assignedAt     DateTime         @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  users          users            @relation(fields: [assignedBy], references: [id], onDelete: Cascade)
+  courses        courses          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  students       students         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, studentId])
+  @@index([assignedBy])
+  @@index([courseId])
+  @@index([status])
+  @@index([studentId])
+}
+
+model course_competencies {
+  id           String       @id
+  courseId     String
+  competencyId String
+  createdAt    DateTime     @default(now())
+  competencies competencies @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  courses      courses      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, competencyId])
+  @@index([competencyId])
+  @@index([courseId])
+}
+
+model courses {
+  id                  String                @id
+  facultyId           String
+  collegeId           String
+  title               String
+  description         String?
+  academicYear        AcademicYear
+  status              CourseStatus          @default(DRAFT)
+  metadata            Json?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime
+  courseCode          String?
+  courseType          CourseType            @default(NORMAL)
+  course_assignments  course_assignments[]
+  course_competencies course_competencies[]
+  colleges            colleges              @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  users               users                 @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  learning_flow_steps learning_flow_steps[]
+  step_progress       step_progress[]
+  student_progress    student_progress[]
+  tests               tests[]
+
+  @@index([academicYear])
+  @@index([collegeId])
+  @@index([facultyId])
+  @@index([status])
+}
+
+model learning_flow_steps {
+  id                 String           @id
+  courseId           String
+  learningUnitId     String
+  stepOrder          Int
+  stepType           LearningUnitType
+  mandatory          Boolean          @default(true)
+  completionCriteria Json?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime
+  isMandatory        Boolean          @default(true)
+  prerequisites      String[]         @default([])
+  referenceId        String?
+  stepNumber         Int
+  courses            courses          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learning_units     learning_units   @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  step_progress      step_progress[]
+
+  @@unique([courseId, stepOrder])
+  @@index([courseId])
+  @@index([learningUnitId])
+}
+
+model watermark_sessions {
+  id             String   @id @default(uuid())
+  userId         String
+  deviceId       String
+  learningUnitId String
+  chapterId      String
+  forensicHash   String
+  sessionSeed    String
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([learningUnitId])
+  @@index([deviceId])
+  @@index([forensicHash])
+}
+
+model learning_unit_access_logs {
+  id                String         @id
+  learningUnitId    String
+  userId            String
+  collegeId         String?
+  accessToken       String
+  ipAddress         String?
+  userAgent         String?
+  deviceType        String?
+  sessionStarted    DateTime       @default(now())
+  sessionEnded      DateTime?
+  duration          Int?
+  watermarkPayload  Json?
+  violationDetected Boolean        @default(false)
+  violationType     String?
+  chapterId         String?
+  deviceId          String?
+  suspicious        Boolean        @default(false)
+  tamperAttempts    Int            @default(0)
+  learning_units    learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+
+  @@index([learningUnitId])
+  @@index([sessionStarted])
+  @@index([userId])
+  @@index([chapterId])
+  @@index([deviceId])
+  @@index([suspicious])
+}
+
+model learning_units {
+  id                        String                      @id
+  publisherId               String?
+  type                      LearningUnitType
+  title                     String
+  description               String
+  subject                   String
+  topicId                   String?
+  topic                     String?
+  subTopic                  String?
+  difficultyLevel           DifficultyLevel
+  estimatedDuration         Int
+  competencyIds             String[]
+  secureAccessUrl           String
+  deliveryType              DeliveryType
+  watermarkEnabled          Boolean                     @default(true)
+  sessionExpiryMinutes      Int                         @default(30)
+  maxAttempts               Int?
+  timeLimit                 Int?
+  status                    ContentStatus               @default(DRAFT)
+  competencyMappingStatus   CompetencyMappingStatus     @default(PENDING)
+  activatedAt               DateTime?
+  activatedBy               String?
+  deactivatedAt             DateTime?
+  deactivatedBy             String?
+  deactivationReason        String?
+  downloadAllowed           Boolean                     @default(false)
+  viewOnly                  Boolean                     @default(true)
+  thumbnailUrl              String?
+  tags                      String[]
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime
+  chapterCount              Int?
+  epubStatus                EpubStatus?
+  fileFormat                String?
+  isOfflineEnabled          Boolean                     @default(false)
+  storagePath               String?
+  author                    String?
+  coverImageUrl             String?
+  downloadCount             Int                         @default(0)
+  edition                   String?
+  introVideoUrl             String?
+  version                   String?                     @default("1.0")
+  viewCount                 Int                         @default(0)
+  bookmarks                 bookmarks[]
+  epub_chapters             epub_chapters[]
+  flashcards                flashcards[]
+  highlights                highlights[]
+  learning_flow_steps       learning_flow_steps[]
+  learning_unit_access_logs learning_unit_access_logs[]
+  publishers                publishers?                 @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  topicRef                  topics?                     @relation(fields: [topicId], references: [id])
+  notes                     notes[]
+  offline_downloads         offline_downloads[]
+
+  @@index([difficultyLevel])
+  @@index([publisherId])
+  @@index([status])
+  @@index([competencyMappingStatus])
+  @@index([subject])
+  @@index([type])
+  @@index([topicId])
+  @@index([fileFormat])
+  @@index([epubStatus])
+}
+
+model epub_chapters {
+  id             String         @id @default(uuid())
+  learningUnitId String
+  chapterTitle   String
+  chapterOrder   Int
+  htmlPath       String
+  checksum       String
+  createdAt      DateTime       @default(now())
+  learningUnit   learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+
+  @@index([learningUnitId])
+  @@index([chapterOrder])
+}
+
+model highlights {
+  id             String         @id @default(uuid())
+  userId         String
+  learningUnitId String
+  chapterId      String
+  selectedText   String
+  startOffset    Int
+  endOffset      Int
+  color          String         @default("yellow")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  style          String         @default("highlight")
+  learningUnit   learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  user           users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes          notes[]
+
+  @@index([userId])
+  @@index([learningUnitId])
+  @@index([chapterId])
+}
+
+model notes {
+  id             String         @id @default(uuid())
+  userId         String
+  learningUnitId String
+  chapterId      String
+  highlightId    String?
+  selectedText   String?
+  content        String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  highlight      highlights?    @relation(fields: [highlightId], references: [id], onDelete: Cascade)
+  learningUnit   learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  user           users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([learningUnitId])
+  @@index([highlightId])
+}
+
+model flashcards {
+  id             String         @id @default(uuid())
+  userId         String
+  learningUnitId String
+  chapterId      String
+  question       String
+  answer         String
+  sourceText     String?
+  createdAt      DateTime       @default(now())
+  reviewedAt     DateTime?
+  easeFactor     Float          @default(2.5)
+  interval       Int            @default(0)
+  lastQuality    Int?
+  nextReviewAt   DateTime?
+  repetitions    Int            @default(0)
+  learningUnit   learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  user           users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([learningUnitId])
+  @@index([nextReviewAt])
+}
+
+model bookmarks {
+  id             String         @id @default(uuid())
+  userId         String
+  learningUnitId String
+  chapterId      String
+  pageLabel      String?
+  note           String?
+  createdAt      DateTime       @default(now())
+  learningUnit   learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  user           users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningUnitId, chapterId])
+  @@index([userId])
+  @@index([learningUnitId])
+}
+
+model offline_downloads {
+  id             String         @id @default(uuid())
+  userId         String
+  learningUnitId String
+  deviceId       String
+  expiresAt      DateTime
+  revoked        Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  learningUnit   learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+  user           users          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, learningUnitId, deviceId])
+  @@index([userId])
+  @@index([learningUnitId])
+  @@index([deviceId])
+  @@index([expiresAt])
+}
+
+model institution_policies {
+  id                   String   @id @default(uuid())
+  collegeId            String   @unique
+  offlineDurationDays  Int      @default(7)
+  offlineMaxDevices    Int      @default(2)
+  allowOfflineDownload Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  college              colleges @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  @@index([collegeId])
+}
+
+model publishers {
+  id                       String                     @id
+  name                     String
+  code                     String                     @unique
+  status                   PublisherStatus            @default(ACTIVE)
+  contactPerson            String?
+  contactEmail             String?
+  physicalAddress          String?
+  contractStartDate        DateTime?
+  contractEndDate          DateTime?
+  contractDocument         String?
+  legalName                String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime
+  logoUrl                  String?
+  city                     String?
+  contactPhone             String?
+  description              String?
+  pincode                  String?
+  state                    String?
+  taluka                   String?
+  website                  String?
+  audit_logs               audit_logs[]
+  learning_units           learning_units[]
+  mcqs                     mcqs[]
+  packages                 packages[]
+  publisher_uploaded_files publisher_uploaded_files[]
+  users                    users[]
+
+  @@index([contractEndDate])
+}
+
+model publisher_uploaded_files {
+  id           String     @id @default(uuid())
+  publisherId  String
+  fileName     String
+  originalName String
+  fileUrl      String
+  fileCategory String
+  fileSize     Int
+  mimeType     String
+  createdAt    DateTime   @default(now())
+  publishers   publishers @relation(fields: [publisherId], references: [id])
+
+  @@index([publisherId])
+}
+
+model mcqs {
+  id               String          @id
+  question         String
+  questionImage    String?
+  optionA          String
+  optionB          String
+  optionC          String
+  optionD          String
+  optionE          String?
+  correctAnswer    String
+  explanation      String?
+  explanationImage String?
+  subject          String
+  topicId          String?
+  topic            String?
+  mcqType          McqType         @default(NORMAL)
+  difficultyLevel  DifficultyLevel
+  bloomsLevel      BloomsLevel     @default(REMEMBER)
+  competencyIds    String[]        @default([])
+  tags             String[]        @default([])
+  year             Int?
+  source           String?
+  publisherId      String
+  createdBy        String
+  status           McqStatus       @default(DRAFT)
+  isVerified       Boolean         @default(false)
+  verifiedBy       String?
+  verifiedAt       DateTime?
+  usageCount       Int             @default(0)
+  correctRate      Float           @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime
+  creator          users           @relation("McqCreator", fields: [createdBy], references: [id])
+  publisher        publishers      @relation(fields: [publisherId], references: [id], onDelete: Cascade)
+  topicRef         topics?         @relation(fields: [topicId], references: [id])
+  verifier         users?          @relation("McqVerifier", fields: [verifiedBy], references: [id])
+
+  @@index([publisherId])
+  @@index([subject])
+  @@index([status])
+  @@index([createdBy])
+  @@index([competencyIds], type: Gin)
+  @@index([topicId])
+}
+
+model refresh_tokens {
+  id        String   @id
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  users     users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+model security_policies {
+  id                              String   @id
+  sessionTimeoutMinutes           Int      @default(60)
+  tokenExpiryMinutes              Int      @default(15)
+  refreshTokenExpiryDays          Int      @default(30)
+  maxConcurrentSessions           Int      @default(3)
+  watermarkEnabled                Boolean  @default(true)
+  screenshotPrevention            Boolean  @default(true)
+  publisherPortalEnabled          Boolean  @default(true)
+  facultyPortalEnabled            Boolean  @default(true)
+  studentPortalEnabled            Boolean  @default(true)
+  mobileAppEnabled                Boolean  @default(true)
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime
+  enableAnalyticsDashboard        Boolean  @default(true)
+  enableAuditLogs                 Boolean  @default(true)
+  enableContentAutoApproval       Boolean  @default(false)
+  enablePublisherSelfRegistration Boolean  @default(false)
+  enableStudentSelfRegistration   Boolean  @default(false)
+  lockoutDurationMinutes          Int      @default(30)
+  maintenanceMode                 Boolean  @default(false)
+  maxLoginAttempts                Int      @default(5)
+  mfaEnabled                      Boolean  @default(false)
+  passwordMinLength               Int      @default(8)
+  passwordRequireNumbers          Boolean  @default(true)
+  passwordRequireSpecialChars     Boolean  @default(false)
+  passwordRequireUppercase        Boolean  @default(true)
+}
+
+model step_progress {
+  id                  String              @id
+  studentId           String
+  stepId              String
+  courseId            String
+  position            Int                 @default(0)
+  duration            Int?
+  completionPercent   Int                 @default(0)
+  timeSpentSeconds    Int                 @default(0)
+  attempts            Int                 @default(0)
+  lastAccessedAt      DateTime            @default(now())
+  metadata            Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime
+  courses             courses             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  learning_flow_steps learning_flow_steps @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  students            students            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, stepId])
+  @@index([courseId])
+  @@index([stepId])
+  @@index([studentId])
+}
+
+model student_progress {
+  id             String         @id
+  studentId      String
+  courseId       String
+  status         ProgressStatus @default(NOT_STARTED)
+  completedAt    DateTime?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime
+  completedSteps String[]       @default([])
+  currentStepId  String?
+  startedAt      DateTime?
+  courses        courses        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  students       students       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([status])
+  @@index([studentId])
+}
+
+model user_sessions {
+  id                String   @id
+  userId            String
+  deviceFingerprint String?
+  platform          String?
+  ipAddress         String?
+  userAgent         String?
+  isActive          Boolean  @default(true)
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  lastActivityAt    DateTime @default(now())
+  users             users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isActive])
+  @@index([userId])
+}
+
+model users {
+  id                   String                 @id
+  email                String                 @unique
+  passwordHash         String
+  fullName             String
+  role                 UserRole
+  status               UserStatus             @default(ACTIVE)
+  collegeId            String?
+  publisherId          String?
+  departmentId         String?
+  lastLoginAt          DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime
+  failedLoginAttempts  Int                    @default(0)
+  lockedUntil          DateTime?
+  assets               assets[]
+  audit_logs           audit_logs[]
+  bookmarks            bookmarks[]
+  course_assignments   course_assignments[]
+  courses              courses[]
+  departmentsAsHOD     departments[]          @relation("DepartmentHOD")
+  faculty_assignments  faculty_assignments[]
+  flashcards           flashcards[]
+  guest_lectures       guest_lectures[]
+  highlights           highlights[]
+  mcqsCreated          mcqs[]                 @relation("McqCreator")
+  mcqsVerified         mcqs[]                 @relation("McqVerifier")
+  notes                notes[]
+  notificationReads    notification_reads[]
+  notificationsCreated notifications[]        @relation("NotificationCreator")
+  offline_downloads    offline_downloads[]
+  refresh_tokens       refresh_tokens[]
+  self_paced_resources self_paced_resources[] @relation("FacultyResources")
+  students             students?
+  testsCreated         tests[]                @relation("TestCreator")
+  user_sessions        user_sessions[]
+  colleges             colleges?              @relation(fields: [collegeId], references: [id])
+  publishers           publishers?            @relation(fields: [publisherId], references: [id])
+
+  @@index([collegeId])
+  @@index([departmentId])
+  @@index([email])
+  @@index([publisherId])
+  @@index([role])
+}
+
+model notifications {
+  id           String               @id @default(uuid())
+  collegeId    String
+  createdBy    String
+  title        String
+  message      String
+  type         NotificationType     @default(ANNOUNCEMENT)
+  priority     NotificationPriority @default(NORMAL)
+  audience     NotificationAudience @default(ALL)
+  departmentId String?
+  academicYear AcademicYear?
+  isActive     Boolean              @default(true)
+  expiresAt    DateTime?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  readReceipts notification_reads[]
+  college      colleges             @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  creator      users                @relation("NotificationCreator", fields: [createdBy], references: [id])
+  department   departments?         @relation(fields: [departmentId], references: [id])
+
+  @@index([collegeId])
+  @@index([createdBy])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model notification_reads {
+  id             String        @id @default(uuid())
+  notificationId String
+  userId         String
+  readAt         DateTime      @default(now())
+  notification   notifications @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, userId])
+  @@index([userId])
+}
+
+model tests {
+  id                    String             @id @default(uuid())
+  courseId              String
+  createdBy             String
+  collegeId             String
+  title                 String
+  description           String?
+  type                  TestType           @default(SCHEDULED_TEST)
+  status                TestStatus         @default(DRAFT)
+  subject               String
+  totalQuestions        Int
+  totalMarks            Int
+  passingMarks          Int?
+  durationMinutes       Int
+  scheduledStartTime    DateTime?
+  scheduledEndTime      DateTime?
+  allowMultipleAttempts Boolean            @default(false)
+  maxAttempts           Int                @default(1)
+  shuffleQuestions      Boolean            @default(true)
+  showAnswersAfter      Boolean            @default(true)
+  showExplanations      Boolean            @default(true)
+  negativeMarking       Boolean            @default(false)
+  negativeMarkValue     Float              @default(0)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  assignments           test_assignments[]
+  attempts              test_attempts[]
+  questions             test_questions[]
+  course                courses            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  creator               users              @relation("TestCreator", fields: [createdBy], references: [id])
+
+  @@index([courseId])
+  @@index([collegeId])
+  @@index([status])
+  @@index([scheduledStartTime])
+}
+
+model test_questions {
+  id            String   @id @default(uuid())
+  testId        String
+  mcqId         String
+  questionOrder Int
+  marks         Int      @default(1)
+  createdAt     DateTime @default(now())
+  test          tests    @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, mcqId])
+  @@index([testId])
+}
+
+model test_assignments {
+  id         String           @id @default(uuid())
+  testId     String
+  studentId  String
+  assignedAt DateTime         @default(now())
+  dueDate    DateTime?
+  status     AssignmentStatus @default(ASSIGNED)
+  student    students         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  test       tests            @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  @@unique([testId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model test_attempts {
+  id               String           @id @default(uuid())
+  testId           String
+  studentId        String
+  attemptNumber    Int              @default(1)
+  status           AttemptStatus    @default(NOT_STARTED)
+  startedAt        DateTime?
+  submittedAt      DateTime?
+  totalScore       Float?
+  totalCorrect     Int?
+  totalIncorrect   Int?
+  totalSkipped     Int?
+  percentageScore  Float?
+  isPassed         Boolean?
+  timeSpentSeconds Int              @default(0)
+  ipAddress        String?
+  userAgent        String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  student          students         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  test             tests            @relation(fields: [testId], references: [id], onDelete: Cascade)
+  responses        test_responses[]
+
+  @@index([testId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model test_responses {
+  id               String        @id @default(uuid())
+  attemptId        String
+  mcqId            String
+  questionOrder    Int
+  selectedAnswer   String?
+  isCorrect        Boolean?
+  marksAwarded     Float?
+  timeSpentSeconds Int           @default(0)
+  answeredAt       DateTime?
+  attempt          test_attempts @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, mcqId])
+  @@index([attemptId])
+}
+
+model practice_sessions {
+  id               String               @id @default(uuid())
+  studentId        String
+  subject          String?
+  topic            String?
+  totalQuestions   Int
+  correctAnswers   Int                  @default(0)
+  incorrectAnswers Int                  @default(0)
+  skippedQuestions Int                  @default(0)
+  timeSpentSeconds Int                  @default(0)
+  startedAt        DateTime             @default(now())
+  completedAt      DateTime?
+  metadata         Json?
+  responses        practice_responses[]
+  student          students             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([subject])
+}
+
+model practice_responses {
+  id                String            @id @default(uuid())
+  sessionId         String
+  mcqId             String
+  selectedAnswer    String?
+  isCorrect         Boolean?
+  timeSpentSeconds  Int               @default(0)
+  viewedExplanation Boolean           @default(false)
+  answeredAt        DateTime?
+  session           practice_sessions @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model schedule_events {
+  id             String            @id @default(uuid())
+  collegeId      String
+  studentId      String?
+  title          String
+  description    String?
+  eventType      ScheduleEventType
+  startTime      DateTime
+  endTime        DateTime?
+  location       String?
+  courseId       String?
+  testId         String?
+  isRecurring    Boolean           @default(false)
+  recurrenceRule String?
+  createdBy      String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([collegeId])
+  @@index([studentId])
+  @@index([startTime])
+  @@index([eventType])
+}
+
+model self_paced_resources {
+  id            String                   @id @default(uuid())
+  facultyId     String
+  collegeId     String
+  title         String
+  description   String?
+  resourceType  SelfPacedResourceType
+  fileUrl       String?
+  content       String?
+  subject       String?
+  academicYear  AcademicYear?
+  tags          String[]
+  status        ContentStatus            @default(ACTIVE)
+  viewCount     Int                      @default(0)
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  competencyIds String[]
+  topicId       String?
+  access_logs   self_paced_access_logs[]
+  college       colleges                 @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  faculty       users                    @relation("FacultyResources", fields: [facultyId], references: [id], onDelete: Cascade)
+  topic         topics?                  @relation(fields: [topicId], references: [id])
+
+  @@index([facultyId])
+  @@index([collegeId])
+  @@index([status])
+  @@index([subject])
+  @@index([topicId])
+}
+
+model self_paced_access_logs {
+  id         String               @id @default(uuid())
+  resourceId String
+  studentId  String
+  viewedAt   DateTime             @default(now())
+  timeSpent  Int?
+  resource   self_paced_resources @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  student    students             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId])
+  @@index([studentId])
+  @@index([viewedAt])
+}
+
+model guest_lectures {
+  id                String                        @id
+  facultyId         String
+  collegeId         String
+  title             String
+  description       String?
+  speaker           String
+  speakerBio        String?
+  type              GuestLectureType              @default(GUEST_LECTURE)
+  date              DateTime
+  startTime         String
+  endTime           String
+  venue             String?
+  meetingLink       String?
+  capacity          Int                           @default(50)
+  registrationCount Int                           @default(0)
+  status            GuestLectureStatus            @default(UPCOMING)
+  department        String?
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+  registrations     guest_lecture_registrations[]
+  college           colleges                      @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  creator           users                         @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@index([collegeId])
+  @@index([facultyId])
+  @@index([date])
+  @@index([status])
+}
+
+model guest_lecture_registrations {
+  id           String         @id
+  lectureId    String
+  studentId    String
+  registeredAt DateTime       @default(now())
+  attended     Boolean        @default(false)
+  lecture      guest_lectures @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  student      students       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([lectureId, studentId])
+  @@index([lectureId])
+  @@index([studentId])
+}
+
+model assets {
+  id           String    @id @default(uuid())
+  uploaderId   String
+  collegeId    String?
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  fileUrl      String
+  type         AssetType @default(DOCUMENT)
+  folder       String?
+  description  String?
+  isPublic     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  uploader     users     @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([uploaderId])
+  @@index([collegeId])
+  @@index([type])
+}
+
+model student_library {
+  id              String           @id @default(uuid())
+  studentId       String
+  entryType       LibraryEntryType
+  courseId        String?
+  learningUnitId  String?
+  testId          String?
+  attemptId       String?
+  title           String
+  description     String?
+  subject         String?
+  score           Float?
+  percentageScore Float?
+  addedVia        LibraryAddMethod @default(MANUAL)
+  createdAt       DateTime         @default(now())
+  student         students         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId, learningUnitId])
+  @@unique([studentId, attemptId])
+  @@index([studentId])
+  @@index([entryType])
+}
+
+enum RatingType {
+  COURSE
+  TEACHER
+  CONTENT
+}
+
+enum AcademicLevel {
+  UG
+  PG
+  SPECIALIZATION
+}
+
+enum AcademicYear {
+  YEAR_1
+  YEAR_2
+  YEAR_3_MINOR
+  YEAR_3_MAJOR
+  INTERNSHIP
+  FIRST_YEAR
+  SECOND_YEAR
+  THIRD_YEAR
+  FOURTH_YEAR
+  FIFTH_YEAR
+  PART_1
+  PART_2
+}
+
+enum AssignmentStatus {
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum AssignmentType {
+  INDIVIDUAL
+  BATCH
+}
+
+enum AuditAction {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  SESSION_EXPIRED
+  TOKEN_REFRESHED
+  PASSWORD_CHANGED
+  USER_CREATED
+  USER_UPDATED
+  USER_SUSPENDED
+  USER_ACTIVATED
+  COLLEGE_CREATED
+  COLLEGE_UPDATED
+  COLLEGE_SUSPENDED
+  COLLEGE_ACTIVATED
+  PUBLISHER_CREATED
+  PUBLISHER_UPDATED
+  PUBLISHER_SUSPENDED
+  PUBLISHER_ACTIVATED
+  UNAUTHORIZED_ACCESS
+  INVALID_TOKEN
+  SECURITY_VIOLATION
+  CONCURRENT_SESSION_LIMIT
+  CONTENT_ACCESSED
+  CONTENT_COMPLETED
+  SECURITY_POLICY_UPDATED
+  COMPETENCY_CREATED
+  COMPETENCY_REVIEWED
+  COMPETENCY_ACTIVATED
+  COMPETENCY_DEPRECATED
+  LEARNING_UNIT_CREATED
+  LEARNING_UNIT_UPDATED
+  LEARNING_UNIT_ACTIVATED
+  LEARNING_UNIT_SUSPENDED
+  LEARNING_UNIT_ACCESSED
+  ACCESS_TOKEN_GENERATED
+  SECURITY_VIOLATION_DETECTED
+  STUDENT_CREATED
+  STUDENT_UPDATED
+  STUDENT_ACTIVATED
+  STUDENT_DEACTIVATED
+  STUDENT_PROMOTED
+  STUDENT_BULK_PROMOTED
+  STUDENT_BULK_CREATED
+  STUDENT_CREDENTIALS_RESET
+  COURSE_CREATED
+  COURSE_UPDATED
+  COURSE_PUBLISHED
+  COURSE_ASSIGNED
+  FLOW_STEP_COMPLETED
+  BLOCKED_ACCESS_ATTEMPT
+  BLOCKED_ACCESS
+  STEP_SKIP_ATTEMPT
+  FORCED_API_CALL
+  FLOW_MODIFIED
+  STEP_COMPLETED
+  INVALID_COMPLETION
+  DEPARTMENT_CREATED
+  DEPARTMENT_UPDATED
+  DEPARTMENT_DEACTIVATED
+  HOD_ASSIGNED
+  HOD_REMOVED
+  FACULTY_PERMISSION_CREATED
+  FACULTY_PERMISSION_UPDATED
+  FACULTY_ASSIGNED_TO_DEPARTMENT
+  FACULTY_REMOVED_FROM_DEPARTMENT
+  FACULTY_PERMISSIONS_CHANGED
+  CONTENT_SUBMITTED_FOR_MAPPING
+  CONTENT_COMPETENCY_MAPPED
+  CONTENT_ACTIVATED
+  CONTENT_DEACTIVATED
+  CONTENT_SUSPENDED
+  CONTENT_MAPPING_INCOMPLETE
+  ROLE_BOUNDARY_VIOLATION
+  CROSS_TENANT_ACCESS_ATTEMPT
+  PERMISSION_DENIED
+  DATA_ISOLATION_BREACH_ATTEMPT
+  TOPIC_CREATED
+  TOPIC_UPDATED
+  TOPIC_DEACTIVATED
+  TOPICS_BULK_IMPORTED
+  PACKAGE_CREATED
+  PACKAGE_UPDATED
+  PACKAGE_DEACTIVATED
+  PACKAGE_ASSIGNED
+  PACKAGE_ASSIGNMENT_UPDATED
+  PACKAGE_ASSIGNMENT_CANCELLED
+}
+
+enum CollegeStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum CompetencyDomain {
+  COGNITIVE
+  CLINICAL
+  PRACTICAL
+}
+
+enum CompetencyStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+}
+
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DeliveryType {
+  REDIRECT
+  EMBED
+  STREAM
+}
+
+enum DifficultyLevel {
+  K
+  KH
+  S
+  SH
+  P
+}
+
+enum ContentStatus {
+  DRAFT
+  PENDING_MAPPING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum EpubStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum CompetencyMappingStatus {
+  PENDING
+  PARTIAL
+  COMPLETE
+}
+
+enum DepartmentStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum FacultyStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+}
+
+enum LearningUnitStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum LearningUnitType {
+  BOOK
+  VIDEO
+  NOTES
+  MCQ
+  HANDBOOK
+  PPT
+  DOCUMENT
+}
+
+enum McqStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum McqType {
+  NORMAL
+  SCENARIO_BASED
+  IMAGE_BASED
+}
+
+enum CourseType {
+  NORMAL
+  SELF_PACED
+  ASSIGNMENT
+}
+
+enum BloomsLevel {
+  REMEMBER
+  UNDERSTAND
+  APPLY
+  ANALYZE
+  EVALUATE
+  CREATE
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+}
+
+enum PublisherStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum PackageStatus {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum PackageAssignmentStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  DROPPED_OUT
+}
+
+enum UserRole {
+  BITFLOW_OWNER
+  PUBLISHER_ADMIN
+  COLLEGE_ADMIN
+  COLLEGE_DEAN
+  COLLEGE_HOD
+  FACULTY
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum NotificationType {
+  ANNOUNCEMENT
+  SCHEDULE_CHANGE
+  ACADEMIC_NOTICE
+  SYSTEM_ALERT
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum NotificationAudience {
+  ALL
+  FACULTY
+  STUDENTS
+  DEPARTMENT
+  BATCH
+}
+
+enum TestType {
+  SCHEDULED_TEST
+  PRACTICE_TEST
+  ASSIGNMENT
+  QUIZ
+}
+
+enum TestStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum AttemptStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+  GRADED
+}
+
+enum ScheduleEventType {
+  LECTURE
+  TEST
+  ASSIGNMENT_DUE
+  PRACTICAL
+  SEMINAR
+  HOLIDAY
+  OTHER
+}
+
+enum SelfPacedResourceType {
+  NOTE
+  VIDEO
+  DOCUMENT
+  REFERENCE
+  PRACTICE
+  MCQ
+  HANDBOOK
+  LECTURE_NOTES
+  CASE_STUDY
+}
+
+enum GuestLectureType {
+  GUEST_LECTURE
+  WORKSHOP
+  SEMINAR
+  WEBINAR
+}
+
+enum GuestLectureStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+enum AssetType {
+  DOCUMENT
+  IMAGE
+  VIDEO
+  AUDIO
+  PRESENTATION
+  SPREADSHEET
+  ARCHIVE
+  OTHER
+}
+
+enum LibraryEntryType {
+  COURSE_CONTENT
+  ASSIGNMENT_RESULT
+  TEST_RESULT
+  SELF_PACED
+}
+
+enum LibraryAddMethod {
+  MANUAL
+  AUTO_SELF_PACED
+  AUTO_ASSIGNMENT
+  PROMPT_ACCEPTED
+}

@@ -1,0 +1,741 @@
+import { PrismaClient, UserRole, UserStatus, CourseStatus, McqStatus, BloomsLevel, DifficultyLevel, TestStatus, AttemptStatus, ProgressStatus } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+
+const prisma = new PrismaClient();
+
+// Consistent password for all demo users
+const DEFAULT_PASSWORD = 'Demo@123';
+
+async function main() {
+  console.log('🧹🌱 Comprehensive Database Seed - Medical LMS');
+  console.log('='.repeat(70));
+  
+  const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+  const now = new Date();
+  
+  // ============================================
+  // 1. SECURITY POLICY
+  // ============================================
+  const securityPolicy = await prisma.security_policies.create({
+    data: {
+      id: uuidv4(),
+      sessionTimeoutMinutes: 60,
+      tokenExpiryMinutes: 15,
+      refreshTokenExpiryDays: 30,
+      maxConcurrentSessions: 3,
+      watermarkEnabled: true,
+      screenshotPrevention: true,
+      publisherPortalEnabled: true,
+      facultyPortalEnabled: true,
+      studentPortalEnabled: true,
+      mobileAppEnabled: true,
+      updatedAt: now,
+    },
+  });
+  console.log('✅ Security Policy');
+  
+  // ============================================
+  // 2. BITFLOW OWNER
+  // ============================================
+  const bitflowOwner = await prisma.users.create({
+    data: {
+      id: uuidv4(),
+      email: 'owner@bitflow.com',
+      passwordHash: hashedPassword,
+      fullName: 'Bitflow Platform Owner',
+      role: UserRole.BITFLOW_OWNER,
+      status: UserStatus.ACTIVE,
+      updatedAt: now,
+    },
+  });
+  console.log('✅ Bitflow Owner: owner@bitflow.com');
+  
+  // ============================================
+  // 3. PUBLISHER
+  // ============================================
+  const publisher = await prisma.publishers.create({
+    data: {
+      id: uuidv4(),
+      name: 'Medical Education Publishers Ltd.',
+      contactPerson: 'Dr. Ramesh Kumar',
+      phone: '+91-11-12345678',
+      address: '123 Medical District, New Delhi - 110001, India',
+      city: 'New Delhi',
+      state: 'Delhi',
+      country: 'India',
+      pincode: '110001',
+      website: 'https://medpublishers.com',
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  console.log('✅ Publisher: Medical Education Publishers Ltd.');
+  
+  const publisherAdmin = await prisma.users.create({
+    data: {
+      id: uuidv4(),
+      email: 'admin@medpublishers.com',
+      passwordHash: hashedPassword,
+      fullName: 'Publisher Admin',
+      role: UserRole.PUBLISHER_ADMIN,
+      status: UserStatus.ACTIVE,
+      publisherId: publisher.id,
+      updatedAt: now,
+    },
+  });
+  console.log('✅ Publisher Admin: admin@medpublishers.com');
+  
+  // ============================================
+  // 4. COMPETENCIES (MCI Standards)
+  // ============================================
+  console.log('\n📚 Creating MCI Competencies...');
+  const comp1 = await prisma.competencies.create({
+    data: {
+      id: uuidv4(),
+      code: 'AN1.1',
+      title: 'Anatomical Position',
+      description: 'Describe the anatomical position and use anatomical terms',
+      subject: 'Anatomy',
+      domain: 'KNOWLEDGE',
+      academicLevel: 'FIRST_YEAR',
+      status: 'ACTIVE',
+      version: 1,
+      createdBy: bitflowOwner.id,
+      updatedAt: now,
+    },
+  });
+  
+  const comp2 = await prisma.competencies.create({
+    data: {
+      id: uuidv4(),
+      code: 'AN2.1',
+      title: 'Upper Limb Bones',
+      description: 'Identify and describe parts, borders, surfaces of upper limb bones',
+      subject: 'Anatomy',
+      domain: 'KNOWLEDGE',
+      academicLevel: 'FIRST_YEAR',
+      status: 'ACTIVE',
+      version: 1,
+      createdBy: bitflowOwner.id,
+      updatedAt: now,
+    },
+  });
+  
+  const comp3 = await prisma.competencies.create({
+    data: {
+      id: uuidv4(),
+      code: 'PH1.1',
+      title: 'Cell Organization',
+      description: 'Describe organization of human body at cellular level',
+      subject: 'Physiology',
+      domain: 'KNOWLEDGE',
+      academicLevel: 'FIRST_YEAR',
+      status: 'ACTIVE',
+      version: 1,
+      createdBy: bitflowOwner.id,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created 3 MCI competencies');
+  
+  // ============================================
+  // 5. TOPICS
+  // ============================================
+  const topic1 = await prisma.topics.create({
+    data: {
+      id: uuidv4(),
+      name: 'Human Anatomy Basics',
+      subject: 'Anatomy',
+      code: 'ANAT-101',
+      createdBy: bitflowOwner.id,
+      updatedAt: now,
+    },
+  });
+  
+  const topic2 = await prisma.topics.create({
+    data: {
+      id: uuidv4(),
+      name: 'Cell Physiology',
+      subject: 'Physiology',
+      code: 'PHYS-101',
+      createdBy: bitflowOwner.id,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created 2 topics');
+  
+  // Link topics to competencies
+  await prisma.topic_mappings.create({
+    data: {
+      id: uuidv4(),
+      topicId: topic1.id,
+      competencyId: comp1.id,
+    },
+  });
+  
+  await prisma.topic_mappings.create({
+    data: {
+      id: uuidv4(),
+      topicId: topic2.id,
+      competencyId: comp3.id,
+    },
+  });
+  
+  // ============================================
+  // 6. MCQs
+  // ============================================
+  console.log('\n❓ Creating MCQs...');
+  const mcq1 = await prisma.mcqs.create({
+    data: {
+      id: uuidv4(),
+      publisherId: publisher.id,
+      competencyId: comp1.id,
+      questionText: 'What is the anatomical position?',
+      options: JSON.stringify(['Standing upright, arms at sides, palms forward', 'Lying down', 'Sitting', 'Arms raised']),
+      correctAnswer: 'Standing upright, arms at sides, palms forward',
+      explanation: 'The anatomical position is a standard reference position',
+      difficultyLevel: DifficultyLevel.EASY,
+      bloomsLevel: BloomsLevel.REMEMBER,
+      status: McqStatus.PUBLISHED,
+      verifiedAt: now,
+      verifiedBy: publisherAdmin.id,
+      createdBy: publisherAdmin.id,
+      updatedAt: now,
+    },
+  });
+  
+  const mcq2 = await prisma.mcqs.create({
+    data: {
+      id: uuidv4(),
+      publisherId: publisher.id,
+      competencyId: comp2.id,
+      questionText: 'Which bone is NOT part of the upper limb?',
+      options: JSON.stringify(['Humerus', 'Radius', 'Femur', 'Ulna']),
+      correctAnswer: 'Femur',
+      explanation: 'The femur is part of the lower limb',
+      difficultyLevel: DifficultyLevel.MEDIUM,
+      bloomsLevel: BloomsLevel.UNDERSTAND,
+      status: McqStatus.PUBLISHED,
+      verifiedAt: now,
+      verifiedBy: publisherAdmin.id,
+      createdBy: publisherAdmin.id,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created 2 MCQs');
+  
+  // ============================================
+  // 7. COLLEGE
+  // ============================================
+  console.log('\n🏥 Creating College...');
+  const college = await prisma.colleges.create({
+    data: {
+      id: uuidv4(),
+      name: 'All India Institute of Medical Sciences',
+      contactPerson: 'Dr. Director AIIMS',
+      phone: '+91-11-26588500',
+      address: 'Ansari Nagar, New Delhi',
+      city: 'New Delhi',
+      state: 'Delhi',
+      country: 'India',
+      pincode: '110029',
+      website: 'https://www.aiims.edu',
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  console.log('✅ College: AIIMS Delhi');
+  
+  const collegeAdmin = await prisma.users.create({
+    data: {
+      id: uuidv4(),
+      email: 'admin@aiims.edu',
+      passwordHash: hashedPassword,
+      fullName: 'AIIMS Administrator',
+      role: UserRole.COLLEGE_ADMIN,
+      status: UserStatus.ACTIVE,
+      collegeId: college.id,
+      updatedAt: now,
+    },
+  });
+  console.log('✅ College Admin: admin@aiims.edu');
+  
+  // ============================================
+  // 8. DEPARTMENTS
+  // ============================================
+  console.log('\n🏢 Creating Departments...');
+  const anatomyDept = await prisma.departments.create({
+    data: {
+      id: uuidv4(),
+      collegeId: college.id,
+      name: 'Department of Anatomy',
+      code: 'ANAT',
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  
+  const physiologyDept = await prisma.departments.create({
+    data: {
+      id: uuidv4(),
+      collegeId: college.id,
+      name: 'Department of Physiology',
+      code: 'PHYS',
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created 2 departments');
+  
+  // ============================================
+  // 9. FACULTY
+  // ============================================
+  console.log('\n👨‍🏫 Creating Faculty...');
+  const faculty1 = await prisma.users.create({
+    data: {
+      id: uuidv4(),
+      email: 'dr.sharma@aiims.edu',
+      passwordHash: hashedPassword,
+      fullName: 'Dr. Rajesh Sharma',
+      role: UserRole.FACULTY,
+      status: UserStatus.ACTIVE,
+      collegeId: college.id,
+      updatedAt: now,
+    },
+  });
+  
+  const faculty2 = await prisma.users.create({
+    data: {
+      id: uuidv4(),
+      email: 'dr.patel@aiims.edu',
+      passwordHash: hashedPassword,
+      fullName: 'Dr. Priya Patel',
+      role: UserRole.FACULTY,
+      status: UserStatus.ACTIVE,
+      collegeId: college.id,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created 2 faculty members');
+  
+  // Update departments with HODs
+  await prisma.departments.update({
+    where: { id: anatomyDept.id },
+    data: { hodId: faculty1.id },
+  });
+  
+  await prisma.departments.update({
+    where: { id: physiologyDept.id },
+    data: { hodId: faculty2.id },
+  });
+  
+  // Create faculty permissions
+  const facultyPerm = await prisma.faculty_permissions.create({
+    data: {
+      id: uuidv4(),
+      name: 'Full Department Access',
+      canViewCourses: true,
+      canEditCourses: true,
+      canViewAnalytics: true,
+      canViewStudents: true,
+      canGradeAssignments: true,
+      canPublishContent: true,
+      canManageTests: true,
+      updatedAt: now,
+    },
+  });
+  
+  // Faculty assignments
+  await prisma.faculty_assignments.create({
+    data: {
+      id: uuidv4(),
+      userId: faculty1.id,
+      departmentId: anatomyDept.id,
+      permissionId: facultyPerm.id,
+      subjects: ['Anatomy'],
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  
+  await prisma.faculty_assignments.create({
+    data: {
+      id: uuidv4(),
+      userId: faculty2.id,
+      departmentId: physiologyDept.id,
+      permissionId: facultyPerm.id,
+      subjects: ['Physiology'],
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  
+  // ============================================
+  // 10. STUDENTS
+  // ============================================
+  console.log('\n👨‍🎓 Creating Students...');
+  const students = [];
+  
+  for (let i = 1; i <= 10; i++) {
+    const student = await prisma.users.create({
+      data: {
+        id: uuidv4(),
+        email: `student${i}@aiims.edu`,
+        passwordHash: hashedPassword,
+        fullName: `Student ${i}`,
+        role: UserRole.STUDENT,
+        status: UserStatus.ACTIVE,
+        collegeId: college.id,
+        updatedAt: now,
+      },
+    });
+    students.push(student);
+    
+    // Create student record
+    const studentRecord = await prisma.students.create({
+      data: {
+        id: uuidv4(),
+        userId: student.id,
+        collegeId: college.id,
+        rollNumber: `AIIMS2026${String(i).padStart(3, '0')}`,
+        year: i <= 3 ? 'FIRST_YEAR' : i <= 6 ? 'SECOND_YEAR' : 'THIRD_YEAR',
+        enrollmentDate: new Date(2026, 0, 1),
+        status: 'ACTIVE',
+        updatedAt: now,
+      },
+    });
+    
+    // Assign to department
+    const deptId = i % 2 === 0 ? anatomyDept.id : physiologyDept.id;
+    await prisma.student_departments.create({
+      data: {
+        id: uuidv4(),
+        studentId: studentRecord.id,
+        departmentId: deptId,
+      },
+    });
+  }
+  console.log(`✅ Created ${students.length} students`);
+  
+  // ============================================
+  // 11. PACKAGES
+  // ============================================
+  console.log('\n📦 Creating Package...');
+  const package1 = await prisma.packages.create({
+    data: {
+      id: uuidv4(),
+      publisherId: publisher.id,
+      name: 'First Year Medical Foundation',
+      description: 'Comprehensive package for first year medical students',
+      pricePerStudent: 5000,
+      validityDays: 365,
+      maxStudents: 100,
+      status: 'ACTIVE',
+      updatedAt: now,
+    },
+  });
+  console.log('✅ Package: First Year Medical Foundation');
+  
+  // Assign package to college
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 365);
+  
+  await prisma.package_college_assignments.create({
+    data: {
+      id: uuidv4(),
+      packageId: package1.id,
+      collegeId: college.id,
+      startDate: startDate,
+      endDate: endDate,
+      studentsAssigned: 100,
+      pricePerStudent: 5000,
+      totalAmount: 500000,
+      status: 'ACTIVE',
+    },
+  });
+  
+  // ============================================
+  // 12. COURSES
+  // ============================================
+  console.log('\n📚 Creating Courses...');
+  const course1 = await prisma.courses.create({
+    data: {
+      id: uuidv4(),
+      title: 'Introduction to Human Anatomy',
+      code: 'ANAT-101-2026',
+      description: 'Fundamental concepts of human anatomy',
+      academicYear: 'YEAR_2025_26',
+      semester: 'FIRST',
+      facultyUserId: faculty1.id,
+      collegeId: college.id,
+      status: CourseStatus.PUBLISHED,
+      publishedAt: now,
+      updatedAt: now,
+    },
+  });
+  
+  const course2 = await prisma.courses.create({
+    data: {
+      id: uuidv4(),
+      title: 'Cell Physiology and Functions',
+      code: 'PHYS-101-2026',
+      description: 'Study of cellular structure and function',
+      academicYear: 'YEAR_2025_26',
+      semester: 'FIRST',
+      facultyUserId: faculty2.id,
+      collegeId: college.id,
+      status: CourseStatus.PUBLISHED,
+      publishedAt: now,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created 2 courses');
+  
+  // Link courses to competencies
+  await prisma.course_competencies.create({
+    data: {
+      id: uuidv4(),
+      courseId: course1.id,
+      competencyId: comp1.id,
+    },
+  });
+  
+  await prisma.course_competencies.create({
+    data: {
+      id: uuidv4(),
+      courseId: course2.id,
+      competencyId: comp3.id,
+    },
+  });
+  
+  // ============================================
+  // 13. LEARNING FLOW STEPS
+  // ============================================
+  console.log('\n📝 Creating Learning Flow Steps...');
+  
+  const step1_1 = await prisma.learning_flow_steps.create({
+    data: {
+      id: uuidv4(),
+      courseId: course1.id,
+      stepNumber: 1,
+      name: 'Introduction Video',
+      type: 'VIDEO',
+      contentUrl: 'https://example.com/videos/anatomical-position.mp4',
+      description: 'Learn about anatomical position',
+      mandatory: true,
+      updatedAt: now,
+    },
+  });
+  
+  const step1_2 = await prisma.learning_flow_steps.create({
+    data: {
+      id: uuidv4(),
+      courseId: course1.id,
+      stepNumber: 2,
+      name: 'Reading Material',
+      type: 'PDF',
+      contentUrl: 'https://example.com/pdfs/body-planes.pdf',
+      description: 'Study anatomical planes',
+      mandatory: true,
+      updatedAt: now,
+    },
+  });
+  
+  const step2_1 = await prisma.learning_flow_steps.create({
+    data: {
+      id: uuidv4(),
+      courseId: course2.id,
+      stepNumber: 1,
+      name: 'Cell Structure Overview',
+      type: 'VIDEO',
+      contentUrl: 'https://example.com/videos/cell-structure.mp4',
+      description: 'Introduction to cell structure',
+      mandatory: true,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created learning flow steps');
+  
+  // ============================================
+  // 14. TESTS
+  // ============================================
+  console.log('\n📝 Creating Tests...');
+  
+  const test1 = await prisma.tests.create({
+    data: {
+      id: uuidv4(),
+      title: 'Anatomy Quiz 1',
+      description: 'Assessment on anatomical position',
+      courseId: course1.id,
+      totalMarks: 10,
+      passingMarks: 6,
+      durationMinutes: 15,
+      maxAttempts: 2,
+      status: TestStatus.ACTIVE,
+      publishedAt: now,
+      updatedAt: now,
+    },
+  });
+  
+  console.log('✅ Created test');
+  
+  // Add MCQs to test
+  await prisma.test_questions.create({
+    data: {
+      id: uuidv4(),
+      testId: test1.id,
+      mcqId: mcq1.id,
+      marks: 5,
+      questionOrder: 1,
+      updatedAt: now,
+    },
+  });
+  
+  await prisma.test_questions.create({
+    data: {
+      id: uuidv4(),
+      testId: test1.id,
+      mcqId: mcq2.id,
+      marks: 5,
+      questionOrder: 2,
+      updatedAt: now,
+    },
+  });
+  
+  // ============================================
+  // 15. ASSIGN COURSES & STUDENT PROGRESS
+  // ============================================
+  console.log('\n📊 Creating Student Progress...');
+  
+  // Assign courses to all students
+  for (let i = 0; i < students.length; i++) {
+    const student = students[i];
+    const studentRecord = await prisma.students.findFirst({
+      where: { userId: student.id },
+    });
+    
+    // Assign to course 1
+    await prisma.course_assignments.create({
+      data: {
+        id: uuidv4(),
+        courseId: course1.id,
+        studentId: studentRecord!.id,
+        assignedBy: faculty1.id,
+        type: 'COURSE',
+        status: 'ASSIGNED',
+        updatedAt: now,
+      },
+    });
+    
+    // Create progress for first 5 students (completed)
+    if (i < 5) {
+      await prisma.student_progress.create({
+        data: {
+          id: uuidv4(),
+          studentId: studentRecord!.id,
+          courseId: course1.id,
+          status: ProgressStatus.COMPLETED,
+          completedSteps: [step1_1.id, step1_2.id],
+          progressPercentage: 100,
+          startedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          updatedAt: now,
+        },
+      });
+      
+      // Create test attempt
+      const score = 8 + Math.floor(Math.random() * 3);
+      await prisma.test_attempts.create({
+        data: {
+          id: uuidv4(),
+          testId: test1.id,
+          studentId: studentRecord!.id,
+          attemptNumber: 1,
+          status: AttemptStatus.GRADED,
+          score: score,
+          totalMarks: 10,
+          passed: true,
+          startedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          submittedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000),
+          updatedAt: now,
+        },
+      });
+    } 
+    // Next 3 students (in progress)
+    else if (i < 8) {
+      await prisma.student_progress.create({
+        data: {
+          id: uuidv4(),
+          studentId: studentRecord!.id,
+          courseId: course1.id,
+          status: ProgressStatus.IN_PROGRESS,
+          completedSteps: [step1_1.id],
+          progressPercentage: 50,
+          startedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+          updatedAt: now,
+        },
+      });
+    }
+    // Last 2 students (not started)
+    else {
+      await prisma.student_progress.create({
+        data: {
+          id: uuidv4(),
+          studentId: studentRecord!.id,
+          courseId: course1.id,
+          status: ProgressStatus.NOT_STARTED,
+          completedSteps: [],
+          progressPercentage: 0,
+          updatedAt: now,
+        },
+      });
+    }
+  }
+  
+  console.log('✅ Created student progress and test attempts');
+  
+  // ============================================
+  // SUMMARY
+  // ============================================
+  console.log('\n' + '='.repeat(70));
+  console.log('🎉 DATABASE SEEDED SUCCESSFULLY!');
+  console.log('='.repeat(70));
+  console.log('\n📋 LOGIN CREDENTIALS (All users: Demo@123)\n');
+  console.log('BITFLOW OWNER:      owner@bitflow.com');
+  console.log('PUBLISHER ADMIN:    admin@medpublishers.com');
+  console.log('COLLEGE ADMIN:      admin@aiims.edu');
+  console.log('FACULTY 1 (HOD):    dr.sharma@aiims.edu (Anatomy)');
+  console.log('FACULTY 2 (HOD):    dr.patel@aiims.edu (Physiology)');
+  console.log('STUDENTS:           student1@aiims.edu to student10@aiims.edu');
+  console.log('\n📊 DATA SUMMARY:');
+  console.log('  • 1 College (AIIMS Delhi)');
+  console.log('  • 2 Departments with HODs');
+  console.log('  • 2 Faculty members');
+  console.log('  • 10 Students (5 completed, 3 in-progress, 2 not-started)');
+  console.log('  • 3 MCI Competencies');
+  console.log('  • 2 Topics with mappings');
+  console.log('  • 2 Published MCQs');
+  console.log('  • 1 Package assigned to college');
+  console.log('  • 2 Published courses with learning flows');
+  console.log('  • 1 Active test with student attempts');
+  console.log('  • Transparent data across all portals');
+  console.log('\n' + '='.repeat(70));
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Error seeding database:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

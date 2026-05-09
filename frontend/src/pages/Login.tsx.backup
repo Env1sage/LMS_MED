@@ -1,0 +1,354 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { UserRole } from '../types';
+import { Button, Input, ErrorBanner, Card, Badge } from '../components/ui';
+
+const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      await login(email, password);
+      
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const userData = JSON.parse(storedUser);
+        
+        if (userData.role === UserRole.BITFLOW_OWNER) {
+          navigate('/dashboard');
+        } else if (userData.role === UserRole.PUBLISHER_ADMIN) {
+          navigate('/publisher-admin');
+        } else if (userData.role === UserRole.COLLEGE_ADMIN) {
+          navigate('/college-admin');
+        } else if (userData.role === UserRole.FACULTY) {
+          navigate('/faculty');
+        } else if (userData.role === UserRole.STUDENT) {
+          navigate('/student');
+        } else {
+          navigate('/unauthorized');
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Authentication failed. Verify credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      padding: 'var(--space-lg)',
+      position: 'relative'
+    }}>
+      {/* Subtle radial gradient backdrop */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        background: 'radial-gradient(1200px circle at 50% 20%, #1C2230 0%, var(--bg) 60%)',
+        opacity: 0.6,
+        pointerEvents: 'none'
+      }} />
+
+      {/* Clean editorial container */}
+      <div style={{
+        width: '100%',
+        maxWidth: '1100px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-card)',
+        overflow: 'hidden',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 0,
+          minHeight: '650px'
+        }}>
+          {/* Left Side - Branding */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            gap: 'var(--space-xl)',
+            color: 'white'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-lg)' }}>
+              <div style={{
+                width: '72px',
+                height: '72px',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1))',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '40px',
+                fontWeight: 800,
+                border: '2px solid rgba(255,255,255,0.3)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                color: 'white'
+              }}>
+                B
+              </div>
+              <div>
+                <h1 style={{
+                  fontSize: '40px',
+                  fontWeight: 800,
+                  margin: 0,
+                  lineHeight: 1,
+                  background: 'linear-gradient(135deg, #ffffff 0%, rgba(255,255,255,0.8) 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  letterSpacing: '-0.02em'
+                }}>
+                  BITFLOW
+                </h1>
+                <p style={{
+                  fontSize: '14px',
+                  margin: '4px 0 0 0',
+                  opacity: 0.9,
+                  fontWeight: 500,
+                  letterSpacing: '0.5px'
+                }}>
+                  Medical Learning Management System
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '16px',
+              padding: 'var(--space-xl)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 4px 24px rgba(0, 0, 0, 0.1)'
+            }}>
+              <h3 style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                marginBottom: 'var(--space-md)',
+                opacity: 0.95
+              }}>
+                ✨ Development Access
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                <CredentialRow 
+                  role="Owner" 
+                  email="owner@bitflow.com" 
+                  password="BitflowAdmin@2026"
+                  variant="info"
+                />
+                <CredentialRow 
+                  role="Publisher" 
+                  email="admin@elsevier.com" 
+                  password="Password123!"
+                  variant="neutral"
+                />
+                <CredentialRow 
+                  role="Admin" 
+                  email="admin@aiimsnagpur.edu.in" 
+                  password="Password123!"
+                  variant="warning"
+                />
+                <CredentialRow 
+                  role="Faculty" 
+                  email="faculty@aiimsnagpur.edu.in" 
+                  password="Password123!"
+                  variant="success"
+                />
+                <CredentialRow 
+                  role="Student" 
+                  email="priya.sharma@student.aiimsnagpur.edu.in" 
+                  password="Password123!"
+                  variant="neutral"
+                />
+              </div>
+            </div>
+
+            <div style={{
+              padding: 'var(--space-lg)',
+              background: 'rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(10px)',
+              borderRadius: '12px',
+              fontSize: '13px',
+              textAlign: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              fontWeight: 500,
+              opacity: 0.9
+            }}>
+              <strong>🏥 Secure Clinical Education Platform</strong>
+              <br />
+              Phase 0–8 • Multi-Tenant • MCI Compliant
+            </div>
+          </div>
+
+          {/* Right Side - Login Form */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '20px',
+            padding: 'var(--space-2xl)',
+            border: '1px solid rgba(255, 255, 255, 0.5)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}>
+            <div style={{ marginBottom: 'var(--space-xl)' }}>
+              <h2 style={{
+                fontSize: '32px',
+                fontWeight: 700,
+                background: 'linear-gradient(135deg, var(--primary-blue) 0%, var(--accent-blue) 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                marginBottom: 'var(--space-xs)',
+                letterSpacing: '-0.02em'
+              }}>
+                Welcome Back
+              </h2>
+              <p style={{
+                fontSize: '15px',
+                color: 'var(--text-secondary)',
+                margin: 0,
+                fontWeight: 500
+              }}>
+                Sign in to access your dashboard
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {error && (
+                <ErrorBanner message={error} onDismiss={() => setError('')} />
+              )}
+
+              <Input
+                type="email"
+                label="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="user@institution.edu"
+                required
+                disabled={loading}
+                autoComplete="email"
+              />
+
+              <Input
+                type="password"
+                label="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                disabled={loading}
+                autoComplete="current-password"
+              />
+
+              <Button 
+                type="submit" 
+                variant="primary"
+                loading={loading}
+                disabled={loading}
+                style={{ marginTop: 'var(--space-lg)', width: '100%', height: '48px', fontSize: '16px', fontWeight: 600 }}
+              >
+                {loading ? 'Signing in...' : 'Sign In →'}
+              </Button>
+            </form>
+
+            <div style={{
+              marginTop: 'var(--space-xl)',
+              paddingTop: 'var(--space-lg)',
+              borderTop: '1px solid rgba(228, 234, 241, 0.5)',
+              textAlign: 'center',
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              fontWeight: 500
+            }}>
+              © 2026 BITFLOW Medical LMS. All rights reserved.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Animations */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        
+        @media (max-width: 768px) {
+          div[style*="gridTemplateColumns"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+interface CredentialRowProps {
+  role: string;
+  email: string;
+  password: string;
+  variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+}
+
+const CredentialRow: React.FC<CredentialRowProps> = ({ role, email, password, variant }) => (
+  <div style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 'var(--space-sm)',
+    padding: 'var(--space-sm)',
+    background: 'rgba(255, 255, 255, 0.2)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: 'var(--radius-input)',
+    fontSize: '11px',
+    flexWrap: 'wrap',
+    border: '1px solid rgba(255, 255, 255, 0.2)'
+  }}>
+    <Badge variant={variant} style={{ fontSize: '10px', padding: '4px 10px' }}>{role}</Badge>
+    <code style={{
+      background: 'rgba(255, 255, 255, 0.25)',
+      backdropFilter: 'blur(5px)',
+      padding: '3px 8px',
+      borderRadius: '6px',
+      fontSize: '10px',
+      color: 'white',
+      flex: 1,
+      minWidth: '140px',
+      fontWeight: 500,
+      border: '1px solid rgba(255, 255, 255, 0.15)'
+    }}>
+      {email}
+    </code>
+    <code style={{
+      background: 'rgba(255, 255, 255, 0.3)',
+      backdropFilter: 'blur(5px)',
+      padding: '3px 8px',
+      borderRadius: '6px',
+      fontSize: '10px',
+      color: 'white',
+      fontWeight: 600,
+      border: '1px solid rgba(255, 255, 255, 0.2)'
+    }}>
+      {password}
+    </code>
+  </div>
+);
+
+export default Login;

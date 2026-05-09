@@ -1,0 +1,588 @@
+import React, { useState, useEffect } from 'react';
+import { courseAnalyticsService, CourseAnalyticsOverview, CourseAnalytics as CourseAnalyticsType, CourseComparison, CourseDetails } from '../../services/course-analytics.service';
+import { ratingsService, CollegeRatingItem, RatingStats, RatingType } from '../../services/ratings.service';
+import { useAuth } from '../../context/AuthContext';
+import CollegeLayout from '../../components/college/CollegeLayout';
+import {
+  BookOpen, TrendingUp, Award, Users, RefreshCw, BarChart3,
+  Star, Clock, X, ChevronDown, ChevronUp, Search, Target,
+  CheckCircle, AlertCircle, FileText, Layers, Eye
+} from 'lucide-react';
+import '../../styles/bitflow-owner.css';
+import '../../styles/loading-screen.css';
+
+const CourseAnalysis: React.FC = () => {
+  const { user } = useAuth();
+  const [overview, setOverview] = useState<CourseAnalyticsOverview | null>(null);
+  const [comparison, setComparison] = useState<CourseComparison[]>([]);
+  const [courseRatings, setCourseRatings] = useState<CollegeRatingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<'overview' | 'comparison' | 'detail'>('overview');
+  const [search, setSearch] = useState('');
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [courseDetail, setCourseDetail] = useState<CourseDetails | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailTab, setDetailTab] = useState<'students' | 'tests' | 'units' | 'competencies'>('students');
+  const [sortField, setSortField] = useState<string>('completionRate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  useEffect(() => { fetchData(); }, []);
+
+  const fetchData = async () => {
+    if (!user?.collegeId) return;
+    setLoading(true); setError(null);
+    try {
+      const [ov, cmp, cr] = await Promise.allSettled([
+        courseAnalyticsService.getCourseAnalyticsOverview(user.collegeId),
+        courseAnalyticsService.getCourseComparison(user.collegeId),
+        ratingsService.getCollegeCourseRatings(user.collegeId),
+      ]);
+      if (ov.status === 'fulfilled') setOverview(ov.value);
+      if (cmp.status === 'fulfilled') setComparison(cmp.value);
+      if (cr.status === 'fulfilled') setCourseRatings(cr.value);
+    } catch (err: any) { setError(err.message || 'Failed'); }
+    finally { setLoading(false); }
+  };
+
+  const loadCourseDetail = async (courseId: string) => {
+    setSelectedCourseId(courseId); setDetailLoading(true); setTab('detail'); setDetailTab('students');
+    try {
+      const data = await courseAnalyticsService.getCourseDetails(courseId);
+      setCourseDetail(data);
+    } catch { setCourseDetail(null); }
+    finally { setDetailLoading(false); }
+  };
+
+  const closeCourseDetail = () => { setSelectedCourseId(null); setCourseDetail(null); setTab('overview'); };
+
+  const renderStars = (rating: number) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star key={i} size={13} fill={i <= Math.floor(rating) ? '#F59E0B' : 'none'} color={i <= rating ? '#F59E0B' : '#D1D5DB'} />
+      ))}
+      <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 600 }}>{rating.toFixed(1)}</span>
+    </div>
+  );
+
+  const scoreColor = (s: number) => s >= 70 ? '#10B981' : s >= 40 ? '#F59E0B' : '#EF4444';
+  const statusBadge = (status: string) => {
+    const c: Record<string, { bg: string; color: string }> = {
+      COMPLETED: { bg: '#ECFDF5', color: '#10B981' }, IN_PROGRESS: { bg: '#EFF6FF', color: '#3B82F6' },
+      NOT_STARTED: { bg: '#F3F4F6', color: '#6B7280' }, ASSIGNED: { bg: '#FEF3C7', color: '#D97706' },
+      PUBLISHED: { bg: '#ECFDF5', color: '#059669' }, DRAFT: { bg: '#F3F4F6', color: '#6B7280' },
+    };
+    const col = c[status] || c.NOT_STARTED;
+    return <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: col.bg, color: col.color }}>{status.replace('_', ' ')}</span>;
+  };
+
+  const getCourseRating = (courseId: string) => courseRatings.find(r => r.courseId === courseId);
+
+  const filteredAnalytics = (overview?.analytics || [])
+    .filter(c => !search || c.courseTitle.toLowerCase().includes(search.toLowerCase()) || (c.courseCode || '').toLowerCase().includes(search.toLowerCase()) || (c.faculty || '').toLowerCase().includes(search.toLowerCase()));
+
+  if (loading) return (
+    <CollegeLayout>
+      <div className="page-loading-screen">
+        <div className="loading-rings">
+          <div className="loading-ring loading-ring-1"></div>
+          <div className="loading-ring loading-ring-2"></div>
+          <div className="loading-ring loading-ring-3"></div>
+        </div>
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
+        <div className="loading-title">Loading Course Analysis</div>
+        <div className="loading-bar-track">
+          <div className="loading-bar-fill"></div>
+        </div>
+      </div>
+    </CollegeLayout>
+  );
+
+  return (
+    <CollegeLayout>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700 }}>Course Analysis</h1>
+          <p style={{ color: 'var(--bo-text-muted)', fontSize: 13, marginTop: 4 }}>Deep dive into course metrics, student engagement and test performance</p>
+        </div>
+        <button className="bo-btn bo-btn-outline" onClick={fetchData}><RefreshCw size={14} /> Refresh</button>
+      </div>
+
+      {error && <div style={{ padding: '10px 14px', borderRadius: 8, background: '#FEF2F2', color: '#DC2626', marginBottom: 16, fontSize: 13 }}>{error}</div>}
+
+      {/* Summary Cards */}
+      {overview && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 14, marginBottom: 24 }}>
+          {[
+            { label: 'Total Courses', value: overview.totalCourses, color: '#059669', icon: <BookOpen size={20} /> },
+            { label: 'Avg Completion', value: `${(overview.summary?.avgCompletionRate || 0).toFixed(0)}%`, color: '#10B981', icon: <TrendingUp size={20} /> },
+            { label: 'Avg Test Score', value: `${(overview.summary?.avgTestScore || 0).toFixed(0)}%`, color: '#3B82F6', icon: <Target size={20} /> },
+            { label: 'Avg Pass Rate', value: `${(overview.summary?.avgPassRate || 0).toFixed(0)}%`, color: '#8B5CF6', icon: <Award size={20} /> },
+            { label: 'Students Enrolled', value: overview.summary?.totalStudentsEnrolled || 0, color: '#F59E0B', icon: <Users size={20} /> },
+          ].map((c, i) => (
+            <div key={i} className="bo-card" style={{ padding: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: 'var(--bo-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{c.label}</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: c.color, marginTop: 6 }}>{c.value}</div>
+                </div>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: `${c.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: c.color }}>{c.icon}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tab Switcher */}
+      <div className="bo-card" style={{ padding: 4, marginBottom: 16, display: 'flex', gap: 4 }}>
+        {[
+          { key: 'overview', label: 'Course Overview', icon: <BarChart3 size={14} /> },
+          { key: 'comparison', label: 'Course Comparison', icon: <Layers size={14} /> },
+          ...(selectedCourseId ? [{ key: 'detail', label: 'Course Detail', icon: <Eye size={14} /> }] : []),
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as any)} style={{
+            flex: 1, padding: '8px 14px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            background: tab === t.key ? '#059669' : 'transparent', color: tab === t.key ? 'white' : 'var(--bo-text-secondary)',
+          }}>
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* === OVERVIEW TAB === */}
+      {tab === 'overview' && (
+        <div>
+          {/* Search */}
+          <div style={{ position: 'relative', marginBottom: 16 }}>
+            <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--bo-text-muted)' }} />
+            <input
+              type="text" value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search courses by title, code, or faculty..."
+              style={{ width: '100%', padding: '10px 12px 10px 36px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          <div className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+            {filteredAnalytics.length > 0 ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: 'var(--bo-bg)', borderBottom: '1px solid var(--bo-border)' }}>
+                    {['Course', 'Faculty', 'Students', 'Completion', 'Avg Score', 'Pass Rate', 'Rating', 'Year', ''].map(h => (
+                      <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAnalytics.map((c, i) => {
+                    const rating = getCourseRating(c.courseId);
+                    return (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--bo-border)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bo-bg)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ fontWeight: 500 }}>{c.courseTitle}</div>
+                          <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', fontFamily: 'monospace' }}>{c.courseCode}</div>
+                        </td>
+                        <td style={{ padding: '10px 14px', color: 'var(--bo-text-secondary)' }}>{c.faculty || '—'}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div>{c.totalStudents}</div>
+                          <div style={{ fontSize: 10, color: 'var(--bo-text-muted)' }}>
+                            {c.completedStudents} done · {c.inProgressStudents} active · {c.notStartedStudents} pending
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ width: 50, height: 6, borderRadius: 3, background: '#E5E7EB' }}>
+                              <div style={{ width: `${c.completionRate}%`, height: '100%', borderRadius: 3, background: scoreColor(c.completionRate) }} />
+                            </div>
+                            <span style={{ fontWeight: 600, fontSize: 12 }}>{c.completionRate.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 14px', fontWeight: 500, color: scoreColor(c.avgTestScore) }}>{c.avgTestScore.toFixed(0)}%</td>
+                        <td style={{ padding: '10px 14px', fontWeight: 500, color: scoreColor(c.passRate) }}>{c.passRate.toFixed(0)}%</td>
+                        <td style={{ padding: '10px 14px' }}>{rating ? renderStars(rating.averageRating) : <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>No ratings</span>}</td>
+                        <td style={{ padding: '10px 14px', color: 'var(--bo-text-muted)', fontSize: 12 }}>{c.academicYear}</td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <button onClick={() => loadCourseDetail(c.courseId)} className="bo-btn bo-btn-outline" style={{ padding: '5px 10px', fontSize: 11 }}>
+                            <Eye size={12} /> View
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ padding: 60, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+                <BookOpen size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+                <div style={{ fontSize: 15, fontWeight: 500 }}>No course data</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>Course analytics appear once courses are active</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* === COMPARISON TAB === */}
+      {tab === 'comparison' && (
+        <div>
+          {comparison.length > 0 ? (
+            <>
+              {/* Comparison Bars */}
+              <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+                <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Side-by-Side Comparison</h3>
+                <div style={{ display: 'grid', gap: 20 }}>
+                  {/* Completion Rate */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--bo-text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Completion Rate</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {comparison.map((c, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ width: 150, fontSize: 12, fontWeight: 500, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
+                          <div style={{ flex: 1, height: 20, borderRadius: 6, background: '#F3F4F6', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ width: `${c.avgCompletion}%`, height: '100%', borderRadius: 6, background: `linear-gradient(90deg, #10B981, #059669)`, transition: 'width 0.5s' }} />
+                            <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: c.avgCompletion > 50 ? 'white' : 'var(--bo-text-secondary)' }}>{c.avgCompletion.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Test Score */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--bo-text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Average Test Score</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {comparison.map((c, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ width: 150, fontSize: 12, fontWeight: 500, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
+                          <div style={{ flex: 1, height: 20, borderRadius: 6, background: '#F3F4F6', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ width: `${c.avgScore}%`, height: '100%', borderRadius: 6, background: `linear-gradient(90deg, #3B82F6, #2563EB)`, transition: 'width 0.5s' }} />
+                            <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: c.avgScore > 50 ? 'white' : 'var(--bo-text-secondary)' }}>{c.avgScore.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Pass Rate */}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--bo-text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pass Rate</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {comparison.map((c, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ width: 150, fontSize: 12, fontWeight: 500, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
+                          <div style={{ flex: 1, height: 20, borderRadius: 6, background: '#F3F4F6', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ width: `${c.passRate}%`, height: '100%', borderRadius: 6, background: `linear-gradient(90deg, #8B5CF6, #7C3AED)`, transition: 'width 0.5s' }} />
+                            <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 700, color: c.passRate > 50 ? 'white' : 'var(--bo-text-secondary)' }}>{c.passRate.toFixed(0)}%</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Comparison Table */}
+              <div className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bo-bg)', borderBottom: '1px solid var(--bo-border)' }}>
+                      {['Course', 'Code', 'Year', 'Enrolled', 'Completion', 'Avg Score', 'Pass Rate', 'Avg Time', 'Tests', 'Units'].map(h => (
+                        <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparison.map((c, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--bo-border)' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bo-bg)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <td style={{ padding: '10px 12px', fontWeight: 500 }}>{c.title}</td>
+                        <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 11, color: 'var(--bo-text-muted)' }}>{c.code}</td>
+                        <td style={{ padding: '10px 12px', fontSize: 12, color: 'var(--bo-text-muted)' }}>{c.year}</td>
+                        <td style={{ padding: '10px 12px' }}>{c.enrolledStudents}</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: scoreColor(c.avgCompletion) }}>{c.avgCompletion.toFixed(0)}%</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: scoreColor(c.avgScore) }}>{c.avgScore.toFixed(0)}%</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: scoreColor(c.passRate) }}>{c.passRate.toFixed(0)}%</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Clock size={12} color="var(--bo-text-muted)" />
+                            <span style={{ fontSize: 12, color: 'var(--bo-text-secondary)' }}>{c.avgTimeSpentMinutes.toFixed(0)} min</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: 'var(--bo-text-secondary)' }}>{c.totalTests}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--bo-text-secondary)' }}>{c.totalLearningUnits}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+            <div className="bo-card" style={{ padding: 60, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+              <Layers size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <div style={{ fontSize: 15, fontWeight: 500 }}>No comparison data</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Need at least one active course with student data</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === COURSE DETAIL TAB === */}
+      {tab === 'detail' && (
+        <div>
+          {detailLoading ? (
+            <div className="bo-card" style={{ padding: 60, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+              <div className="bo-spinner" style={{ marginRight: 8 }} /> Loading course details...
+            </div>
+          ) : courseDetail ? (
+            <div>
+              {/* Course Header */}
+              <div className="bo-card" style={{ padding: 20, marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <h2 style={{ fontSize: 18, fontWeight: 700 }}>{courseDetail.course.title}</h2>
+                      {statusBadge(courseDetail.course.status)}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>
+                      <span style={{ fontFamily: 'monospace' }}>{courseDetail.course.code}</span> · Faculty: <strong>{courseDetail.course.faculty}</strong> · Year: {courseDetail.course.academicYear}
+                    </div>
+                    {courseDetail.course.description && (
+                      <p style={{ fontSize: 13, color: 'var(--bo-text-secondary)', marginTop: 8, lineHeight: 1.5 }}>{courseDetail.course.description}</p>
+                    )}
+                  </div>
+                  <button className="bo-btn bo-btn-outline" onClick={closeCourseDetail} style={{ padding: '6px 12px', fontSize: 12 }}>
+                    <X size={14} /> Close
+                  </button>
+                </div>
+
+                {/* Stats Row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginTop: 16 }}>
+                  {[
+                    { label: 'Students', value: courseDetail.statistics.totalStudents, color: '#059669' },
+                    { label: 'Learning Units', value: courseDetail.statistics.totalLearningUnits, color: '#3B82F6' },
+                    { label: 'Tests', value: courseDetail.statistics.totalTests, color: '#8B5CF6' },
+                    { label: 'Competencies', value: courseDetail.statistics.totalCompetencies, color: '#F59E0B' },
+                    { label: 'Completion', value: `${(courseDetail.statistics.completionRate || 0).toFixed(0)}%`, color: '#10B981' },
+                  ].map((st, i) => (
+                    <div key={i} style={{ padding: '12px 14px', borderRadius: 10, background: `${st.color}08`, border: `1px solid ${st.color}20`, textAlign: 'center' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: st.color }}>{st.value}</div>
+                      <div style={{ fontSize: 10, color: 'var(--bo-text-muted)', fontWeight: 600, textTransform: 'uppercase', marginTop: 4 }}>{st.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detail Sub-tabs */}
+              <div className="bo-card" style={{ padding: 4, marginBottom: 16, display: 'flex', gap: 4 }}>
+                {[
+                  { key: 'students', label: `Students (${courseDetail.studentPerformance?.length || 0})`, icon: <Users size={13} /> },
+                  { key: 'tests', label: `Tests (${courseDetail.testPerformance?.length || 0})`, icon: <Target size={13} /> },
+                  { key: 'units', label: `Learning Units (${courseDetail.learningUnits?.length || 0})`, icon: <Layers size={13} /> },
+                  { key: 'competencies', label: `Competencies (${courseDetail.competencies?.length || 0})`, icon: <Award size={13} /> },
+                ].map(t => (
+                  <button key={t.key} onClick={() => setDetailTab(t.key as any)} style={{
+                    flex: 1, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                    fontWeight: 600, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    background: detailTab === t.key ? '#059669' : 'transparent', color: detailTab === t.key ? 'white' : 'var(--bo-text-secondary)',
+                  }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Students Sub-tab */}
+              {detailTab === 'students' && (
+                <div className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  {courseDetail.studentPerformance && courseDetail.studentPerformance.length > 0 ? (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bo-bg)', borderBottom: '1px solid var(--bo-border)' }}>
+                          {['Student', 'Year', 'Status', 'Progress', 'Steps', 'Started', 'Completed'].map(h => (
+                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {courseDetail.studentPerformance.map((sp, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--bo-border)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bo-bg)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <td style={{ padding: '10px 14px', fontWeight: 500 }}>{sp.studentName}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--bo-text-muted)' }}>{sp.year}</td>
+                            <td style={{ padding: '10px 14px' }}>{statusBadge(sp.status)}</td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ width: 60, height: 6, borderRadius: 3, background: '#E5E7EB' }}>
+                                  <div style={{ width: `${sp.completionPercentage}%`, height: '100%', borderRadius: 3, background: scoreColor(sp.completionPercentage) }} />
+                                </div>
+                                <span style={{ fontWeight: 600, fontSize: 12, color: scoreColor(sp.completionPercentage) }}>{sp.completionPercentage.toFixed(0)}%</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px 14px', color: 'var(--bo-text-secondary)' }}>{sp.completedSteps}/{sp.totalSteps}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--bo-text-muted)' }}>{sp.startedAt ? new Date(sp.startedAt).toLocaleDateString() : '—'}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--bo-text-muted)' }}>{sp.completedAt ? new Date(sp.completedAt).toLocaleDateString() : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ padding: 50, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+                      <Users size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <div>No student enrollment data</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tests Sub-tab */}
+              {detailTab === 'tests' && (
+                <div style={{ display: 'grid', gap: 12 }}>
+                  {courseDetail.testPerformance && courseDetail.testPerformance.length > 0 ? courseDetail.testPerformance.map((test, ti) => (
+                    <div key={ti} className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+                      <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--bo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{test.testTitle}</div>
+                          <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 2 }}>
+                            {test.totalQuestions} questions · {test.totalAttempts} attempt{test.totalAttempts !== 1 ? 's' : ''}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 10, color: 'var(--bo-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Avg Score</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: scoreColor(test.avgScore) }}>{test.avgScore.toFixed(0)}%</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 10, color: 'var(--bo-text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Pass Rate</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: scoreColor(test.passRate) }}>{test.passRate.toFixed(0)}%</div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Attempt details */}
+                      {test.attempts && test.attempts.length > 0 && (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                          <thead>
+                            <tr style={{ background: 'var(--bo-bg)' }}>
+                              {['Student', 'Score', 'Result', 'Submitted'].map(h => (
+                                <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 10, textTransform: 'uppercase' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {test.attempts.slice(0, 10).map((a, ai) => (
+                              <tr key={ai} style={{ borderTop: '1px solid var(--bo-border)' }}>
+                                <td style={{ padding: '8px 14px', fontWeight: 500 }}>{a.studentName}</td>
+                                <td style={{ padding: '8px 14px', fontWeight: 600, color: scoreColor(a.score) }}>{a.score.toFixed(0)}%</td>
+                                <td style={{ padding: '8px 14px' }}>
+                                  {a.passed
+                                    ? <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#10B981', fontWeight: 600 }}><CheckCircle size={12} /> Passed</span>
+                                    : <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#EF4444', fontWeight: 600 }}><AlertCircle size={12} /> Failed</span>
+                                  }
+                                </td>
+                                <td style={{ padding: '8px 14px', color: 'var(--bo-text-muted)' }}>{new Date(a.submittedAt).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )) : (
+                    <div className="bo-card" style={{ padding: 50, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+                      <Target size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <div>No test data available</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Learning Units Sub-tab */}
+              {detailTab === 'units' && (
+                <div className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  {courseDetail.learningUnits && courseDetail.learningUnits.length > 0 ? (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bo-bg)', borderBottom: '1px solid var(--bo-border)' }}>
+                          {['Step', 'Title', 'Type', 'Mandatory'].map(h => (
+                            <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-secondary)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {courseDetail.learningUnits.map((lu, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--bo-border)' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bo-bg)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ width: 28, height: 28, borderRadius: '50%', background: '#ECFDF5', color: '#059669', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12 }}>
+                                {lu.stepNumber}
+                              </span>
+                            </td>
+                            <td style={{ padding: '10px 14px', fontWeight: 500 }}>{lu.title}</td>
+                            <td style={{ padding: '10px 14px' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: '#EFF6FF', color: '#3B82F6' }}>{lu.type}</span>
+                            </td>
+                            <td style={{ padding: '10px 14px' }}>
+                              {lu.mandatory
+                                ? <span style={{ color: '#EF4444', fontWeight: 600, fontSize: 12 }}>Required</span>
+                                : <span style={{ color: 'var(--bo-text-muted)', fontSize: 12 }}>Optional</span>
+                              }
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ padding: 50, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+                      <FileText size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <div>No learning units configured</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Competencies Sub-tab */}
+              {detailTab === 'competencies' && (
+                <div className="bo-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  {courseDetail.competencies && courseDetail.competencies.length > 0 ? (
+                    <div style={{ display: 'grid', gap: 0 }}>
+                      {courseDetail.competencies.map((comp, i) => (
+                        <div key={i} style={{ padding: '14px 20px', borderBottom: '1px solid var(--bo-border)', display: 'flex', alignItems: 'flex-start', gap: 12 }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bo-bg)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <span style={{ padding: '3px 10px', borderRadius: 8, background: '#ECFDF5', color: '#059669', fontWeight: 700, fontSize: 12, fontFamily: 'monospace', flexShrink: 0 }}>
+                            {comp.code}
+                          </span>
+                          <span style={{ fontSize: 13, color: 'var(--bo-text-secondary)', lineHeight: 1.5 }}>{comp.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: 50, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+                      <Award size={32} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <div>No competencies linked to this course</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bo-card" style={{ padding: 60, textAlign: 'center', color: 'var(--bo-text-muted)' }}>
+              <BookOpen size={40} style={{ opacity: 0.3, marginBottom: 12 }} />
+              <div style={{ fontSize: 15, fontWeight: 500 }}>Failed to load course details</div>
+              <button className="bo-btn bo-btn-outline" onClick={() => { if (selectedCourseId) loadCourseDetail(selectedCourseId); }} style={{ marginTop: 12 }}>Retry</button>
+            </div>
+          )}
+        </div>
+      )}
+    </CollegeLayout>
+  );
+};
+
+export default CourseAnalysis;
