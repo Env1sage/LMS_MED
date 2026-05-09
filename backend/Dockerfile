@@ -13,8 +13,8 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 # Copy package files first (better layer caching)
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
 
 # Copy prisma schema & generate client
 COPY prisma ./prisma/
@@ -34,13 +34,12 @@ RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 
 # Install only production deps
-COPY package.json package-lock.json ./
+COPY package*.json ./
 RUN apk add --no-cache python3 make g++ && \
-    npm ci --omit=dev && \
+    npm install --omit=dev --legacy-peer-deps && \
     apk del python3 make g++
 
-# Copy prisma config and schema (for migrations at startup)
-COPY prisma.config.ts ./
+# Copy prisma schema (for migrations at startup)
 COPY prisma ./prisma/
 RUN npx prisma generate
 
