@@ -34,11 +34,46 @@ export const API_ENDPOINTS = {
   ACTIVITY_TRENDS: '/bitflow-owner/activity-trends',
   CHECK_EXPIRED_CONTRACTS: '/bitflow-owner/check-expired-contracts',
   
-  // Bitflow Owner - Enhanced Analytics (Phase 2)
+  // Bitflow Owner - Enhanced Analytics
   SUBJECT_POPULARITY: '/bitflow-owner/analytics/subject-popularity',
   COURSE_COMPLETION: '/bitflow-owner/analytics/course-completion',
   ASSESSMENT_PARTICIPATION: '/bitflow-owner/analytics/assessment-participation',
-  
-  // Competencies (Phase 2)
+  STUDENT_PROGRESS: '/bitflow-owner/analytics/student-progress',
+  TEACHER_PERFORMANCE: '/bitflow-owner/analytics/teacher-performance',
+  COURSE_PERFORMANCE: '/bitflow-owner/analytics/course-performance',
+  COLLEGE_COMPARISON: '/bitflow-owner/analytics/college-comparison',
+  WEEKLY_SUMMARY: '/bitflow-owner/analytics/weekly-summary',
+  EXPORT_WEEKLY_ACTIVITY: '/bitflow-owner/analytics/export/weekly-activity',
+
+  // Bitflow Owner - Publisher Actions
+  PUBLISHER_RESEND_CREDENTIALS: (id: string) => `/bitflow-owner/publishers/${id}/resend-credentials`,
+  PUBLISHER_RENEW: (id: string) => `/bitflow-owner/publishers/${id}/renew`,
+  PUBLISHER_UPLOAD_LOGO: '/bitflow-owner/upload-logo',
+
+  // Bitflow Owner - College Actions
+  COLLEGE_RESEND_CREDENTIALS: (id: string) => `/bitflow-owner/colleges/${id}/resend-credentials`,
+
+  // Bitflow Owner - Content & MCQs
+  CONTENT: '/bitflow-owner/content',
+  CONTENT_STATS: '/bitflow-owner/content/stats',
+  CONTENT_BY_ID: (id: string) => `/bitflow-owner/content/${id}`,
+  CONTENT_STATUS: (id: string) => `/bitflow-owner/content/${id}/status`,
+  MCQS_LIST: '/bitflow-owner/mcqs',
+  MCQ_BY_ID: (id: string) => `/bitflow-owner/mcqs/${id}`,
+
+  // Bitflow Owner - Misc
+  TEACHER_ASSIGNMENTS: '/bitflow-owner/teacher-assignments',
+  CHECK_EXPIRED_CONTRACTS_POST: '/bitflow-owner/check-expired-contracts',
+
+  // Packages
+  PACKAGES: '/packages',
+  PACKAGE_BY_ID: (id: string) => `/packages/${id}`,
+  PACKAGE_ASSIGNMENTS: '/packages/assignments',
+  PACKAGE_ASSIGNMENTS_ALL: '/packages/assignments/all',
+  PACKAGE_ASSIGNMENT_BY_ID: (id: string) => `/packages/assignments/${id}`,
+
+  // Competencies
   COMPETENCIES: '/competencies',
+  COMPETENCY_SUBJECTS: '/competencies/subjects',
+  COMPETENCY_STATS: '/competencies/stats',
 };

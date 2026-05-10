@@ -116,8 +116,14 @@ const AuditLogs: React.FC = () => {
   const [exportingWeekly, setExportingWeekly] = useState(false);
   const [showExportPreview, setShowExportPreview] = useState(false);
   const [exportPreviewData, setExportPreviewData] = useState<{ headers: string[]; rows: any[] } | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: 'error' | 'info' } | null>(null);
 
   const activeFilterCount = [actionCategory !== 'ALL', roleFilter, publisherFilter, collegeFilter, dateFrom, dateTo].filter(Boolean).length;
+
+  const showToast = (text: string, type: 'error' | 'info' = 'error') => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 5000);
+  };
 
   useEffect(() => { fetchLogs(); }, [page, actionCategory, roleFilter, publisherFilter, collegeFilter, dateFrom, dateTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -191,7 +197,7 @@ const AuditLogs: React.FC = () => {
       setShowWeekly(true);
     } catch (err) {
       console.error('Error fetching weekly summary:', err);
-      alert('Failed to load weekly summary');
+      showToast('Failed to load weekly summary');
     } finally {
       setLoading(false);
     }
@@ -243,7 +249,7 @@ const AuditLogs: React.FC = () => {
       document.body.removeChild(link);
     } catch (err) {
       console.error('Export error:', err);
-      alert('Failed to export weekly report');
+      showToast('Failed to export weekly report');
     } finally {
       setExportingWeekly(false);
     }
@@ -291,7 +297,7 @@ const AuditLogs: React.FC = () => {
       });
       
       if (filteredForExport.length === 0) {
-        alert('No logs found matching the current filters.');
+        showToast('No logs found matching the current filters.', 'info');
         return;
       }
       
@@ -314,7 +320,7 @@ const AuditLogs: React.FC = () => {
       setShowExportPreview(true);
     } catch (err: any) {
       console.error('Export error:', err);
-      alert(`Failed to prepare export data: ${err.message || 'Unknown error'}`);
+      showToast(`Failed to prepare export data: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -443,6 +449,19 @@ const AuditLogs: React.FC = () => {
   return (
     <MainLayout loading={loading} loadingMessage="Loading Activity Logs">
       <div className="bo-page">
+        {toastMsg && (
+          <div style={{
+            padding: '12px 16px', borderRadius: 8, marginBottom: 16, fontSize: 14, fontWeight: 500,
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: toastMsg.type === 'error' ? 'var(--bo-danger-light)' : '#EFF6FF',
+            border: `1px solid ${toastMsg.type === 'error' ? '#FECACA' : '#BFDBFE'}`,
+            color: toastMsg.type === 'error' ? 'var(--bo-danger)' : '#1D4ED8',
+          }}>
+            <AlertTriangle size={16} />
+            {toastMsg.text}
+            <button onClick={() => setToastMsg(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}><X size={14} /></button>
+          </div>
+        )}
         {/* Header */}
         <div className="bo-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>

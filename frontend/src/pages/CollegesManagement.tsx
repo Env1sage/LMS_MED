@@ -10,9 +10,15 @@ import { formatDate } from '../utils/dateUtils';
 interface College {
   id: string;
   name: string;
+  code?: string;
   contactEmail: string;
   contactPhone?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  taluka?: string;
+  pincode?: string;
+  logoUrl?: string;
   maxStudents?: number;
   licenseType?: string;
   status: string;
@@ -173,8 +179,8 @@ const CollegesManagement: React.FC = () => {
   const openEditModal = (col: College) => {
     setEditingCollege(col);
     setForm({
-      name: col.name, code: (col as any).code || '', contactEmail: col.contactEmail, contactPhone: col.contactPhone || '',
-      address: col.address || '', city: (col as any).city || '', state: (col as any).state || '', taluka: (col as any).taluka || '', pincode: (col as any).pincode || '', logoUrl: (col as any).logoUrl || '',
+      name: col.name, code: col.code || '', contactEmail: col.contactEmail, contactPhone: col.contactPhone || '',
+      address: col.address || '', city: col.city || '', state: col.state || '', taluka: col.taluka || '', pincode: col.pincode || '', logoUrl: col.logoUrl || '',
       maxStudents: col.maxStudents?.toString() || '',
       licenseType: col.licenseType || 'STANDARD',
       subscriptionStartDate: col.subscriptionStartDate ? col.subscriptionStartDate.split('T')[0] : '',
@@ -183,7 +189,7 @@ const CollegesManagement: React.FC = () => {
       ownerName: '', ownerPassword: ''
     });
     setLogoFile(null);
-    setLogoPreview((col as any).logoUrl || '');
+    setLogoPreview(col.logoUrl || '');
     setError('');
     setFieldErrors({});
     setShowModal(true);
@@ -489,8 +495,8 @@ const CollegesManagement: React.FC = () => {
                     <tr key={col.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          {(col as any).logoUrl ? (
-                            <img src={(col as any).logoUrl} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain', border: '1px solid var(--bo-border)', background: '#f8faff', flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          {col.logoUrl ? (
+                            <img src={col.logoUrl} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain', border: '1px solid var(--bo-border)', background: '#f8faff', flexShrink: 0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                           ) : (
                             <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#fff', fontWeight: 700, fontSize: 15 }}>{col.name?.[0]?.toUpperCase()}</div>
                           )}

@@ -20,8 +20,9 @@ import {
 class BitflowOwnerService {
   // Publisher Management
   async getAllPublishers(): Promise<Publisher[]> {
-    const response = await apiService.get<Publisher[]>(API_ENDPOINTS.PUBLISHERS);
-    return response.data;
+    const response = await apiService.get(API_ENDPOINTS.PUBLISHERS);
+    const raw = response.data;
+    return Array.isArray(raw) ? raw : (raw?.publishers || raw?.data || []);
   }
 
   async getPublisherById(id: string): Promise<Publisher> {
@@ -56,8 +57,9 @@ class BitflowOwnerService {
 
   // College Management
   async getAllColleges(): Promise<College[]> {
-    const response = await apiService.get<College[]>(API_ENDPOINTS.COLLEGES);
-    return response.data;
+    const response = await apiService.get(API_ENDPOINTS.COLLEGES);
+    const raw = response.data;
+    return Array.isArray(raw) ? raw : (raw?.colleges || raw?.data || []);
   }
 
   async getCollegeById(id: string): Promise<College> {
@@ -306,8 +308,18 @@ class BitflowOwnerService {
     page?: number;
     limit?: number;
   }): Promise<McqListResponse> {
-    const response = await apiService.get<McqListResponse>('/bitflow-owner/mcqs', { params });
-    return response.data;
+    const response = await apiService.get('/bitflow-owner/mcqs', { params });
+    const raw = response.data;
+    if (raw?.data && raw?.meta) return raw as McqListResponse;
+    return {
+      data: raw?.mcqs || raw?.data || [],
+      meta: {
+        total: raw?.total ?? raw?.meta?.total ?? 0,
+        page: raw?.page ?? raw?.meta?.page ?? 1,
+        limit: raw?.limit ?? raw?.meta?.limit ?? 20,
+        totalPages: raw?.totalPages ?? raw?.meta?.totalPages ?? 0,
+      },
+    };
   }
 
   async getMcqById(id: string): Promise<McqItem> {
