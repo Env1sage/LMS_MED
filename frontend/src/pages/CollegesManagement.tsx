@@ -60,6 +60,7 @@ const CollegesManagement: React.FC = () => {
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void; danger?: boolean }>({ open: false, title: '', message: '', onConfirm: () => {} });
   const [resendModal, setResendModal] = useState<{ open: boolean; collegeId: string; collegeName: string } | null>(null);
   const [resendingSending, setResendingSending] = useState(false);
+  const [resendModalError, setResendModalError] = useState('');
 
   const [form, setForm] = useState({
     name: '', code: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '',
@@ -329,23 +330,33 @@ const CollegesManagement: React.FC = () => {
   const handleResendConfirm = async (target: 'IT_ADMIN' | 'DEAN' | 'BOTH') => {
     if (!resendModal) return;
     setResendingSending(true);
+    setResendModalError('');
     try {
       const { collegeId } = resendModal;
       if (target === 'BOTH') {
-        await Promise.all([
-          handleResendCredentials(collegeId, 'IT_ADMIN'),
-          handleResendCredentials(collegeId, 'DEAN'),
-        ]);
-        setSuccessMsg('Credentials sent to IT Admin and College Dean');
+        // Send both independently — if Dean doesn't exist, still send IT Admin
+        let itAdminOk = false, deanOk = false, deanErr = '';
+        try { await handleResendCredentials(collegeId, 'IT_ADMIN'); itAdminOk = true; } catch {}
+        try { await handleResendCredentials(collegeId, 'DEAN'); deanOk = true; } catch (e: any) {
+          deanErr = e.response?.data?.message || 'No Dean account found';
+        }
+        if (itAdminOk && deanOk) {
+          setSuccessMsg('Credentials sent to IT Admin and College Dean');
+          setResendModal(null);
+          setTimeout(() => setSuccessMsg(''), 3000);
+        } else if (itAdminOk && !deanOk) {
+          setResendModalError(`IT Admin credentials sent. Dean: ${deanErr}. Create a Dean account first to send Dean credentials.`);
+        } else {
+          setResendModalError('Failed to send credentials. Please try again.');
+        }
       } else {
         await handleResendCredentials(collegeId, target);
         setSuccessMsg(`Credentials sent to ${target === 'IT_ADMIN' ? 'IT Admin' : 'College Dean'}`);
+        setResendModal(null);
+        setTimeout(() => setSuccessMsg(''), 3000);
       }
-      setResendModal(null);
-      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to resend credentials');
-      setTimeout(() => setError(''), 3000);
+      setResendModalError(err.response?.data?.message || 'Failed to resend credentials');
     } finally {
       setResendingSending(false);
     }
@@ -1049,15 +1060,20 @@ const CollegesManagement: React.FC = () => {
 
         {/* Resend Credentials Modal */}
         {resendModal?.open && (
-          <div className="bo-modal-overlay" onClick={() => !resendingSending && setResendModal(null)}>
+          <div className="bo-modal-overlay" onClick={() => { if (!resendingSending) { setResendModal(null); setResendModalError(''); } }}>
             <div className="bo-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
               <div className="bo-modal-header">
                 <h3 className="bo-modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Mail size={18} style={{ color: 'var(--bo-primary)' }} /> Resend Credentials
                 </h3>
-                <button className="bo-modal-close" onClick={() => !resendingSending && setResendModal(null)}><X size={20} /></button>
+                <button className="bo-modal-close" onClick={() => { if (!resendingSending) { setResendModal(null); setResendModalError(''); } }}><X size={20} /></button>
               </div>
               <div className="bo-modal-body">
+                {resendModalError && (
+                  <div style={{ padding: '10px 14px', background: '#FEF3C7', color: '#92400E', borderRadius: 8, marginBottom: 16, fontSize: 13, border: '1px solid #FDE68A', lineHeight: 1.5 }}>
+                    ⚠️ {resendModalError}
+                  </div>
+                )}
                 <p style={{ marginBottom: 20, color: 'var(--bo-text-secondary)', fontSize: 14 }}>
                   Send login credentials for <strong>{resendModal.collegeName}</strong> to:
                 </p>
@@ -1107,7 +1123,7 @@ const CollegesManagement: React.FC = () => {
                 </div>
               </div>
               <div className="bo-modal-footer">
-                <button className="bo-btn bo-btn-secondary" onClick={() => setResendModal(null)} disabled={resendingSending}>Cancel</button>
+                <button className="bo-btn bo-btn-secondary" onClick={() => { setResendModal(null); setResendModalError(''); }} disabled={resendingSending}>Cancel</button>
               </div>
             </div>
           </div>

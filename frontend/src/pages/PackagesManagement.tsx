@@ -872,19 +872,31 @@ const PackagesManagement: React.FC = () => {
                         <ChevronDown size={16} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--bo-text-muted)' }} />
                       </div>
                       {subjectsDropdownOpen && (
-                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid var(--bo-border)', borderRadius: 8, boxShadow: 'var(--bo-shadow-md)', zIndex: 50, maxHeight: 200, overflowY: 'auto', marginTop: 4 }}>
-                          {AVAILABLE_SUBJECTS.map(s => (
-                            <div key={s} onClick={() => toggleSubject(s)}
-                              style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: form.subjects.includes(s) ? 'var(--bo-accent-light)' : 'transparent', transition: 'background 0.15s' }}
-                              onMouseEnter={e => { if (!form.subjects.includes(s)) (e.target as HTMLElement).style.background = '#F3F4F6'; }}
-                              onMouseLeave={e => { if (!form.subjects.includes(s)) (e.target as HTMLElement).style.background = 'transparent'; }}
-                            >
-                              <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${form.subjects.includes(s) ? 'var(--bo-accent)' : '#D1D5DB'}`, background: form.subjects.includes(s) ? 'var(--bo-accent)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {form.subjects.includes(s) && <CheckCircle size={10} style={{ color: '#fff' }} />}
+                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid var(--bo-border)', borderRadius: 8, boxShadow: 'var(--bo-shadow-md)', zIndex: 50, marginTop: 4 }}>
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {AVAILABLE_SUBJECTS.map(s => (
+                              <div key={s} onClick={() => toggleSubject(s)}
+                                style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: form.subjects.includes(s) ? 'var(--bo-accent-light)' : 'transparent', transition: 'background 0.15s' }}
+                                onMouseEnter={e => { if (!form.subjects.includes(s)) (e.currentTarget as HTMLElement).style.background = '#F3F4F6'; }}
+                                onMouseLeave={e => { if (!form.subjects.includes(s)) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                              >
+                                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${form.subjects.includes(s) ? 'var(--bo-accent)' : '#D1D5DB'}`, background: form.subjects.includes(s) ? 'var(--bo-accent)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  {form.subjects.includes(s) && <CheckCircle size={10} style={{ color: '#fff' }} />}
+                                </div>
+                                {s}
                               </div>
-                              {s}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                          <div style={{ padding: '8px 12px', borderTop: '1px solid var(--bo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>{form.subjects.length} selected</span>
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setSubjectsDropdownOpen(false); }}
+                              style={{ padding: '4px 14px', background: 'var(--bo-accent)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              Add
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
