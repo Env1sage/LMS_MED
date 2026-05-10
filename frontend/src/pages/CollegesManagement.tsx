@@ -58,6 +58,8 @@ const CollegesManagement: React.FC = () => {
   const [publishers, setPublishers] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void; danger?: boolean }>({ open: false, title: '', message: '', onConfirm: () => {} });
+  const [resendModal, setResendModal] = useState<{ open: boolean; collegeId: string; collegeName: string } | null>(null);
+  const [resendingSending, setResendingSending] = useState(false);
 
   const [form, setForm] = useState({
     name: '', code: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '',
@@ -321,13 +323,31 @@ const CollegesManagement: React.FC = () => {
   };
 
   const handleResendCredentials = async (id: string, role: 'IT_ADMIN' | 'DEAN') => {
+    await apiService.post(`/bitflow-owner/colleges/${id}/resend-credentials`, { role });
+  };
+
+  const handleResendConfirm = async (target: 'IT_ADMIN' | 'DEAN' | 'BOTH') => {
+    if (!resendModal) return;
+    setResendingSending(true);
     try {
-      await apiService.post(`/bitflow-owner/colleges/${id}/resend-credentials`, { role });
-      setSuccessMsg(`Credentials for ${role.replace('_', ' ')} resent successfully`);
+      const { collegeId } = resendModal;
+      if (target === 'BOTH') {
+        await Promise.all([
+          handleResendCredentials(collegeId, 'IT_ADMIN'),
+          handleResendCredentials(collegeId, 'DEAN'),
+        ]);
+        setSuccessMsg('Credentials sent to IT Admin and College Dean');
+      } else {
+        await handleResendCredentials(collegeId, target);
+        setSuccessMsg(`Credentials sent to ${target === 'IT_ADMIN' ? 'IT Admin' : 'College Dean'}`);
+      }
+      setResendModal(null);
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to resend credentials');
       setTimeout(() => setError(''), 3000);
+    } finally {
+      setResendingSending(false);
     }
   };
 
@@ -550,7 +570,7 @@ const CollegesManagement: React.FC = () => {
                             <button className="bo-btn bo-btn-success bo-btn-sm" style={{ minWidth: 95, display: 'inline-flex', justifyContent: 'center' }} onClick={() => handleStatusChange(col.id, 'ACTIVE')}>Allow</button>
                           )}
                           <button className="bo-btn bo-btn-primary bo-btn-sm" title="Assign Content" onClick={() => openBulkAssignModal(col)}>Assign</button>
-                          <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Resend IT Admin Credentials" onClick={() => handleResendCredentials(col.id, 'IT_ADMIN')}><Mail size={15} /></button>
+                          <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Resend Credentials" onClick={() => setResendModal({ open: true, collegeId: col.id, collegeName: col.name })}><Mail size={15} /></button>
                           <button className="bo-btn bo-btn-ghost bo-btn-sm" title="Delete College" style={{ color: 'var(--bo-danger)' }} onClick={() => handleDeleteCollege(col.id, col.name)}><Trash2 size={15} /></button>
                         </div>
                       </td>
@@ -1026,6 +1046,72 @@ const CollegesManagement: React.FC = () => {
           onConfirm={confirmModal.onConfirm}
           onCancel={() => setConfirmModal(m => ({ ...m, open: false }))}
         />
+
+        {/* Resend Credentials Modal */}
+        {resendModal?.open && (
+          <div className="bo-modal-overlay" onClick={() => !resendingSending && setResendModal(null)}>
+            <div className="bo-modal" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+              <div className="bo-modal-header">
+                <h3 className="bo-modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Mail size={18} style={{ color: 'var(--bo-primary)' }} /> Resend Credentials
+                </h3>
+                <button className="bo-modal-close" onClick={() => !resendingSending && setResendModal(null)}><X size={20} /></button>
+              </div>
+              <div className="bo-modal-body">
+                <p style={{ marginBottom: 20, color: 'var(--bo-text-secondary)', fontSize: 14 }}>
+                  Send login credentials for <strong>{resendModal.collegeName}</strong> to:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button
+                    className="bo-btn bo-btn-secondary"
+                    style={{ justifyContent: 'flex-start', gap: 12, padding: '14px 16px', textAlign: 'left' }}
+                    onClick={() => handleResendConfirm('IT_ADMIN')}
+                    disabled={resendingSending}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Mail size={17} style={{ color: '#2563EB' }} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--bo-text-primary)' }}>IT Admin</div>
+                      <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginTop: 2 }}>College Admin account credentials</div>
+                    </div>
+                  </button>
+                  <button
+                    className="bo-btn bo-btn-secondary"
+                    style={{ justifyContent: 'flex-start', gap: 12, padding: '14px 16px', textAlign: 'left' }}
+                    onClick={() => handleResendConfirm('DEAN')}
+                    disabled={resendingSending}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Mail size={17} style={{ color: '#16A34A' }} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--bo-text-primary)' }}>College Dean</div>
+                      <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginTop: 2 }}>Dean account credentials</div>
+                    </div>
+                  </button>
+                  <button
+                    className="bo-btn bo-btn-primary"
+                    style={{ justifyContent: 'flex-start', gap: 12, padding: '14px 16px', textAlign: 'left' }}
+                    onClick={() => handleResendConfirm('BOTH')}
+                    disabled={resendingSending}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Mail size={17} style={{ color: '#fff' }} />
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#fff' }}>Both (IT Admin + Dean)</div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>Send to both accounts at once</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+              <div className="bo-modal-footer">
+                <button className="bo-btn bo-btn-secondary" onClick={() => setResendModal(null)} disabled={resendingSending}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );
