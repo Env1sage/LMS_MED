@@ -224,7 +224,7 @@ const PublishersManagement: React.FC = () => {
   const handleRenewConfirm = async () => {
     if (!renewDate) { setError('Please select a date'); setTimeout(() => setError(''), 3000); return; }
     try {
-      await apiService.post(`/bitflow-owner/publishers/${renewModal.publisherId}/renew`, { newEndDate: renewDate });
+      await apiService.put(`/bitflow-owner/publishers/${renewModal.publisherId}`, { contractEndDate: renewDate });
       setSuccessMsg(`Contract renewed to ${formatDate(renewDate)}`);
       setRenewModal({ open: false, publisherId: '', name: '', currentEnd: '' });
       fetchPublishers();

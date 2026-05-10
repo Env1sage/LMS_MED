@@ -175,7 +175,8 @@ const McqManagement: React.FC = () => {
       await mcqService.delete(id);
       loadMcqs();
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Failed to delete');
+      setListError(err?.response?.data?.message || 'Failed to delete MCQ');
+      setTimeout(() => setListError(null), 4000);
     } finally {
       setActionLoading(null);
     }

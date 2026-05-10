@@ -172,12 +172,12 @@ const EditCourse: React.FC = () => {
     e.preventDefault();
     
     if (course?.status === 'PUBLISHED') {
-      alert('Cannot modify learning flow of published courses');
+      setError('Cannot modify learning flow of published courses');
       return;
     }
 
     if (learningFlowSteps.length === 0) {
-      alert('Please add at least one learning unit to the flow');
+      setError('Please add at least one learning unit to the flow');
       return;
     }
 
@@ -191,10 +191,9 @@ const EditCourse: React.FC = () => {
       };
 
       await courseService.update(id!, updateData);
-      alert('Course updated successfully');
       navigate('/faculty');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update course');
+      setError(err.response?.data?.message || 'Failed to update course');
     }
   };
 

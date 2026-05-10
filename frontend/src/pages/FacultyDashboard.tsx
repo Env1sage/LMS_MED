@@ -26,6 +26,9 @@ const FacultyDashboard: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const showSuccess = (msg: string) => { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(null), 4000); };
+  const showError = (msg: string) => { setError(msg); setTimeout(() => setError(null), 5000); };
   const [filters, setFilters] = useState({
     status: '',
     academicYear: '',
@@ -115,9 +118,9 @@ const FacultyDashboard: React.FC = () => {
     try {
       await courseService.publish(courseId);
       loadData();
-      alert('Course published successfully!');
+      showSuccess('Course published successfully!');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to publish course');
+      showError(err.response?.data?.message || 'Failed to publish course');
     }
   };
 
@@ -129,9 +132,9 @@ const FacultyDashboard: React.FC = () => {
     try {
       await courseService.delete(courseId);
       loadData();
-      alert('Course deleted successfully!');
+      showSuccess('Course deleted successfully!');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete course');
+      showError(err.response?.data?.message || 'Failed to delete course');
     }
   };
 
@@ -204,6 +207,12 @@ const FacultyDashboard: React.FC = () => {
           onClose={() => setShowProfileModal(false)}
         />
 
+        {successMsg && (
+          <div className="alert alert-success">
+            {successMsg}
+            <button onClick={() => setSuccessMsg(null)}>×</button>
+          </div>
+        )}
         {error && (
           <div className="alert alert-danger">
             {error}
