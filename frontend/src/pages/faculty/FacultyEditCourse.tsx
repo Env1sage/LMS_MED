@@ -101,16 +101,15 @@ const FacultyEditCourse: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (courseStatus === 'PUBLISHED') { alert('Cannot modify published courses'); return; }
+    if (courseStatus === 'PUBLISHED') { setError('Cannot modify published courses'); return; }
     if (steps.length === 0) { setError('Add at least one learning unit'); return; }
     try {
       setSaving(true);
       const updateData: UpdateCourseData = { ...formData, learningFlowSteps: steps };
       await courseService.update(id!, updateData);
-      alert('Course updated successfully!');
       navigate('/faculty/courses');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to update course');
+      setError(err.response?.data?.message || 'Failed to update course');
     } finally {
       setSaving(false);
     }

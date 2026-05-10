@@ -38,7 +38,8 @@ const FacultyMyCourses: React.FC = () => {
       await courseService.publish(id);
       loadCourses();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to publish');
+      setError(err.response?.data?.message || 'Failed to publish');
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -48,7 +49,8 @@ const FacultyMyCourses: React.FC = () => {
       await courseService.delete(id);
       loadCourses();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete');
+      setError(err.response?.data?.message || 'Failed to delete');
+      setTimeout(() => setError(''), 5000);
     }
   };
 
