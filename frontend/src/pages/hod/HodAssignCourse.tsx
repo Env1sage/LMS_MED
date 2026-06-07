@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import FacultyLayout from '../../components/faculty/FacultyLayout';
+import HodLayout from '../../components/hod/HodLayout';
 import { courseService, AssignCourseData } from '../../services/course.service';
 import { studentService } from '../../services/student.service';
-import { ArrowLeft, Search, Users, Send } from 'lucide-react';
+import { ArrowLeft, Search, Send } from 'lucide-react';
 import '../../styles/bitflow-owner.css';
 import '../../styles/loading-screen.css';
 
-const ACCENT = '#7C3AED';
+const ACCENT = '#2563EB';
 
-const FacultyAssignCourse: React.FC = () => {
+const YEAR_LABELS: Record<string, string> = {
+  YEAR_1: 'Year 1', YEAR_2: 'Year 2',
+  YEAR_3_PART1: 'Year 3 Part 1', YEAR_3_PART2: 'Year 3 Part 2',
+  INTERNSHIP: 'Internship',
+  FIRST_YEAR: 'Year 1', SECOND_YEAR: 'Year 2',
+  YEAR_3_MINOR: 'Year 3 Part 1', YEAR_3_MAJOR: 'Year 3 Part 2',
+  THIRD_YEAR: 'Year 3 Part 1', FOURTH_YEAR: 'Year 3 Part 2', FIFTH_YEAR: 'Internship',
+  PART_1: 'Year 3 Part 1', PART_2: 'Year 3 Part 2',
+  YEAR_3: 'Year 3 Part 1', YEAR_4: 'Year 3 Part 2', YEAR_5: 'Internship',
+};
+
+const HodAssignCourse: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
@@ -31,13 +42,11 @@ const FacultyAssignCourse: React.FC = () => {
       const courseData = await courseService.getById(id!);
       setCourse(courseData);
       if (courseData.status !== 'PUBLISHED') {
-        setError('Only published courses can be assigned');
+        setError('Only published courses can be assigned. Please publish this course first from My Courses.');
         return;
       }
       const studentsData = await studentService.getAll({ status: 'ACTIVE', page: 1, limit: 500 });
-      // Show all active students in the faculty's college
-      const allStudents = studentsData.data || [];
-      setStudents(allStudents);
+      setStudents(studentsData.data || []);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load data');
     } finally {
@@ -48,7 +57,11 @@ const FacultyAssignCourse: React.FC = () => {
   const filtered = students.filter(s => {
     if (!search) return true;
     const term = search.toLowerCase();
-    return s.fullName?.toLowerCase().includes(term) || s.user?.email?.toLowerCase().includes(term) || s.currentAcademicYear?.toLowerCase().includes(term);
+    return (
+      s.fullName?.toLowerCase().includes(term) ||
+      s.user?.email?.toLowerCase().includes(term) ||
+      s.currentAcademicYear?.toLowerCase().includes(term)
+    );
   });
 
   const toggleAll = () => {
@@ -68,7 +81,7 @@ const FacultyAssignCourse: React.FC = () => {
       setError('');
       await courseService.assign({ courseId: id!, studentIds: selected, assignmentType, dueDate: dueDate || undefined });
       setSubmitSuccess(`Course assigned to ${selected.length} student(s) successfully!`);
-      setTimeout(() => navigate('/faculty/courses'), 1500);
+      setTimeout(() => navigate('/hod/courses'), 1500);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to assign course');
     } finally {
@@ -77,7 +90,7 @@ const FacultyAssignCourse: React.FC = () => {
   };
 
   if (loading) return (
-    <FacultyLayout>
+    <HodLayout>
       <div className="page-loading-screen">
         <div className="loading-rings">
           <div className="loading-ring loading-ring-1"></div>
@@ -90,28 +103,28 @@ const FacultyAssignCourse: React.FC = () => {
           <div className="loading-dot"></div>
         </div>
         <div className="loading-title">Loading Assignment...</div>
-        <div className="loading-bar-track">
-          <div className="loading-bar-fill"></div>
-        </div>
+        <div className="loading-bar-track"><div className="loading-bar-fill"></div></div>
       </div>
-    </FacultyLayout>
+    </HodLayout>
   );
 
   if (error) {
     return (
-      <FacultyLayout>
+      <HodLayout>
         <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
           <p style={{ color: '#DC2626', marginBottom: 16 }}>{error}</p>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Back to Courses</button>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/hod/courses')}>Back to My Courses</button>
         </div>
-      </FacultyLayout>
+      </HodLayout>
     );
   }
 
   return (
-    <FacultyLayout>
+    <HodLayout>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate(`/faculty/courses/${id}`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate('/hod/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>
+          <ArrowLeft size={18} />
+        </button>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)', margin: 0 }}>Assign Course</h1>
           <p style={{ color: 'var(--bo-text-secondary)', fontSize: 14, margin: '4px 0 0' }}>{course?.title}</p>
@@ -122,7 +135,7 @@ const FacultyAssignCourse: React.FC = () => {
         {/* Course Info */}
         <div className="bo-card" style={{ padding: 20, marginBottom: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
           <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>Course</div><div style={{ fontWeight: 600, fontSize: 14 }}>{course?.title}</div></div>
-          <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>Academic Year</div><div style={{ fontWeight: 600, fontSize: 14 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[course?.academicYear || ''] || course?.academicYear?.replace(/_/g, ' ')}</div></div>
+          <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>Academic Year</div><div style={{ fontWeight: 600, fontSize: 14 }}>{YEAR_LABELS[course?.academicYear || ''] || course?.academicYear?.replace(/_/g, ' ')}</div></div>
           <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>Steps</div><div style={{ fontWeight: 600, fontSize: 14 }}>{course?.learning_flow_steps?.length || 0} units</div></div>
           <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>Status</div><div style={{ fontWeight: 600, fontSize: 14, color: '#10B981' }}>PUBLISHED</div></div>
         </div>
@@ -144,7 +157,13 @@ const FacultyAssignCourse: React.FC = () => {
             </div>
             <div>
               <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--bo-text-secondary)', display: 'block', marginBottom: 6 }}>Due Date (Optional)</label>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} min={new Date().toISOString().split('T')[0]} style={{ padding: '8px 12px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+              <input
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                style={{ padding: '8px 12px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }}
+              />
             </div>
           </div>
         </div>
@@ -154,9 +173,7 @@ const FacultyAssignCourse: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Select Students</h3>
-              <p style={{ fontSize: 12, color: 'var(--bo-text-muted)', margin: '4px 0 0' }}>
-                Showing all active students in your college
-              </p>
+              <p style={{ fontSize: 12, color: 'var(--bo-text-muted)', margin: '4px 0 0' }}>Showing all active students in your college</p>
             </div>
             <span style={{ fontSize: 13, color: ACCENT, fontWeight: 600 }}>{selected.length} of {filtered.length} selected</span>
           </div>
@@ -164,7 +181,12 @@ const FacultyAssignCourse: React.FC = () => {
           <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
             <div style={{ position: 'relative', flex: 1 }}>
               <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--bo-text-muted)' }} />
-              <input placeholder="Search students..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: '100%', padding: '8px 12px 8px 36px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+              <input
+                placeholder="Search students..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px 8px 36px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none' }}
+              />
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 14, whiteSpace: 'nowrap' }}>
               <input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={toggleAll} />
@@ -188,11 +210,15 @@ const FacultyAssignCourse: React.FC = () => {
                 </thead>
                 <tbody>
                   {filtered.map(s => (
-                    <tr key={s.id} style={{ borderBottom: '1px solid var(--bo-border)', cursor: 'pointer', background: selected.includes(s.id) ? '#F5F3FF' : 'transparent' }} onClick={() => toggleStudent(s.id)}>
+                    <tr
+                      key={s.id}
+                      style={{ borderBottom: '1px solid var(--bo-border)', cursor: 'pointer', background: selected.includes(s.id) ? '#EFF6FF' : 'transparent' }}
+                      onClick={() => toggleStudent(s.id)}
+                    >
                       <td style={{ padding: '10px 12px' }}><input type="checkbox" checked={selected.includes(s.id)} onChange={() => {}} /></td>
                       <td style={{ padding: '10px 12px', fontWeight: 500 }}>{s.fullName}</td>
                       <td style={{ padding: '10px 12px', color: 'var(--bo-text-secondary)' }}>{s.user?.email || 'N/A'}</td>
-                      <td style={{ padding: '10px 12px' }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[s.currentAcademicYear] || s.currentAcademicYear?.replace(/_/g, ' ')}</td>
+                      <td style={{ padding: '10px 12px' }}>{YEAR_LABELS[s.currentAcademicYear] || s.currentAcademicYear?.replace(/_/g, ' ')}</td>
                       <td style={{ padding: '10px 12px' }}>{s.yearOfAdmission}</td>
                     </tr>
                   ))}
@@ -202,20 +228,23 @@ const FacultyAssignCourse: React.FC = () => {
           )}
         </div>
 
-        {/* Feedback */}
         {error && <div style={{ padding: '12px 16px', background: '#FEF2F2', color: '#DC2626', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{error}</div>}
         {submitSuccess && <div style={{ padding: '12px 16px', background: '#F0FDF4', color: '#16A34A', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{submitSuccess}</div>}
 
-        {/* Submit */}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate(`/faculty/courses/${id}`)}>Cancel</button>
-          <button type="submit" className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} disabled={selected.length === 0 || submitting}>
+          <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate('/hod/courses')}>Cancel</button>
+          <button
+            type="submit"
+            className="bo-btn bo-btn-primary"
+            style={{ background: ACCENT, borderColor: ACCENT }}
+            disabled={selected.length === 0 || submitting}
+          >
             <Send size={16} /> {submitting ? 'Assigning...' : `Assign to ${selected.length} Student(s)`}
           </button>
         </div>
       </form>
-    </FacultyLayout>
+    </HodLayout>
   );
 };
 
-export default FacultyAssignCourse;
+export default HodAssignCourse;

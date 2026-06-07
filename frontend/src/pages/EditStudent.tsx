@@ -15,7 +15,7 @@ const EditStudent: React.FC = () => {
     email: '',
     yearOfAdmission: new Date().getFullYear(),
     expectedPassingYear: new Date().getFullYear() + 5,
-    currentAcademicYear: 'FIRST_YEAR',
+    currentAcademicYear: 'YEAR_1',
     status: 'ACTIVE',
   });
 
@@ -180,10 +180,10 @@ const EditStudent: React.FC = () => {
               onChange={handleChange}
               required
             >
-              <option value="FIRST_YEAR">First Year</option>
-              <option value="SECOND_YEAR">Second Year</option>
-              <option value="YEAR_3_PART1">Third Year (Part1)</option>
-              <option value="YEAR_3_PART2">Third Year (Part2)</option>
+              <option value="YEAR_1">Year 1</option>
+              <option value="YEAR_2">Year 2</option>
+              <option value="YEAR_3_PART1">Year 3 Part 1</option>
+              <option value="YEAR_3_PART2">Year 3 Part 2</option>
               <option value="INTERNSHIP">Internship</option>
             </select>
           </div>

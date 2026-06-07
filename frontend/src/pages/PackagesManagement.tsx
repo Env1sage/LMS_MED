@@ -925,18 +925,30 @@ const PackagesManagement: React.FC = () => {
                       </div>
                       {contentTypesDropdownOpen && (
                         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid var(--bo-border)', borderRadius: 8, boxShadow: 'var(--bo-shadow-md)', zIndex: 50, marginTop: 4 }}>
-                          {AVAILABLE_CONTENT_TYPES.map(ct => (
-                            <div key={ct.value} onClick={() => toggleContentType(ct.value)}
-                              style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: form.contentTypes.includes(ct.value) ? '#EDE9FE' : 'transparent', transition: 'background 0.15s' }}
-                              onMouseEnter={e => { if (!form.contentTypes.includes(ct.value)) (e.target as HTMLElement).style.background = '#F3F4F6'; }}
-                              onMouseLeave={e => { if (!form.contentTypes.includes(ct.value)) (e.target as HTMLElement).style.background = 'transparent'; }}
-                            >
-                              <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${form.contentTypes.includes(ct.value) ? '#7C3AED' : '#D1D5DB'}`, background: form.contentTypes.includes(ct.value) ? '#7C3AED' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {form.contentTypes.includes(ct.value) && <CheckCircle size={10} style={{ color: '#fff' }} />}
+                          <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {AVAILABLE_CONTENT_TYPES.map(ct => (
+                              <div key={ct.value} onClick={() => toggleContentType(ct.value)}
+                                style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: form.contentTypes.includes(ct.value) ? '#EDE9FE' : 'transparent', transition: 'background 0.15s' }}
+                                onMouseEnter={e => { if (!form.contentTypes.includes(ct.value)) (e.currentTarget as HTMLElement).style.background = '#F3F4F6'; }}
+                                onMouseLeave={e => { if (!form.contentTypes.includes(ct.value)) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                              >
+                                <div style={{ width: 16, height: 16, borderRadius: 4, border: `2px solid ${form.contentTypes.includes(ct.value) ? '#7C3AED' : '#D1D5DB'}`, background: form.contentTypes.includes(ct.value) ? '#7C3AED' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  {form.contentTypes.includes(ct.value) && <CheckCircle size={10} style={{ color: '#fff' }} />}
+                                </div>
+                                {ct.label}
                               </div>
-                              {ct.label}
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                          <div style={{ padding: '8px 12px', borderTop: '1px solid var(--bo-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>{form.contentTypes.length} selected</span>
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); setContentTypesDropdownOpen(false); }}
+                              style={{ padding: '4px 14px', background: '#7C3AED', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              Done
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

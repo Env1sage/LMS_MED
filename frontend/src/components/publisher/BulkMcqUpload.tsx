@@ -99,9 +99,10 @@ interface McqRow {
 
 interface BulkMcqUploadProps {
   onSuccess?: () => void;
+  uploadFn?: (file: File) => Promise<{ success: number; failed: number; errors: string[] }>;
 }
 
-const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
+const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess, uploadFn }) => {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => String(currentYear - i));
 
@@ -324,7 +325,7 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
     if (!file) { setError('Please select a file first'); return; }
     setUploading(true); setError(''); setResult(null);
     try {
-      const data = await mcqService.bulkUpload(file);
+      const data = await (uploadFn ? uploadFn(file) : mcqService.bulkUpload(file));
       setResult(data);
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -356,7 +357,7 @@ const BulkMcqUpload: React.FC<BulkMcqUploadProps> = ({ onSuccess }) => {
 
     setUploading(true);
     try {
-      const data = await mcqService.bulkUpload(csvFile);
+      const data = await (uploadFn ? uploadFn(csvFile) : mcqService.bulkUpload(csvFile));
       setResult(data);
       if (data.success > 0 && onSuccess) onSuccess();
       if (data.failed === 0) setRows([createEmptyRow()]);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { facultyAnalyticsService, StudentProgressDetail } from '../../services/faculty-analytics.service';
 import { ArrowLeft, Clock, CheckCircle, Lock } from 'lucide-react';
@@ -12,6 +13,8 @@ const ACCENT = '#7C3AED';
 const FacultyStudentProgress: React.FC = () => {
   const navigate = useNavigate();
   const { courseId, studentId } = useParams<{ courseId: string; studentId: string }>();
+  const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [data, setData] = useState<StudentProgressDetail | null>(null);
@@ -76,7 +79,7 @@ const FacultyStudentProgress: React.FC = () => {
       <FacultyLayout>
         <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
           <p style={{ color: '#DC2626', marginBottom: 16 }}>{error || 'No data'}</p>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/faculty/courses/${courseId}/tracking`)}>Back to Tracking</button>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${courseId}/tracking`)}>Back to Tracking</button>
         </div>
       </FacultyLayout>
     );
@@ -85,7 +88,7 @@ const FacultyStudentProgress: React.FC = () => {
   return (
     <FacultyLayout>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate(`/faculty/courses/${courseId}/tracking`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${courseId}/tracking`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)', margin: 0 }}>Student Progress</h1>
           <p style={{ color: 'var(--bo-text-secondary)', fontSize: 14, margin: '4px 0 0' }}>{data.student.fullName}</p>

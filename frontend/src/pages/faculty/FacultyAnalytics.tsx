@@ -521,7 +521,7 @@ const FacultyAnalytics: React.FC = () => {
                                   </div>
                                 </div>
                               </td>
-                              <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--bo-text-secondary)' }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3':'Year 3','YEAR_3_PART1':'Year 3 (Part 1)','YEAR_3_PART2':'Year 3 (Part 2)','YEAR_4':'Year 4','YEAR_5':'Year 5','FIRST_YEAR':'1st Year','SECOND_YEAR':'2nd Year','THIRD_YEAR':'3rd Year','FOURTH_YEAR':'4th Year','FIFTH_YEAR':'5th Year','INTERNSHIP':'Internship','PART_1':'Part 1','PART_2':'Part 2'} as Record<string,string>)[s.academicYear] || s.academicYear?.replace(/_/g, ' ') || '—'}</td>
+                              <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--bo-text-secondary)' }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[s.academicYear] || s.academicYear?.replace(/_/g, ' ') || '—'}</td>
                               <td style={{ padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: ACCENT }}>{s.coursesEnrolled || 0}</td>
                               <td style={{ padding: '12px 14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -619,7 +619,7 @@ const FacultyAnalytics: React.FC = () => {
                 </button>
                 <div style={{ flex: 1 }}>
                   <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--bo-text-primary)' }}>{ca.courseTitle}</h2>
-                  <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', margin: '2px 0 0' }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3':'Year 3','YEAR_3_PART1':'Year 3 (Part 1)','YEAR_3_PART2':'Year 3 (Part 2)','YEAR_4':'Year 4','YEAR_5':'Year 5','FIRST_YEAR':'1st Year','SECOND_YEAR':'2nd Year','THIRD_YEAR':'3rd Year','FOURTH_YEAR':'4th Year','FIFTH_YEAR':'5th Year','INTERNSHIP':'Internship','PART_1':'Part 1','PART_2':'Part 2'} as Record<string,string>)[ca.academicYear] || ca.academicYear?.replace(/_/g, ' ')} · {ca.status}</p>
+                  <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', margin: '2px 0 0' }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[ca.academicYear] || ca.academicYear?.replace(/_/g, ' ')} · {ca.status}</p>
                 </div>
                 <button className="bo-btn bo-btn-outline" style={{ fontSize: 13 }} onClick={() => navigate(`/faculty/courses/${selectedCourseId}/tracking`)}>
                   📥 Detailed Tracking & Reports

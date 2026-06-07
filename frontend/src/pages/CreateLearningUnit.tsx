@@ -116,6 +116,7 @@ const CreateLearningUnit: React.FC = () => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>();
   const [subTopic, setSubTopic] = useState('');
   const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel>(DifficultyLevel.K);
+  const [academicYear, setAcademicYear] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState(30);
   const [secureAccessUrl, setSecureAccessUrl] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>(DeliveryType.EMBED);
@@ -171,6 +172,7 @@ const CreateLearningUnit: React.FC = () => {
     setError('');
     if (title.length < 5) { setError('Title must be at least 5 characters'); return; }
     if (description.length < 20) { setError('Description must be at least 20 characters'); return; }
+    if (!academicYear) { setError('Please select an Academic Year'); return; }
     if (!subject) { setError('Please select a subject via topic search'); return; }
     if (!topic) { setError('Please select a topic'); return; }
     if (!secureAccessUrl) { setError('Please upload a file'); return; }
@@ -185,6 +187,7 @@ const CreateLearningUnit: React.FC = () => {
 
     if (title.length < 5) { setError('Title must be at least 5 characters'); return; }
     if (description.length < 20) { setError('Description must be at least 20 characters'); return; }
+    if (!academicYear) { setError('Please select an Academic Year'); return; }
     if (!subject) { setError('Please select a subject via topic search'); return; }
     if (!topic) { setError('Please select a topic'); return; }
     if (!secureAccessUrl) { setError('Please upload a file'); return; }
@@ -199,6 +202,7 @@ const CreateLearningUnit: React.FC = () => {
         topic,
         subTopic: subTopic || undefined,
         difficultyLevel,
+        academicYear: academicYear || undefined,
         estimatedDuration,
         competencyIds: selectedCompetencyIds,
         secureAccessUrl,
@@ -322,8 +326,20 @@ const CreateLearningUnit: React.FC = () => {
                   placeholder="Detailed description of the content (min 20 characters)" required minLength={20} />
                 <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', marginTop: 4 }}>{description.length}/20 min characters</div>
               </div>
-              <div>
-                <div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={labelStyle}>Academic Year * <span style={{ color: '#EF4444' }}>Required</span></label>
+                  <select style={{ ...inputStyle, borderColor: !academicYear ? '#EF4444' : undefined }} value={academicYear}
+                    onChange={e => setAcademicYear(e.target.value)} required>
+                    <option value="">-- Select Year --</option>
+                    <option value="YEAR_1">Year 1</option>
+                    <option value="YEAR_2">Year 2</option>
+                    <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                    <option value="YEAR_3_PART2">Year 3 Part 2</option>
+                    <option value="INTERNSHIP">Internship</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
                   <label style={labelStyle}>Difficulty Level *</label>
                   <select style={inputStyle} value={difficultyLevel}
                     onChange={e => setDifficultyLevel(e.target.value as DifficultyLevel)}>

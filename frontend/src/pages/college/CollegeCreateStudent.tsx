@@ -6,10 +6,10 @@ import { UserPlus, ArrowLeft, Eye, EyeOff, RefreshCw, Upload, Download } from 'l
 import '../../styles/bitflow-owner.css';
 
 const ACADEMIC_YEARS = [
-  { value: 'FIRST_YEAR', label: 'First Year' },
-  { value: 'SECOND_YEAR', label: 'Second Year' },
-  { value: 'YEAR_3_PART1', label: 'Third Year (Part1)' },
-  { value: 'YEAR_3_PART2', label: 'Third Year (Part2)' },
+  { value: 'YEAR_1', label: 'Year 1' },
+  { value: 'YEAR_2', label: 'Year 2' },
+  { value: 'YEAR_3_PART1', label: 'Year 3 Part 1' },
+  { value: 'YEAR_3_PART2', label: 'Year 3 Part 2' },
   { value: 'INTERNSHIP', label: 'Internship' },
 ];
 
@@ -46,7 +46,7 @@ const CollegeCreateStudent: React.FC = () => {
     email: '',
     yearOfAdmission: new Date().getFullYear(),
     expectedPassingYear: new Date().getFullYear() + 5,
-    currentAcademicYear: 'FIRST_YEAR',
+    currentAcademicYear: 'YEAR_1',
     temporaryPassword: '',
   });
 
@@ -88,7 +88,7 @@ const CollegeCreateStudent: React.FC = () => {
   };
 
   const downloadTemplate = () => {
-    const csv = 'fullName,email,yearOfAdmission,expectedPassingYear,currentAcademicYear\nJohn Doe,john@college.edu,2024,2029,FIRST_YEAR';
+    const csv = 'fullName,email,yearOfAdmission,expectedPassingYear,currentAcademicYear\nJohn Doe,john@college.edu,2024,2029,YEAR_1';
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'student_template.csv'; a.click();
   };

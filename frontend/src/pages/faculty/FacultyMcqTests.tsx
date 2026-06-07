@@ -3,14 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import apiService from '../../services/api.service';
 import { API_BASE_URL } from '../../config/api';
-import { ArrowLeft, FileText, Plus, Trash2, Upload, CheckCircle, Search, X, ClipboardList } from 'lucide-react';
+import BulkMcqUpload from '../../components/publisher/BulkMcqUpload';
+import FileUploadButton from '../../components/publisher/FileUploadButton';
+import { ArrowLeft, FileText, Plus, Trash2, Upload, CheckCircle, Search, X, ClipboardList, Send, Clock } from 'lucide-react';
+import facultyAssignmentService from '../../services/faculty-assignment.service';
 import '../../styles/bitflow-owner.css';
 
 const ACCENT = '#7C3AED';
 
 interface MCQ {
-  id: string; question: string; optionA: string; optionB: string; optionC?: string; optionD?: string;
-  correctAnswer: string; explanation?: string; subject: string; topic?: string; difficultyLevel: string;
+  id: string; question: string; optionA: string; optionB: string; optionC?: string; optionD?: string; optionE?: string;
+  correctAnswer: string; explanation?: string; explanationImage?: string; subject: string; topic?: string;
+  difficultyLevel: string; bloomsLevel?: string; mcqType?: string; questionImage?: string; tags?: string[];
   createdAt: string; status: string;
 }
 
@@ -19,6 +23,20 @@ interface Test {
   durationMinutes: number; createdAt: string; course?: { id: string; title: string };
   _count?: { questions: number; assignments: number; attempts: number };
 }
+
+const BLOOMS_LEVELS = ['REMEMBER', 'UNDERSTAND', 'APPLY', 'ANALYZE', 'EVALUATE', 'CREATE'];
+const MCQ_TYPES = [
+  { value: 'NORMAL', label: 'Normal', desc: 'Standard MCQ' },
+  { value: 'SCENARIO_BASED', label: 'Scenario Based', desc: 'Case/scenario question' },
+  { value: 'IMAGE_BASED', label: 'Image Based', desc: 'Question with image' },
+];
+
+const emptyMcqForm = {
+  question: '', optionA: '', optionB: '', optionC: '', optionD: '', optionE: '',
+  correctAnswer: 'A', explanation: '', explanationImage: '',
+  subject: '', topic: '', difficultyLevel: 'K',
+  bloomsLevel: 'REMEMBER', mcqType: 'NORMAL', questionImage: '', tags: '',
+};
 
 const FacultyMcqTests: React.FC = () => {
   const navigate = useNavigate();
@@ -30,15 +48,12 @@ const FacultyMcqTests: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
 
-  // Create MCQ form
   const [showMcqForm, setShowMcqForm] = useState(false);
-  const [mcqForm, setMcqForm] = useState({ question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', explanation: '', subject: '', topic: '', difficultyLevel: 'K' });
+  const [mcqForm, setMcqForm] = useState(emptyMcqForm);
 
-  // Create Test form
   const [showTestForm, setShowTestForm] = useState(false);
   const [testForm, setTestForm] = useState({ title: '', description: '', type: 'SCHEDULED_TEST', subject: '', durationMinutes: 60, totalMarks: 0, passingMarks: 0, shuffleQuestions: true, negativeMarkingEnabled: false, negativeMarkPerQuestion: 0 });
 
-  // Add questions modal
   const [showAddQuestions, setShowAddQuestions] = useState<string | null>(null);
   const [availableMcqs, setAvailableMcqs] = useState<MCQ[]>([]);
   const [selectedMcqIds, setSelectedMcqIds] = useState<Set<string>>(new Set());
@@ -63,9 +78,17 @@ const FacultyMcqTests: React.FC = () => {
   const handleCreateMcq = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await apiService.post('/faculty/tests/mcqs', mcqForm);
+      const payload: any = { ...mcqForm };
+      if (payload.tags) payload.tags = payload.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+      else payload.tags = [];
+      if (!payload.optionE) delete payload.optionE;
+      if (!payload.questionImage) delete payload.questionImage;
+      if (!payload.explanationImage) delete payload.explanationImage;
+      if (!payload.bloomsLevel) delete payload.bloomsLevel;
+      if (payload.mcqType === 'NORMAL') delete payload.mcqType;
+      await apiService.post('/faculty/tests/mcqs', payload);
       setSuccess('MCQ created'); setShowMcqForm(false);
-      setMcqForm({ question: '', optionA: '', optionB: '', optionC: '', optionD: '', correctAnswer: 'A', explanation: '', subject: '', topic: '', difficultyLevel: 'K' });
+      setMcqForm(emptyMcqForm);
       loadData();
     } catch (err: any) { setError(err.response?.data?.message || 'Failed'); }
   };
@@ -80,25 +103,18 @@ const FacultyMcqTests: React.FC = () => {
     } catch (err: any) { setError(err.response?.data?.message || 'Failed'); }
   };
 
-  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${API_BASE_URL}/faculty/tests/mcqs/bulk-upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Upload failed');
-      setSuccess(`Uploaded ${data.uploaded} MCQs`);
-      setTab('mcqs');
-      loadData();
-    } catch (err: any) { setError(err.message || 'Upload failed'); }
-    e.target.value = '';
+  const facultyBulkUpload = async (file: File): Promise<{ success: number; failed: number; errors: string[] }> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = localStorage.getItem('accessToken');
+    const res = await fetch(`${API_BASE_URL}/faculty/tests/mcqs/bulk-upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Upload failed');
+    return { success: data.uploaded || data.success || 0, failed: data.failed || 0, errors: data.errors || [] };
   };
 
   const openAddQuestions = async (testId: string) => {
@@ -122,8 +138,8 @@ const FacultyMcqTests: React.FC = () => {
 
   const handlePublishTest = async (testId: string) => {
     try {
-      await apiService.post(`/faculty/tests/${testId}/publish`, {});
-      setSuccess('Test published'); loadData();
+      await facultyAssignmentService.submitTestForReview(testId);
+      setSuccess('Test submitted for HOD review'); loadData();
     } catch (err: any) { setError(err.response?.data?.message || 'Failed'); }
   };
 
@@ -137,6 +153,9 @@ const FacultyMcqTests: React.FC = () => {
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '10px 12px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' };
   const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--bo-text-secondary)', marginBottom: 4, display: 'block' };
+
+  const STATIC_BASE = API_BASE_URL.replace(/\/api$/, '');
+  const getImgUrl = (url: string) => url.startsWith('/uploads/') ? `${STATIC_BASE}${url}` : url;
 
   const filteredMcqs = mcqs.filter(m => m.question.toLowerCase().includes(search.toLowerCase()) || m.subject.toLowerCase().includes(search.toLowerCase()));
 
@@ -195,14 +214,16 @@ const FacultyMcqTests: React.FC = () => {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{m.question}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, fontSize: 12 }}>
-                        <span style={{ padding: '2px 8px', borderRadius: 4, background: m.correctAnswer === 'A' ? '#D1FAE5' : '#F3F4F6' }}>A: {m.optionA}</span>
-                        <span style={{ padding: '2px 8px', borderRadius: 4, background: m.correctAnswer === 'B' ? '#D1FAE5' : '#F3F4F6' }}>B: {m.optionB}</span>
-                        {m.optionC && <span style={{ padding: '2px 8px', borderRadius: 4, background: m.correctAnswer === 'C' ? '#D1FAE5' : '#F3F4F6' }}>C: {m.optionC}</span>}
-                        {m.optionD && <span style={{ padding: '2px 8px', borderRadius: 4, background: m.correctAnswer === 'D' ? '#D1FAE5' : '#F3F4F6' }}>D: {m.optionD}</span>}
+                        {(['A','B','C','D','E'] as const).map(opt => {
+                          const val = m[`option${opt}` as keyof MCQ] as string | undefined;
+                          if (!val) return null;
+                          return <span key={opt} style={{ padding: '2px 8px', borderRadius: 4, background: m.correctAnswer === opt ? '#D1FAE5' : '#F3F4F6' }}>{opt}: {val}</span>;
+                        })}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: '#EDE9FE', color: ACCENT }}>{m.subject}</span>
+                      {m.bloomsLevel && <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, background: '#F0FDF4', color: '#15803D' }}>{m.bloomsLevel}</span>}
                       <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, background: '#F3F4F6' }}>{m.difficultyLevel}</span>
                     </div>
                   </div>
@@ -229,7 +250,9 @@ const FacultyMcqTests: React.FC = () => {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{t.title}</span>
-                      <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600, background: t.status === 'ACTIVE' ? '#D1FAE5' : t.status === 'DRAFT' ? '#FEF3C7' : '#F3F4F6', color: t.status === 'ACTIVE' ? '#065F46' : t.status === 'DRAFT' ? '#92400E' : '#6B7280' }}>{t.status}</span>
+                      <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, fontWeight: 600,
+                        background: t.status === 'ACTIVE' ? '#D1FAE5' : t.status === 'DRAFT' ? '#FEF3C7' : t.status === 'PENDING_REVIEW' ? '#EFF6FF' : '#F3F4F6',
+                        color: t.status === 'ACTIVE' ? '#065F46' : t.status === 'DRAFT' ? '#92400E' : t.status === 'PENDING_REVIEW' ? '#1E40AF' : '#6B7280' }}>{t.status === 'PENDING_REVIEW' ? 'Pending HOD Review' : t.status}</span>
                       <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: 10, background: '#EDE9FE', color: ACCENT }}>{t.type.replace(/_/g, ' ')}</span>
                     </div>
                     {t.course && <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>Course: {t.course.title}</div>}
@@ -245,9 +268,16 @@ const FacultyMcqTests: React.FC = () => {
                       <Plus size={12} /> Add MCQs
                     </button>
                     {t.status === 'DRAFT' && (
-                      <button className="bo-btn bo-btn-primary" style={{ fontSize: 11, padding: '6px 10px', background: '#10B981' }} onClick={() => handlePublishTest(t.id)}>
-                        <CheckCircle size={12} /> Publish
+                      <button className="bo-btn bo-btn-primary" style={{ fontSize: 11, padding: '6px 10px', background: '#2563EB' }} onClick={() => handlePublishTest(t.id)}
+                        title={!t._count?.questions && !t.totalQuestions ? 'Add MCQs first' : 'Submit to HOD for review'}
+                        disabled={!t._count?.questions && !t.totalQuestions}>
+                        <Send size={12} /> Submit for Review
                       </button>
+                    )}
+                    {t.status === 'PENDING_REVIEW' && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#1E40AF', padding: '6px 10px', background: '#EFF6FF', borderRadius: 6 }}>
+                        <Clock size={12} /> Awaiting HOD
+                      </span>
                     )}
                     <button onClick={() => handleDeleteTest(t.id)} style={{ padding: '6px 8px', border: '1px solid var(--bo-border)', borderRadius: 6, background: 'white', cursor: 'pointer', color: '#EF4444' }}>
                       <Trash2 size={12} />
@@ -262,50 +292,81 @@ const FacultyMcqTests: React.FC = () => {
 
       {/* Bulk Upload Tab */}
       {tab === 'upload' && (
-        <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
-          <Upload size={48} style={{ color: ACCENT, opacity: 0.5, marginBottom: 16 }} />
-          <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Bulk Upload MCQs</h3>
-          <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 20, maxWidth: 400, margin: '0 auto 20px' }}>
-            Upload a CSV file with columns: question, optionA, optionB, optionC, optionD, correctAnswer, explanation, subject, topic, difficultyLevel
-          </p>
-          <label className="bo-btn bo-btn-primary" style={{ background: ACCENT, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-            <Upload size={14} /> Choose CSV File
-            <input type="file" accept=".csv" onChange={handleBulkUpload} style={{ display: 'none' }} />
-          </label>
-          <div style={{ marginTop: 24, padding: 16, background: '#F9FAFB', borderRadius: 8, textAlign: 'left', maxWidth: 600, margin: '24px auto 0' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8 }}>CSV Template:</div>
-            <code style={{ fontSize: 11, color: 'var(--bo-text-secondary)', whiteSpace: 'pre-wrap' }}>
-              question,optionA,optionB,optionC,optionD,correctAnswer,explanation,subject,topic,difficultyLevel{'\n'}
-              "What is the normal heart rate?","60-100 bpm","120-160 bpm","30-50 bpm","200-250 bpm","A","Normal resting heart rate","Physiology","Cardiovascular","K"
-            </code>
-          </div>
-        </div>
+        <BulkMcqUpload uploadFn={facultyBulkUpload} onSuccess={() => { setTab('mcqs'); loadData(); }} />
       )}
 
       {/* Create MCQ Modal */}
       {showMcqForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowMcqForm(false)}>
-          <div style={{ background: 'white', borderRadius: 12, width: '100%', maxWidth: 600, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--bo-border)' }}>
+          <div style={{ background: 'white', borderRadius: 12, width: '100%', maxWidth: 700, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--bo-border)', position: 'sticky', top: 0, background: 'white', zIndex: 1 }}>
               <h3 style={{ fontSize: 16, fontWeight: 600 }}>Create MCQ</h3>
               <button onClick={() => setShowMcqForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={18} /></button>
             </div>
             <form onSubmit={handleCreateMcq} style={{ padding: 20 }}>
+
+              {/* MCQ Type */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>MCQ Type</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {MCQ_TYPES.map(t => (
+                    <button type="button" key={t.value} onClick={() => setMcqForm(p => ({ ...p, mcqType: t.value }))}
+                      style={{ flex: 1, padding: '10px 8px', borderRadius: 8, cursor: 'pointer', textAlign: 'center', fontSize: 12,
+                        border: `2px solid ${mcqForm.mcqType === t.value ? ACCENT : 'var(--bo-border)'}`,
+                        background: mcqForm.mcqType === t.value ? '#EDE9FE' : '#fff',
+                        color: mcqForm.mcqType === t.value ? ACCENT : 'var(--bo-text-secondary)', fontWeight: mcqForm.mcqType === t.value ? 600 : 400,
+                      }}>
+                      <div style={{ fontWeight: 600 }}>{t.label}</div>
+                      <div style={{ fontSize: 10, marginTop: 2, opacity: 0.8 }}>{t.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Question */}
               <div style={{ marginBottom: 12 }}>
                 <label style={labelStyle}>Question *</label>
+                {mcqForm.mcqType === 'SCENARIO_BASED' && (
+                  <div style={{ padding: '8px 12px', borderRadius: 6, background: '#FFF7ED', border: '1px solid #FED7AA', fontSize: 12, color: '#92400E', marginBottom: 8 }}>
+                    For scenario-based MCQs, include the clinical scenario/case in the question text.
+                  </div>
+                )}
                 <textarea value={mcqForm.question} onChange={e => setMcqForm(p => ({ ...p, question: e.target.value }))} required rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
+
+              {/* Question Image */}
+              <div style={{ marginBottom: 12 }}>
+                <label style={labelStyle}>{mcqForm.mcqType === 'IMAGE_BASED' ? 'Question Image *' : 'Attach Image (Optional)'}</label>
+                <FileUploadButton
+                  label={mcqForm.questionImage ? 'Change Image' : 'Upload Image'}
+                  fileType="image"
+                  onUploadComplete={(url: string) => setMcqForm(p => ({ ...p, questionImage: url }))}
+                />
+                {mcqForm.questionImage && (
+                  <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
+                    <img src={getImgUrl(mcqForm.questionImage)} alt="question" style={{ maxWidth: 200, maxHeight: 120, borderRadius: 6, border: '1px solid var(--bo-border)' }} />
+                    <button type="button" onClick={() => setMcqForm(p => ({ ...p, questionImage: '' }))}
+                      style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#EF4444', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Options */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div><label style={labelStyle}>Option A *</label><input value={mcqForm.optionA} onChange={e => setMcqForm(p => ({ ...p, optionA: e.target.value }))} required style={inputStyle} /></div>
                 <div><label style={labelStyle}>Option B *</label><input value={mcqForm.optionB} onChange={e => setMcqForm(p => ({ ...p, optionB: e.target.value }))} required style={inputStyle} /></div>
                 <div><label style={labelStyle}>Option C</label><input value={mcqForm.optionC} onChange={e => setMcqForm(p => ({ ...p, optionC: e.target.value }))} style={inputStyle} /></div>
                 <div><label style={labelStyle}>Option D</label><input value={mcqForm.optionD} onChange={e => setMcqForm(p => ({ ...p, optionD: e.target.value }))} style={inputStyle} /></div>
+                <div><label style={labelStyle}>Option E</label><input value={mcqForm.optionE} onChange={e => setMcqForm(p => ({ ...p, optionE: e.target.value }))} style={inputStyle} /></div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+
+              {/* Correct Answer + Subject + Difficulty + Blooms */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                 <div>
                   <label style={labelStyle}>Correct Answer *</label>
                   <select value={mcqForm.correctAnswer} onChange={e => setMcqForm(p => ({ ...p, correctAnswer: e.target.value }))} style={inputStyle}>
-                    <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
+                    <option value="A">A</option><option value="B">B</option><option value="C">C</option>
+                    <option value="D">D</option><option value="E">E</option>
                   </select>
                 </div>
                 <div>
@@ -315,14 +376,53 @@ const FacultyMcqTests: React.FC = () => {
                 <div>
                   <label style={labelStyle}>Difficulty</label>
                   <select value={mcqForm.difficultyLevel} onChange={e => setMcqForm(p => ({ ...p, difficultyLevel: e.target.value }))} style={inputStyle}>
-                    <option value="K">Knowledge (K)</option><option value="KH">Know How (KH)</option><option value="S">Shows How (S)</option><option value="SH">Shows (SH)</option><option value="P">Performance (P)</option>
+                    <option value="K">Knowledge (K)</option><option value="KH">Know How (KH)</option>
+                    <option value="S">Shows How (S)</option><option value="SH">Shows (SH)</option><option value="P">Performance (P)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Bloom's Level</label>
+                  <select value={mcqForm.bloomsLevel} onChange={e => setMcqForm(p => ({ ...p, bloomsLevel: e.target.value }))} style={inputStyle}>
+                    {BLOOMS_LEVELS.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
                 </div>
               </div>
+
+              {/* Topic + Tags */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={labelStyle}>Topic</label>
+                  <input value={mcqForm.topic} onChange={e => setMcqForm(p => ({ ...p, topic: e.target.value }))} style={inputStyle} placeholder="e.g. Cardiovascular" />
+                </div>
+                <div>
+                  <label style={labelStyle}>Tags (comma-separated)</label>
+                  <input value={mcqForm.tags} onChange={e => setMcqForm(p => ({ ...p, tags: e.target.value }))} style={inputStyle} placeholder="e.g. cardiology, anatomy" />
+                </div>
+              </div>
+
+              {/* Explanation */}
               <div style={{ marginBottom: 12 }}>
                 <label style={labelStyle}>Explanation</label>
                 <textarea value={mcqForm.explanation} onChange={e => setMcqForm(p => ({ ...p, explanation: e.target.value }))} rows={2} style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
+
+              {/* Explanation Image */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Explanation Image (Optional)</label>
+                <FileUploadButton
+                  label={mcqForm.explanationImage ? 'Change Image' : 'Upload Image'}
+                  fileType="image"
+                  onUploadComplete={(url: string) => setMcqForm(p => ({ ...p, explanationImage: url }))}
+                />
+                {mcqForm.explanationImage && (
+                  <div style={{ marginTop: 8, position: 'relative', display: 'inline-block' }}>
+                    <img src={getImgUrl(mcqForm.explanationImage)} alt="explanation" style={{ maxWidth: 200, maxHeight: 120, borderRadius: 6, border: '1px solid var(--bo-border)' }} />
+                    <button type="button" onClick={() => setMcqForm(p => ({ ...p, explanationImage: '' }))}
+                      style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#EF4444', border: 'none', color: '#fff', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  </div>
+                )}
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                 <button type="button" className="bo-btn bo-btn-outline" onClick={() => setShowMcqForm(false)}>Cancel</button>
                 <button type="submit" className="bo-btn bo-btn-primary" style={{ background: ACCENT }}>Create MCQ</button>

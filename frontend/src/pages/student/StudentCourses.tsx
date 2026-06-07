@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import apiService from '../../services/api.service';
 import StudentLayout from '../../components/student/StudentLayout';
 import CourseRating from '../../components/CourseRating';
-import { BookOpen, Clock, TrendingUp, Play, CheckCircle, Search, Filter } from 'lucide-react';
+import { BookOpen, Clock, TrendingUp, Play, CheckCircle, Search, Filter, Lock, ChevronRight } from 'lucide-react';
 import '../../styles/bitflow-owner.css';
 import '../../styles/loading-screen.css';
 import { formatDate } from '../../utils/dateUtils';
@@ -19,6 +19,7 @@ interface Course {
   completedLessons: number;
   lastAccessed?: string;
   status: 'IN_PROGRESS' | 'COMPLETED' | 'NOT_STARTED';
+  courseType?: 'NORMAL' | 'SELF_PACED' | 'ASSIGNMENT';
   userRating?: number;
 }
 
@@ -29,6 +30,7 @@ const StudentCourses: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [error, setError] = useState('');
+  const [ratingError, setRatingError] = useState('');
 
   const fetchCourses = useCallback(async () => {
     try {
@@ -52,12 +54,13 @@ const StudentCourses: React.FC = () => {
 
   const handleRatingSubmit = async (courseId: number, rating: number) => {
     try {
+      setRatingError('');
       await apiService.post(`/student-portal/courses/${courseId}/rate`, { rating });
-      // Update local state so stars stay filled without page reload
       setCourses(prev => prev.map(c => c.id === courseId ? { ...c, userRating: rating } : c));
     } catch (error: any) {
       console.error('Error submitting rating:', error);
-      alert(error.response?.data?.message || 'Failed to submit rating');
+      setRatingError(error.response?.data?.message || 'Failed to submit rating');
+      setTimeout(() => setRatingError(''), 4000);
     }
   };
 
@@ -112,6 +115,9 @@ const StudentCourses: React.FC = () => {
           Track your enrolled courses and learning progress
         </p>
       </div>
+
+      {/* Rating error */}
+      {ratingError && <div style={{ padding: '12px 16px', background: '#FEF2F2', color: '#DC2626', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{ratingError}</div>}
 
       {/* Stats */}
       <div className="bo-stats-grid" style={{ marginBottom: 24 }}>
@@ -208,91 +214,91 @@ const StudentCourses: React.FC = () => {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
-          {filteredCourses.map((course) => (
-            <div 
-              key={course.id}
-              className="bo-card"
-              style={{ 
-                padding: 24, 
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                border: '1px solid var(--bo-border)',
-                position: 'relative',
-              }}
-              onClick={() => navigate(`/student/courses/${course.id}`)}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = 'var(--bo-shadow-md)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'var(--bo-shadow-sm)';
-              }}
-            >
-              {/* Status Badge */}
-              <div style={{ 
-                position: 'absolute', 
-                top: 12, 
-                right: 12, 
-                padding: '4px 10px', 
-                borderRadius: 12, 
-                fontSize: 11, 
-                fontWeight: 600,
-                background: course.status === 'COMPLETED' ? 'var(--bo-success-light)' : 
-                           course.status === 'IN_PROGRESS' ? 'var(--bo-info-light)' : 'var(--bo-border-light)',
-                color: course.status === 'COMPLETED' ? 'var(--bo-success)' : 
-                       course.status === 'IN_PROGRESS' ? 'var(--bo-info)' : 'var(--bo-text-muted)'
-              }}>
-                {course.status === 'COMPLETED' ? 'Completed' : 
-                 course.status === 'IN_PROGRESS' ? 'In Progress' : 'Not Started'}
-              </div>
+          {filteredCourses.map((course) => {
+            const isCompleted = course.status === 'COMPLETED';
+            const isSelfPaced = course.courseType === 'SELF_PACED';
+            const isCompletedNormal = isCompleted && !isSelfPaced;
+            const isCompletedSelfPaced = isCompleted && isSelfPaced;
 
-              <div style={{ marginBottom: 20, paddingRight: 80 }}>
-                <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 6 }}>
-                  {course.title}
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', margin: 0 }}>
-                  {course.code}
-                </p>
-                <p style={{ fontSize: 13, color: 'var(--bo-text-secondary)', marginTop: 8, marginBottom: 8 }}>
-                  👨‍🏫 {course.facultyName}
-                </p>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <CourseRating 
-                    courseId={course.id}
-                    currentRating={course.userRating || 0}
-                    onRatingSubmit={(rating) => handleRatingSubmit(course.id, rating)}
-                  />
+            return (
+              <div
+                key={course.id}
+                className="bo-card"
+                style={{
+                  padding: 24,
+                  cursor: isCompletedNormal ? 'default' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  border: `1px solid ${isCompletedNormal ? '#E5E7EB' : isCompletedSelfPaced ? '#BBF7D0' : 'var(--bo-border)'}`,
+                  position: 'relative',
+                  opacity: isCompletedNormal ? 0.75 : 1,
+                }}
+                onClick={() => { if (!isCompletedNormal) navigate(`/student/courses/${course.id}`); }}
+                onMouseEnter={(e) => { if (!isCompletedNormal) { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = 'var(--bo-shadow-md)'; } }}
+                onMouseLeave={(e) => { if (!isCompletedNormal) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'var(--bo-shadow-sm)'; } }}
+              >
+                {/* Status Badge */}
+                <div style={{
+                  position: 'absolute', top: 12, right: 12, padding: '4px 10px',
+                  borderRadius: 12, fontSize: 11, fontWeight: 600,
+                  background: isCompleted ? '#D1FAE5' : course.status === 'IN_PROGRESS' ? 'var(--bo-info-light)' : 'var(--bo-border-light)',
+                  color: isCompleted ? '#065F46' : course.status === 'IN_PROGRESS' ? 'var(--bo-info)' : 'var(--bo-text-muted)',
+                }}>
+                  {isCompleted ? '✅ Completed' : course.status === 'IN_PROGRESS' ? 'In Progress' : 'Not Started'}
                 </div>
-              </div>
-              
-              {/* Progress */}
-              <div style={{ marginTop: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 10 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <TrendingUp size={14} /> {course.progress}% Complete
-                  </span>
-                  <span>{course.completedLessons}/{course.totalLessons} lessons</span>
-                </div>
-                <div style={{ height: 8, background: 'var(--bo-border-light)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div 
-                    style={{ 
-                      height: '100%', 
-                      background: 'linear-gradient(90deg, var(--bo-accent), var(--bo-info))', 
-                      width: `${course.progress}%`,
-                      transition: 'width 0.3s ease'
-                    }}
-                  />
-                </div>
-              </div>
 
-              {course.lastAccessed && (
-                <div style={{ marginTop: 16, fontSize: 12, color: 'var(--bo-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Clock size={12} /> Last accessed {formatDate(course.lastAccessed)}
+                {/* Course type badge */}
+                {isSelfPaced && (
+                  <div style={{ position: 'absolute', top: 36, right: 12, padding: '3px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: '#EDE9FE', color: '#7C3AED' }}>
+                    Self-Paced
+                  </div>
+                )}
+
+                <div style={{ marginBottom: 16, paddingRight: 80 }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--bo-text-primary)', marginBottom: 6 }}>
+                    {course.title}
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', margin: 0 }}>{course.code}</p>
+                  <p style={{ fontSize: 13, color: 'var(--bo-text-secondary)', marginTop: 8, marginBottom: 8 }}>👨‍🏫 {course.facultyName}</p>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <CourseRating courseId={course.id} currentRating={course.userRating || 0} onRatingSubmit={(rating) => handleRatingSubmit(course.id, rating)} />
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Progress Bar */}
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--bo-text-muted)', marginBottom: 8 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp size={14} /> {course.progress}% Complete</span>
+                    <span>{course.completedLessons}/{course.totalLessons} lessons</span>
+                  </div>
+                  <div style={{ height: 8, background: 'var(--bo-border-light)', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', background: isCompleted ? '#10B981' : 'linear-gradient(90deg, var(--bo-accent), var(--bo-info))', width: `${course.progress}%`, transition: 'width 0.3s ease' }} />
+                  </div>
+                </div>
+
+                {/* Bottom action */}
+                <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--bo-border)' }}>
+                  {isCompletedNormal && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9CA3AF' }}>
+                      <Lock size={13} /> Content locked — one-time course completed
+                    </div>
+                  )}
+                  {isCompletedSelfPaced && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate('/student/self-paced'); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#059669', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      <CheckCircle size={14} /> Review in Self-Paced Learning <ChevronRight size={14} />
+                    </button>
+                  )}
+                  {!isCompleted && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--bo-text-muted)' }}>
+                      {course.lastAccessed ? <><Clock size={12} /> Last accessed {formatDate(course.lastAccessed)}</> : <><Play size={12} /> Click to start</>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </StudentLayout>

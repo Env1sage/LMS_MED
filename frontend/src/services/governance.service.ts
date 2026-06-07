@@ -6,6 +6,7 @@ export interface Department {
   name: string;
   code: string;
   description?: string;
+  academicYear?: string;
   status: 'ACTIVE' | 'INACTIVE';
   hodUserId?: string;
   hodId?: string;
@@ -33,12 +34,14 @@ export interface CreateDepartmentDto {
   name: string;
   code: string;
   description?: string;
+  academicYear?: string;
 }
 
 export interface UpdateDepartmentDto {
   name?: string;
   code?: string;
   description?: string;
+  academicYear?: string;
 }
 
 // ==================== FACULTY TYPES ====================
@@ -378,16 +381,64 @@ const governanceService = {
     return response.data;
   },
 
-  // Assign a work task to a faculty member (HOD/Admin) — sends email notification
+  // Assign a work task to a faculty member (HOD/Admin) — sends email + persists to DB
   assignTaskToFaculty: async (
     id: string,
     task: { taskType: string; title: string; description: string; dueDate?: string }
-  ): Promise<{ message: string }> => {
-    const response = await apiService.post<{ message: string }>(`/governance/faculty-users/${id}/assign-task`, task);
+  ): Promise<{ message: string; taskId?: string }> => {
+    const response = await apiService.post<{ message: string; taskId?: string }>(`/governance/faculty-users/${id}/assign-task`, task);
     return response.data;
   },
 
-  // Get students scoped to HOD's department (HOD only)
+  // Get tasks assigned to me (FACULTY)
+  getMyTasks: async (): Promise<any[]> => {
+    const response = await apiService.get('/governance/faculty-users/my-tasks');
+    return response.data;
+  },
+
+  // Get tasks I assigned (HOD/ADMIN)
+  getAssignedTasks: async (): Promise<any[]> => {
+    const response = await apiService.get('/governance/faculty-users/assigned-tasks');
+    return response.data;
+  },
+
+  // Create a DRAFT learning unit for a task (FACULTY)
+  createDraftUnit: async (dto: any): Promise<any> => {
+    const response = await apiService.post('/governance/faculty-users/draft-learning-unit', dto);
+    return response.data;
+  },
+
+  // Get my DRAFT learning units (FACULTY)
+  getMyDraftUnits: async (): Promise<any[]> => {
+    const response = await apiService.get('/governance/faculty-users/my-draft-units');
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
+  // Get a learning unit by ID for HOD review
+  getLearningUnitForReview: async (id: string): Promise<any> => {
+    const response = await apiService.get(`/governance/faculty-users/learning-unit/${id}`);
+    return response.data;
+  },
+
+  // Submit task work (FACULTY)
+  submitTask: async (taskId: string, body: { submissionNote?: string; submissionUrl?: string }): Promise<any> => {
+    const response = await apiService.patch(`/governance/faculty-users/tasks/${taskId}/submit`, body);
+    return response.data;
+  },
+
+  // Review task (HOD/ADMIN) — approve or reject
+  reviewTask: async (taskId: string, body: { status: 'APPROVED' | 'REJECTED'; reviewNote?: string }): Promise<any> => {
+    const response = await apiService.patch(`/governance/faculty-users/tasks/${taskId}/review`, body);
+    return response.data;
+  },
+
+  // Publish task as learning unit (HOD)
+  publishTask: async (taskId: string): Promise<{ message: string; learningUnitId: string }> => {
+    const response = await apiService.post(`/governance/faculty-users/tasks/${taskId}/publish`, {});
+    return response.data;
+  },
+
+  // Get all college students (HOD/ADMIN)
   getHodStudents: async (params?: {
     page?: number;
     limit?: number;

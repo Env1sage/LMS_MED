@@ -154,7 +154,7 @@ const CollegeAnalytics: React.FC = () => {
                       </td>
                       <td style={{ padding: '10px 14px', fontWeight: 500, color: c.avgTestScore >= 60 ? '#10B981' : '#F59E0B' }}>{c.avgTestScore.toFixed(0)}%</td>
                       <td style={{ padding: '10px 14px', fontWeight: 500, color: c.passRate >= 60 ? '#10B981' : '#EF4444' }}>{c.passRate.toFixed(0)}%</td>
-                      <td style={{ padding: '10px 14px', color: 'var(--bo-text-muted)', fontSize: 12 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3':'Year 3','YEAR_3_PART1':'Year 3 (Part 1)','YEAR_3_PART2':'Year 3 (Part 2)','YEAR_4':'Year 4','YEAR_5':'Year 5','FIRST_YEAR':'1st Year','SECOND_YEAR':'2nd Year','THIRD_YEAR':'3rd Year','FOURTH_YEAR':'4th Year','FIFTH_YEAR':'5th Year','INTERNSHIP':'Internship','PART_1':'Part 1','PART_2':'Part 2'} as Record<string,string>)[c.academicYear] || c.academicYear}</td>
+                      <td style={{ padding: '10px 14px', color: 'var(--bo-text-muted)', fontSize: 12 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[c.academicYear] || c.academicYear}</td>
                     </tr>
                   ))}
                 </tbody>

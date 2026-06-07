@@ -109,10 +109,14 @@ const FacultyNotifications: React.FC = () => {
       }
       setSending(true);
       setError('');
-      await facultyAssignmentService.sendNotification(sendForm);
-      setSuccess('Notification sent successfully!');
+      const result = await facultyAssignmentService.sendNotification(sendForm);
+      setSuccess('Notification submitted for HOD approval!');
       setSendForm({ title: '', message: '', type: 'ANNOUNCEMENT', priority: 'NORMAL', audience: 'STUDENTS' });
-      setDailyLimit(prev => ({ ...prev, used: prev.used + 1, remaining: prev.remaining - 1 }));
+      if (result?.dailyLimit) {
+        setDailyLimit(result.dailyLimit);
+      } else {
+        setDailyLimit(prev => ({ ...prev, used: prev.used + 1, remaining: Math.max(0, prev.remaining - 1) }));
+      }
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to send notification');
@@ -201,7 +205,7 @@ const FacultyNotifications: React.FC = () => {
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid var(--bo-border)' }}>
         {[
           { key: 'received' as ActiveTab, label: 'Received', icon: <Bell size={15} />, badge: unreadCount },
-          { key: 'send' as ActiveTab, label: 'Send Notification', icon: <Send size={15} /> },
+          { key: 'send' as ActiveTab, label: 'Submit Notification', icon: <Send size={15} /> },
           { key: 'sent' as ActiveTab, label: 'Sent', icon: <Check size={15} /> },
         ].map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
@@ -301,9 +305,12 @@ const FacultyNotifications: React.FC = () => {
             </div>
           ) : (
             <div className="bo-card" style={{ padding: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 20px' }}>
-                ✉️ Send Notification to Students
+              <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>
+                ✉️ Submit Notification for HOD Approval
               </h3>
+              <p style={{ fontSize: 13, color: 'var(--bo-text-muted)', margin: '0 0 20px', padding: '8px 12px', background: '#EFF6FF', borderRadius: 6, borderLeft: '3px solid #3B82F6' }}>
+                Notifications require HOD approval before they are delivered to students.
+              </p>
 
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 500, marginBottom: 6, color: 'var(--bo-text-secondary)' }}>Title *</label>
@@ -361,7 +368,7 @@ const FacultyNotifications: React.FC = () => {
 
               <button onClick={handleSend} disabled={sending} className="bo-btn bo-btn-primary"
                 style={{ width: '100%', background: ACCENT, padding: '12px', fontWeight: 600, fontSize: 15, opacity: sending ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Send size={16} /> {sending ? 'Sending...' : 'Send Notification'}
+                <Send size={16} /> {sending ? 'Submitting...' : 'Submit for HOD Approval'}
               </button>
             </div>
           )}
@@ -404,6 +411,14 @@ const FacultyNotifications: React.FC = () => {
                           </span>
                           <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>
                             👁️ {n.readCount || 0} read  •  🎯 {n.audience || 'STUDENTS'}
+                          </span>
+                          {/* HOD status badge */}
+                          <span style={{
+                            fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 4,
+                            background: n.hodStatus === 'APPROVED' ? '#D1FAE5' : n.hodStatus === 'REJECTED' ? '#FEE2E2' : '#EFF6FF',
+                            color: n.hodStatus === 'APPROVED' ? '#065F46' : n.hodStatus === 'REJECTED' ? '#991B1B' : '#1E40AF',
+                          }}>
+                            {n.hodStatus === 'APPROVED' ? '✓ Approved' : n.hodStatus === 'REJECTED' ? '✗ Rejected' : '⏳ Pending HOD'}
                           </span>
                           <span style={{ fontSize: 11, color: ACCENT }}>Click to view details</span>
                         </div>

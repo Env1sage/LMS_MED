@@ -200,7 +200,7 @@ const McqManagement: React.FC = () => {
   const handleBulkVerify = async (idsToVerify?: string[]) => {
     const target = idsToVerify ?? (selectedIds.size > 0 ? Array.from(selectedIds) : undefined);
     const label = target ? `${target.length} selected MCQs` : 'all unverified MCQs';
-    if (!window.confirm(`Verify and publish ${label}?`)) return;
+    if (!window.confirm(`Assign to activate and publish ${label}?`)) return;
     try {
       setBulkVerifying(true);
       const res = await mcqService.bulkVerify(target);
@@ -219,7 +219,7 @@ const McqManagement: React.FC = () => {
   const handleBulkUnverify = async (idsToUnverify?: string[]) => {
     const target = idsToUnverify ?? (selectedIds.size > 0 ? Array.from(selectedIds) : undefined);
     const label = target ? `${target.length} selected MCQs` : 'all verified MCQs';
-    if (!window.confirm(`Unverify ${label}? They will return to DRAFT status.`)) return;
+    if (!window.confirm(`Deactivate ${label}? They will return to DRAFT status.`)) return;
     try {
       setBulkVerifying(true);
       const res = await mcqService.bulkUnverify(target);
@@ -586,11 +586,11 @@ const McqManagement: React.FC = () => {
                 <span style={{ fontSize: 13, color: 'var(--bo-text-muted)' }}>{selectedIds.size} selected</span>
                 <button className="bo-btn bo-btn-primary" style={{ background: '#059669', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
                   disabled={bulkVerifying} onClick={() => handleBulkVerify(Array.from(selectedIds))}>
-                  <ShieldCheck size={14} /> Verify Selected
+                  <ShieldCheck size={14} /> Assign to Activate Selected
                 </button>
                 <button className="bo-btn bo-btn-outline" style={{ fontSize: 12, borderColor: '#DC2626', color: '#DC2626', display: 'flex', alignItems: 'center', gap: 6 }}
                   disabled={bulkVerifying} onClick={() => handleBulkUnverify(Array.from(selectedIds))}>
-                  <ShieldOff size={14} /> Unverify Selected
+                  <ShieldOff size={14} /> Deactivate Selected
                 </button>
                 <button className="bo-btn bo-btn-outline" style={{ fontSize: 12 }} onClick={() => setSelectedIds(new Set())}>Clear</button>
               </>
@@ -598,11 +598,11 @@ const McqManagement: React.FC = () => {
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button className="bo-btn bo-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, borderColor: '#059669', color: '#059669' }}
                 disabled={bulkVerifying} onClick={() => handleBulkVerify()}>
-                {bulkVerifying ? 'Working…' : <><ShieldCheck size={14} /> Verify All Unverified</>}
+                {bulkVerifying ? 'Working…' : <><ShieldCheck size={14} /> Assign to Activate All</>}
               </button>
               <button className="bo-btn bo-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, borderColor: '#DC2626', color: '#DC2626' }}
                 disabled={bulkVerifying} onClick={() => handleBulkUnverify()}>
-                {bulkVerifying ? 'Working…' : <><ShieldOff size={14} /> Unverify All</>}
+                {bulkVerifying ? 'Working…' : <><ShieldOff size={14} /> Deactivate All</>}
               </button>
               {selectedIds.size > 0 && (
                 <button className="bo-btn bo-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, borderColor: '#F59E0B', color: '#92400E' }}
@@ -611,7 +611,7 @@ const McqManagement: React.FC = () => {
                     if (unselected.length === 0) return;
                     handleBulkUnverify(unselected);
                   }}>
-                  <ShieldOff size={14} /> Unverify Unselected
+                  <ShieldOff size={14} /> Deactivate Unselected
                 </button>
               )}
             </div>
@@ -695,14 +695,14 @@ const McqManagement: React.FC = () => {
                             <button title="Edit" className="bo-btn bo-btn-outline" style={{ padding: '4px 8px' }}
                               onClick={() => startEdit(mcq)}><Edit2 size={14} /></button>
                             {!mcq.isVerified ? (
-                              <button title="Verify & Publish" className="bo-btn bo-btn-outline"
+                              <button title="Assign to Activate" className="bo-btn bo-btn-outline"
                                 style={{ padding: '4px 8px', color: '#059669', borderColor: '#059669' }}
                                 disabled={actionLoading === mcq.id}
                                 onClick={() => handleVerify(mcq.id, true)}>
                                 {actionLoading === mcq.id ? '…' : <ShieldCheck size={14} />}
                               </button>
                             ) : (
-                              <button title="Unverify" className="bo-btn bo-btn-outline"
+                              <button title="Deactivate" className="bo-btn bo-btn-outline"
                                 style={{ padding: '4px 8px', color: '#F59E0B', borderColor: '#F59E0B' }}
                                 disabled={actionLoading === mcq.id}
                                 onClick={() => handleVerify(mcq.id, false)}>

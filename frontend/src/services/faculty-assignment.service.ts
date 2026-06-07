@@ -142,6 +142,67 @@ const facultyAssignmentService = {
     const res = await axios.get(`${API_BASE_URL}/faculty/notifications/sent`, { headers: getAuthHeaders() });
     return res.data;
   },
+
+  // === Test maker-checker methods ===
+  getMyTests: async (courseId?: string): Promise<any[]> => {
+    const params: any = {};
+    if (courseId) params.courseId = courseId;
+    const res = await axios.get(`${API_BASE_URL}/faculty/tests`, { headers: getAuthHeaders(), params });
+    return res.data;
+  },
+
+  submitTestForReview: async (testId: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/faculty/tests/${testId}/submit-review`, {}, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  // HOD: get pending tests
+  getPendingTests: async (): Promise<any[]> => {
+    const res = await axios.post(`${API_BASE_URL}/faculty/tests/review/pending`, {}, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  hodApproveTest: async (testId: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/faculty/tests/${testId}/hod-approve`, {}, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  hodRejectTest: async (testId: string, reason: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/faculty/tests/${testId}/hod-reject`, { reason }, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  // HOD: notifications
+  getPendingNotifications: async (): Promise<any[]> => {
+    const res = await axios.get(`${API_BASE_URL}/faculty/notifications/hod/pending`, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  hodApproveNotification: async (id: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/faculty/notifications/${id}/hod-approve`, {}, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  hodRejectNotification: async (id: string, reason: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/faculty/notifications/${id}/hod-reject`, { reason }, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  // HOD: online lectures / guest lectures
+  getPendingLectures: async (): Promise<any[]> => {
+    const res = await axios.get(`${API_BASE_URL}/guest-lectures/hod/pending`, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  hodApproveLecture: async (id: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/guest-lectures/${id}/hod-approve`, {}, { headers: getAuthHeaders() });
+    return res.data;
+  },
+
+  hodRejectLecture: async (id: string, reason: string): Promise<any> => {
+    const res = await axios.post(`${API_BASE_URL}/guest-lectures/${id}/hod-reject`, { reason }, { headers: getAuthHeaders() });
+    return res.data;
+  },
 };
 
 export default facultyAssignmentService;

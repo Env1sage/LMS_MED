@@ -19,9 +19,14 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    apiService.get('/student-portal/notifications/unread-count')
-      .then(res => setUnreadCount(res.data?.count || 0))
-      .catch(() => {});
+    const load = () => {
+      apiService.get('/student-portal/notifications/unread-count')
+        .then(res => setUnreadCount(res.data?.count || 0))
+        .catch(() => {});
+    };
+    load();
+    const iv = setInterval(load, 60000);
+    return () => clearInterval(iv);
   }, []);
 
   const navItems = [
@@ -32,7 +37,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
     { path: '/student/self-paced', label: 'Self-Paced Learning', icon: <Target size={18} /> },
     { path: '/student/analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
     { path: '/student/schedule', label: 'Schedule', icon: <Calendar size={18} /> },
-    { path: '/student/guest-lectures', label: 'Guest Lectures', icon: <Target size={18} /> },
+    { path: '/student/guest-lectures', label: 'Online Lectures', icon: <Target size={18} /> },
     { path: '/student/profile', label: 'Profile', icon: <User size={18} /> },
   ];
 
@@ -111,7 +116,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
             title="Notifications"
           >
-            <Bell size={20} />
+            <Bell size={20} style={{ color: unreadCount > 0 ? '#EF4444' : 'var(--bo-text-secondary)' }} />
             {unreadCount > 0 && (
               <span style={{
                 position: 'absolute', top: 4, right: 4,
@@ -119,7 +124,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
                 background: '#EF4444', color: '#fff',
                 fontSize: 10, fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '0 3px',
+                padding: '0 3px', border: '2px solid #fff',
               }}>
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>

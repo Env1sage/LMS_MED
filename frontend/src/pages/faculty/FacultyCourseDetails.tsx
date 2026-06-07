@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { courseService } from '../../services/course.service';
 import learningUnitService from '../../services/learning-unit.service';
 import competencyService from '../../services/competency.service';
-import { ArrowLeft, Edit, Send, BarChart3, Trash2, BookOpen, Users, Eye } from 'lucide-react';
+import { ArrowLeft, Edit, Send, BarChart3, Trash2, BookOpen, Users, Eye, Clock, AlertCircle } from 'lucide-react';
 import { getAuthImageUrl } from '../../utils/imageUrl';
 import BookCover from '../../components/BookCover';
 import '../../styles/bitflow-owner.css';
@@ -35,6 +36,8 @@ interface Course {
 const FacultyCourseDetails: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [course, setCourse] = useState<Course | null>(null);
@@ -58,23 +61,50 @@ const FacultyCourseDetails: React.FC = () => {
     }
   };
 
+  const [actionError, setActionError] = useState('');
+  const [actionSuccess, setActionSuccess] = useState('');
+
+  const [submitting, setSubmitting] = useState(false);
+
+  // HOD only: direct publish (for HOD's own courses)
   const handlePublish = async () => {
-    if (!window.confirm('Publish this course? The learning flow cannot be modified after publishing.')) return;
+    if (!window.confirm('Publish this course directly?')) return;
     try {
+      setActionError('');
       await courseService.publish(id!);
+      setActionSuccess('Course published successfully');
+      setTimeout(() => setActionSuccess(''), 3000);
       loadCourse();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to publish');
+      setActionError(err.response?.data?.message || 'Failed to publish');
+    }
+  };
+
+  // Faculty: submit for HOD review
+  const handleSubmitForReview = async () => {
+    if (!window.confirm('Submit this course to HOD for review and approval?\n\nYou will not be able to edit it until the HOD reviews it.')) return;
+    try {
+      setSubmitting(true);
+      setActionError('');
+      await courseService.submitForReview(id!);
+      setActionSuccess('Course submitted to HOD for review!');
+      setTimeout(() => setActionSuccess(''), 4000);
+      loadCourse();
+    } catch (err: any) {
+      setActionError(err.response?.data?.message || 'Failed to submit for review');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this course? This action cannot be undone.')) return;
     try {
+      setActionError('');
       await courseService.delete(id!);
-      navigate('/faculty/courses');
+      navigate(isHod ? '/hod/courses' : '/faculty/courses');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete');
+      setActionError(err.response?.data?.message || 'Failed to delete');
     }
   };
 
@@ -87,14 +117,8 @@ const FacultyCourseDetails: React.FC = () => {
     }).filter(Boolean);
   };
 
-  const handleViewContent = async (unitId: string) => {
-    try {
-      // Navigate to the faculty content viewer
-      navigate(`/faculty/content/${unitId}/view`);
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to open content';
-      alert(`Error: ${errorMsg}`);
-    }
+  const handleViewContent = (unitId: string) => {
+    navigate(`/${isHod ? 'hod' : 'faculty'}/content/${unitId}/view`);
   };
 
   const getTypeBadge = (type: string) => {
@@ -134,7 +158,7 @@ const FacultyCourseDetails: React.FC = () => {
       <FacultyLayout>
         <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
           <p style={{ color: '#DC2626', marginBottom: 16 }}>{error || 'Course not found'}</p>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Back to Courses</button>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')}>Back to Courses</button>
         </div>
       </FacultyLayout>
     );
@@ -143,7 +167,7 @@ const FacultyCourseDetails: React.FC = () => {
   return (
     <FacultyLayout>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate('/faculty/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)', margin: 0 }}>{course.title}</h1>
@@ -157,10 +181,14 @@ const FacultyCourseDetails: React.FC = () => {
         </div>
       </div>
 
+      {/* Action feedback */}
+      {actionError && <div style={{ padding: '12px 16px', background: '#FEF2F2', color: '#DC2626', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{actionError}</div>}
+      {actionSuccess && <div style={{ padding: '12px 16px', background: '#F0FDF4', color: '#16A34A', borderRadius: 8, marginBottom: 16, fontSize: 14 }}>{actionSuccess}</div>}
+
       {/* Course Info */}
       <div className="bo-card" style={{ padding: 24, marginBottom: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16, marginBottom: 16 }}>
-          <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>Academic Year</div><div style={{ fontWeight: 600 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3':'Year 3','YEAR_3_PART1':'Year 3 (Part 1)','YEAR_3_PART2':'Year 3 (Part 2)','YEAR_4':'Year 4','YEAR_5':'Year 5','FIRST_YEAR':'1st Year','SECOND_YEAR':'2nd Year','THIRD_YEAR':'3rd Year','FOURTH_YEAR':'4th Year','FIFTH_YEAR':'5th Year','INTERNSHIP':'Internship','PART_1':'Part 1','PART_2':'Part 2'} as Record<string,string>)[course.academicYear] || course.academicYear?.replace(/_/g, ' ')}</div></div>
+          <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>Academic Year</div><div style={{ fontWeight: 600 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[course.academicYear] || course.academicYear?.replace(/_/g, ' ')}</div></div>
           <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>Created</div><div style={{ fontWeight: 600 }}>{formatDate(course.createdAt)}</div></div>
           <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>Learning Steps</div><div style={{ fontWeight: 600 }}>{course.learning_flow_steps?.length || 0}</div></div>
           <div><div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginBottom: 4 }}>Assignments</div><div style={{ fontWeight: 600 }}>{course._count?.course_assignments || 0}</div></div>
@@ -256,12 +284,30 @@ const FacultyCourseDetails: React.FC = () => {
       <div className="bo-card" style={{ padding: 20, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {course.status === 'DRAFT' && (
           <>
-            <button className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} onClick={() => navigate(`/faculty/edit-course/${course.id}`)}>
+            <button className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/edit-course/${course.id}`)}>
               <Edit size={16} /> Edit Course
             </button>
-            <button className="bo-btn bo-btn-primary" style={{ background: '#10B981', borderColor: '#10B981' }} onClick={handlePublish} disabled={!course.learning_flow_steps?.length}>
-              🚀 Publish Course
-            </button>
+
+            {/* Faculty: Submit for HOD review (maker-checker) */}
+            {!isHod && (
+              <button
+                className="bo-btn bo-btn-primary"
+                style={{ background: '#2563EB', borderColor: '#2563EB' }}
+                onClick={handleSubmitForReview}
+                disabled={submitting || !course.learning_flow_steps?.length}
+                title={!course.learning_flow_steps?.length ? 'Add at least one learning step first' : 'Submit to HOD for approval'}
+              >
+                <Send size={16} /> {submitting ? 'Submitting…' : 'Submit for HOD Review'}
+              </button>
+            )}
+
+            {/* HOD: can publish their own courses directly */}
+            {isHod && (
+              <button className="bo-btn bo-btn-primary" style={{ background: '#10B981', borderColor: '#10B981' }} onClick={handlePublish} disabled={!course.learning_flow_steps?.length}>
+                🚀 Publish Course
+              </button>
+            )}
+
             {(!course._count?.course_assignments || course._count.course_assignments === 0) && (
               <button className="bo-btn bo-btn-danger" onClick={handleDelete}>
                 <Trash2 size={16} /> Delete Course
@@ -269,15 +315,23 @@ const FacultyCourseDetails: React.FC = () => {
             )}
           </>
         )}
+
+        {/* PENDING_REVIEW: show locked state for faculty */}
+        {course.status === 'PENDING_REVIEW' && !isHod && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, color: '#1E40AF', fontSize: 14 }}>
+            <Clock size={16} />
+            <span><strong>Awaiting HOD Review</strong> — You cannot edit this course until the HOD approves or returns it.</span>
+          </div>
+        )}
         {course.status === 'PUBLISHED' && (
           <>
-            <button className="bo-btn bo-btn-primary" style={{ background: '#3B82F6', borderColor: '#3B82F6' }} onClick={() => navigate(`/faculty/assign-course/${course.id}`)}>
+            <button className="bo-btn bo-btn-primary" style={{ background: '#3B82F6', borderColor: '#3B82F6' }} onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/assign-course/${course.id}`)}>
               <Send size={16} /> Assign to Students
             </button>
-            <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/faculty/courses/${course.id}/analytics`)}>
+            <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${course.id}/analytics`)}>
               <BarChart3 size={16} /> View Analytics
             </button>
-            <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/faculty/courses/${course.id}/tracking`)}>
+            <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${course.id}/tracking`)}>
               <Users size={16} /> Student Tracking
             </button>
           </>

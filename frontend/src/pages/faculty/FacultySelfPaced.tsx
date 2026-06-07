@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { ArrowLeft, Plus, Upload, Edit3, Trash2, Eye, Search, X, FileText, Video, Image, Book, Headphones } from 'lucide-react';
 import '../../styles/bitflow-owner.css';
@@ -47,6 +48,8 @@ const getHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem('acces
 
 const FacultySelfPaced: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [resources, setResources] = useState<SelfPacedResource[]>([])
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -173,7 +176,7 @@ const FacultySelfPaced: React.FC = () => {
   return (
     <FacultyLayout>
       <button
-        onClick={() => navigate('/faculty')}
+        onClick={() => navigate(isHod ? '/hod' : '/faculty')}
         className="bo-btn bo-btn-outline"
         style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
       >

@@ -36,8 +36,11 @@ import {
   BookMarked,
   SlidersHorizontal,
   GalleryHorizontal,
+  GraduationCap,
 } from 'lucide-react';
 import apiService from '../../services/api.service';
+import learningUnitService from '../../services/learning-unit.service';
+import type { PageCompetencyEntry } from '../../services/learning-unit.service';
 import { useAuth } from '../../context/AuthContext';
 import * as pdfjsLib from 'pdfjs-dist';
 import { formatDate } from '../../utils/dateUtils';
@@ -230,6 +233,10 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
   const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
   const [showBookInfoPanel, setShowBookInfoPanel] = useState(false);
   const [bookInfo, setBookInfo] = useState<any>(null);
+  const [allPageCompetencies, setAllPageCompetencies] = useState<PageCompetencyEntry[]>([]);
+  const [pageCompetencyMap, setPageCompetencyMap] = useState<Record<number, PageCompetencyEntry[]>>({});
+  const [showCompetencyPanel, setShowCompetencyPanel] = useState(false);
+  const [compPanelTab, setCompPanelTab] = useState<'page' | 'all'>('page');
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchBar, setShowSearchBar] = useState(false);
   const [searchResults, setSearchResults] = useState<number>(0);
@@ -368,6 +375,22 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
 
     };
   }, [isPdfContent, learningUnitId, accessToken]);
+
+  // Load page-wise competency mappings once when PDF content is confirmed
+  useEffect(() => {
+    if (!isPdfContent || !learningUnitId) return;
+    learningUnitService.getPageCompetencies(learningUnitId).then(entries => {
+      setAllPageCompetencies(entries);
+      const map: Record<number, PageCompetencyEntry[]> = {};
+      for (const e of entries) {
+        for (let p = e.pageStart; p <= e.pageEnd; p++) {
+          if (!map[p]) map[p] = [];
+          map[p].push(e);
+        }
+      }
+      setPageCompetencyMap(map);
+    }).catch(() => {});
+  }, [isPdfContent, learningUnitId]);
 
   // Helper: fetch a single-page PDF from the backend, with caching
   const fetchSinglePagePdf = useCallback(async (pageNum: number): Promise<ArrayBuffer> => {
@@ -1824,18 +1847,28 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
 
       const newNote = response.data;
       setNotes([...notes, newNote]);
-      // Pin the note icon at the selection position within the PDF page wrapper
-      if (isPdfContent && pdfContainerRef.current) {
-        const rect = pdfContainerRef.current.getBoundingClientRect();
-        const xPct = ((noteCreationPosRef.current.x - rect.left) / rect.width) * 100;
-        const yPct = ((noteCreationPosRef.current.y - rect.top) / rect.height) * 100;
-        setNoteIconPositions(prev => ({
-          ...prev,
-          [newNote.id]: {
-            xPct: Math.max(1, Math.min(96, xPct)),
-            yPct: Math.max(1, Math.min(95, yPct)),
-          },
-        }));
+      // Pin the note icon relative to the page it was created on
+      if (isPdfContent) {
+        let rect: DOMRect | null = null;
+        if (pdfViewMode === 'scroll') {
+          const pageNum = selectionPageRef.current > 0 ? selectionPageRef.current : currentPdfPage;
+          const pageEl = pdfContainerRef.current?.querySelector(`[data-scroll-page="${pageNum}"]`) as HTMLElement | null;
+          if (pageEl) rect = pageEl.getBoundingClientRect();
+        } else if (pdfCanvasRef.current) {
+          const pageEl = pdfCanvasRef.current.parentElement;
+          rect = (pageEl || pdfCanvasRef.current).getBoundingClientRect();
+        }
+        if (rect) {
+          const xPct = ((noteCreationPosRef.current.x - rect.left) / rect.width) * 100;
+          const yPct = ((noteCreationPosRef.current.y - rect.top) / rect.height) * 100;
+          setNoteIconPositions(prev => ({
+            ...prev,
+            [newNote.id]: {
+              xPct: Math.max(1, Math.min(93, xPct)),
+              yPct: Math.max(1, Math.min(93, yPct)),
+            },
+          }));
+        }
       }
       setNoteContent('');
       setShowNoteModal(false);
@@ -2702,6 +2735,27 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
           >
             <Info size={20} />
           </button>
+          {/* Competencies (PDF only, only if mappings exist) */}
+          {isPdfContent && allPageCompetencies.length > 0 && (
+            <button
+              onClick={() => setShowCompetencyPanel(!showCompetencyPanel)}
+              style={{
+                ...styles.toolbarButton,
+                backgroundColor: showCompetencyPanel ? '#ECFDF5' : 'transparent',
+                color: showCompetencyPanel ? '#059669' : undefined,
+                position: 'relative',
+              } as React.CSSProperties}
+              data-tip="Page Competencies"
+            >
+              <GraduationCap size={20} />
+              {(pageCompetencyMap[currentPdfPage]?.length ?? 0) > 0 && (
+                <span style={{
+                  position: 'absolute', top: 4, right: 4, width: 8, height: 8,
+                  borderRadius: '50%', background: '#059669', border: '1.5px solid #fff',
+                }} />
+              )}
+            </button>
+          )}
           {!isPdfContent && (
             <button
               onClick={() => setShowSettings(!showSettings)}
@@ -2793,6 +2847,8 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
 
       {/* Chapter / TOC Panel */}
       {showChapterPanel && (
+        <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setShowChapterPanel(false)} />
         <div className="bf-chapter-panel" style={styles.chapterPanel as React.CSSProperties}>
           <div style={styles.chapterPanelHeader as React.CSSProperties}>
             <h3 style={styles.chapterPanelTitle as React.CSSProperties}>
@@ -2901,10 +2957,13 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* Notebook Panel */}
       {showNotebookPanel && (
+        <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setShowNotebookPanel(false)} />
         <div className="bf-notebook-panel" style={styles.notebookPanel as React.CSSProperties}>
           <div style={styles.notebookHeader as React.CSSProperties}>
             <h3 style={styles.notebookTitle as React.CSSProperties}>
@@ -3301,10 +3360,13 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* Settings Panel */}
       {showSettings && (
+        <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 19 }} onClick={() => setShowSettings(false)} />
         <div className="bf-settings-panel" style={styles.settingsPanel as React.CSSProperties}>
           <div style={styles.settingsPanelHeader as React.CSSProperties}>
             <h3 style={styles.settingsTitle as React.CSSProperties}>
@@ -3394,6 +3456,7 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
             </div>
           </div>
         </div>
+        </>
       )}
 
       {/* Highlight CSS Styles */}
@@ -4144,6 +4207,81 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
         </div>
       )}
 
+      {/* Page-wise Competency Panel */}
+      {showCompetencyPanel && isPdfContent && allPageCompetencies.length > 0 && (
+        <div style={{
+          position: 'absolute', top: '68px', right: 0, bottom: 0, width: 300,
+          background: '#fff', borderLeft: '1px solid #E5E7EB', zIndex: 1000,
+          display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 16px rgba(0,0,0,0.08)',
+        }}>
+          {/* Panel header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #F3F4F6' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: '#1E293B' }}>
+              <GraduationCap size={16} style={{ color: '#059669' }} /> Competencies
+            </div>
+            <button onClick={() => setShowCompetencyPanel(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6B7280', padding: 4, display: 'flex' }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', borderBottom: '1px solid #F3F4F6' }}>
+            {(['page', 'all'] as const).map(tab => (
+              <button key={tab} onClick={() => setCompPanelTab(tab)}
+                style={{
+                  flex: 1, padding: '8px', border: 'none', background: 'transparent', cursor: 'pointer',
+                  fontSize: 12, fontWeight: compPanelTab === tab ? 700 : 400,
+                  color: compPanelTab === tab ? '#059669' : '#6B7280',
+                  borderBottom: compPanelTab === tab ? '2px solid #059669' : '2px solid transparent',
+                  marginBottom: -1,
+                }}>
+                {tab === 'page' ? `This Page (${pageCompetencyMap[currentPdfPage]?.length ?? 0})` : `All (${allPageCompetencies.length})`}
+              </button>
+            ))}
+          </div>
+
+          {/* Panel body */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+            {compPanelTab === 'page' ? (
+              (pageCompetencyMap[currentPdfPage] ?? []).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: '#9CA3AF', fontSize: 13 }}>
+                  No competencies mapped to page {currentPdfPage}
+                </div>
+              ) : (
+                (pageCompetencyMap[currentPdfPage] ?? []).map((e, i) => (
+                  <div key={i} style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8, background: '#F0FDF4', border: '1px solid #BBF7D0' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#059669', marginBottom: 4 }}>{e.competencyCode}</div>
+                    {e.competencyDescription && <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.5 }}>{e.competencyDescription}</div>}
+                  </div>
+                ))
+              )
+            ) : (
+              allPageCompetencies.map((e, i) => (
+                <button key={i} onClick={() => setCurrentPdfPage(e.pageStart)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', marginBottom: 6,
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid #E5E7EB',
+                    background: (pageCompetencyMap[currentPdfPage] ?? []).some(x => x.competencyCode === e.competencyCode) ? '#F0FDF4' : '#fff',
+                    cursor: 'pointer',
+                  }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: '#059669' }}>{e.competencyCode}</div>
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                    pp. {e.pageStart === e.pageEnd ? e.pageStart : `${e.pageStart}–${e.pageEnd}`}
+                  </div>
+                  {e.competencyDescription && (
+                    <div style={{ fontSize: 11, color: '#374151', marginTop: 3, lineHeight: 1.4,
+                      overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
+                      {e.competencyDescription}
+                    </div>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Reading Area */}
       {isPdfContent ? (
         /* PDF Viewer Mode - Render PDF pages on canvas inside EPUB reader shell */
@@ -4244,6 +4382,26 @@ export const EpubReaderAnnotated: React.FC<EpubReaderAnnotatedProps> = ({
                     }}>
                       Page {pageNum}
                     </div>
+                    {/* Note icons for this scroll page */}
+                    {notes.filter(n => n.chapterId === `pdf-page-${pageNum}`).map((note, idx) => {
+                      const pos = noteIconPositions[note.id] || { xPct: 96, yPct: 5 + idx * 6 };
+                      return (
+                        <div
+                          key={note.id}
+                          style={{ position: 'absolute', left: `${pos.xPct}%`, top: `${pos.yPct}%`, zIndex: 8, cursor: 'pointer', userSelect: 'none' }}
+                          onClick={(e) => { e.stopPropagation(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setExpandedNoteId(prev => prev === note.id ? null : note.id); setNotePopoverPos({ x: r.left + r.width / 2, y: r.top }); }}
+                          title={note.content.slice(0, 80)}
+                        >
+                          <div style={{ width: 20, height: 20, background: 'linear-gradient(135deg,#FDE68A 60%,#F59E0B)', borderRadius: 3, boxShadow: '1px 2px 4px rgba(0,0,0,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#92400E', position: 'relative', transition: 'transform 0.15s' }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.2)'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h9l5-5V5a2 2 0 00-2-2zm-7 11H7v-2h5v2zm5-4H7V8h10v2z"/></svg>
+                            <div style={{ position: 'absolute', top: 0, right: 0, width: 5, height: 5, background: 'linear-gradient(135deg,transparent 50%,#D97706 50%)', borderRadius: '0 3px 0 0' }} />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
               </>

@@ -6,6 +6,53 @@ import { Building2, PlusCircle, Edit2, Trash2, UserCog, Users, X, ChevronDown, C
 import '../../styles/bitflow-owner.css';
 import '../../styles/loading-screen.css';
 
+const YEAR_OPTIONS = [
+  { value: '', label: 'Select Year' },
+  { value: 'YEAR_1', label: 'Year 1' },
+  { value: 'YEAR_2', label: 'Year 2' },
+  { value: 'YEAR_3_PART1', label: 'Year 3 Part 1' },
+  { value: 'YEAR_3_PART2', label: 'Year 3 Part 2' },
+  { value: 'INTERNSHIP', label: 'Internship' },
+];
+
+const YEAR_LABEL: Record<string, string> = {
+  YEAR_1: 'Year 1', YEAR_2: 'Year 2',
+  YEAR_3_PART1: 'Year 3 Part 1', YEAR_3_PART2: 'Year 3 Part 2', INTERNSHIP: 'Internship',
+};
+
+const YEAR_BADGE: Record<string, { bg: string; color: string }> = {
+  YEAR_1: { bg: '#DBEAFE', color: '#1D4ED8' },
+  YEAR_2: { bg: '#DCFCE7', color: '#15803D' },
+  YEAR_3_PART1: { bg: '#FEF3C7', color: '#B45309' },
+  YEAR_3_PART2: { bg: '#F3E8FF', color: '#7E22CE' },
+  INTERNSHIP: { bg: '#FFE4E6', color: '#BE123C' },
+};
+
+const PREFITTED_DEPTS: Record<string, { name: string; code: string }[]> = {
+  YEAR_1: [
+    { name: 'Anatomy', code: 'ANAT' },
+    { name: 'Physiology', code: 'PHYS' },
+    { name: 'Biochemistry', code: 'BIOC' },
+  ],
+  YEAR_2: [
+    { name: 'Pharmacology', code: 'PHRM' },
+    { name: 'Microbiology', code: 'MICR' },
+    { name: 'Pathology', code: 'PATH' },
+  ],
+  YEAR_3_PART1: [
+    { name: 'Forensic Medicine & Toxicology', code: 'FMT' },
+    { name: 'Preventive & Social Medicine', code: 'PSM' },
+  ],
+  YEAR_3_PART2: [
+    { name: 'Surgery', code: 'SURG' },
+    { name: 'Medicine', code: 'MED' },
+    { name: 'Obstetrics & Gynaecology', code: 'OBGY' },
+    { name: 'ENT', code: 'ENT' },
+    { name: 'Ophthalmology', code: 'OPHT' },
+    { name: 'Paediatrics', code: 'PAED' },
+  ],
+};
+
 const CollegeDepartments: React.FC = () => {
   const navigate = useNavigate();
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -19,7 +66,7 @@ const CollegeDepartments: React.FC = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'assignHod'>('create');
   const [selectedDept, setSelectedDept] = useState<Department | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [form, setForm] = useState<CreateDepartmentDto>({ name: '', code: '', description: '' });
+  const [form, setForm] = useState<CreateDepartmentDto>({ name: '', code: '', description: '', academicYear: '' });
   const [selectedHodId, setSelectedHodId] = useState('');
 
   // Expanded department card to show faculty roster
@@ -68,14 +115,20 @@ const CollegeDepartments: React.FC = () => {
     } catch (err) { console.error('Failed to refresh:', err); }
   };
 
-  const openCreate = () => { setModalMode('create'); setForm({ name: '', code: '', description: '' }); setSelectedDept(null); setShowModal(true); };
-  const openEdit = (d: Department) => { setModalMode('edit'); setSelectedDept(d); setForm({ name: d.name, code: d.code, description: d.description || '' }); setShowModal(true); };
-  const openAssignHod = (d: Department) => { 
-    setModalMode('assignHod'); setSelectedDept(d); 
-    setSelectedHodId((d as any).hodId || d.hodUserId || ''); 
-    setShowModal(true); 
+  const openCreate = () => { setModalMode('create'); setForm({ name: '', code: '', description: '', academicYear: '' }); setSelectedDept(null); setShowModal(true); };
+  const openEdit = (d: Department) => { setModalMode('edit'); setSelectedDept(d); setForm({ name: d.name, code: d.code, description: d.description || '', academicYear: (d as any).academicYear || '' }); setShowModal(true); };
+  const openAssignHod = async (d: Department) => {
+    setModalMode('assignHod'); setSelectedDept(d);
+    setSelectedHodId((d as any).hodId || d.hodUserId || '');
+    setShowModal(true);
+    if (!deptAssignments[d.id]) {
+      try {
+        const assignments = await governanceService.getFacultyByDepartment(d.id);
+        setDeptAssignments(prev => ({ ...prev, [d.id]: assignments }));
+      } catch (err) { console.error('Failed to load dept faculty:', err); }
+    }
   };
-  const closeModal = () => { setShowModal(false); setSelectedDept(null); setForm({ name: '', code: '', description: '' }); setSelectedHodId(''); setModalLoading(false); };
+  const closeModal = () => { setShowModal(false); setSelectedDept(null); setForm({ name: '', code: '', description: '', academicYear: '' }); setSelectedHodId(''); setModalLoading(false); };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -196,7 +249,13 @@ const CollegeDepartments: React.FC = () => {
                         <Building2 size={20} color="white" />
                       </div>
                       <div>
-                        <div style={{ fontSize: 16, fontWeight: 600 }}>{dept.name}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 16, fontWeight: 600 }}>{dept.name}</span>
+                          {(dept as any).academicYear && (() => {
+                            const b = YEAR_BADGE[(dept as any).academicYear] || { bg: '#F1F5F9', color: '#475569' };
+                            return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: b.bg, color: b.color }}>{YEAR_LABEL[(dept as any).academicYear] || (dept as any).academicYear}</span>;
+                          })()}
+                        </div>
                         <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', fontFamily: 'monospace', marginTop: 2 }}>{dept.code}</div>
                         {dept.description && <p style={{ fontSize: 12, color: 'var(--bo-text-secondary)', marginTop: 4, lineHeight: 1.5, margin: '4px 0 0 0' }}>{dept.description}</p>}
                       </div>
@@ -374,6 +433,32 @@ const CollegeDepartments: React.FC = () => {
             <form onSubmit={handleSubmit} style={{ padding: 20 }}>
               {(modalMode === 'create' || modalMode === 'edit') && (
                 <>
+                  {/* Academic Year */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={labelStyle}>Academic Year</label>
+                    <select value={form.academicYear || ''} onChange={e => setForm(p => ({ ...p, academicYear: e.target.value }))} style={inputStyle}>
+                      {YEAR_OPTIONS.map(y => <option key={y.value} value={y.value}>{y.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Pre-fitted department suggestions */}
+                  {form.academicYear && PREFITTED_DEPTS[form.academicYear] && (
+                    <div style={{ marginBottom: 16, padding: '12px 14px', background: '#F8FAFC', borderRadius: 8, border: '1px solid var(--bo-border)' }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--bo-text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Quick-fill — {YEAR_LABEL[form.academicYear]} Departments
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {PREFITTED_DEPTS[form.academicYear].map(d => (
+                          <button key={d.code} type="button"
+                            onClick={() => setForm(p => ({ ...p, name: d.name, code: d.code }))}
+                            style={{ padding: '4px 12px', borderRadius: 16, fontSize: 12, fontWeight: 500, border: `1px solid ${form.name === d.name ? '#059669' : '#D1D5DB'}`, background: form.name === d.name ? '#ECFDF5' : '#fff', color: form.name === d.name ? '#059669' : '#374151', cursor: 'pointer' }}>
+                            {d.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ marginBottom: 16 }}>
                     <label style={labelStyle}>Department Name <span style={{ color: '#EF4444' }}>*</span></label>
                     <input type="text" name="name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} required placeholder="e.g., Department of Anatomy" style={inputStyle} />
@@ -395,7 +480,12 @@ const CollegeDepartments: React.FC = () => {
                   <label style={labelStyle}>Select Head of Department</label>
                   <select value={selectedHodId} onChange={e => setSelectedHodId(e.target.value)} style={inputStyle}>
                     <option value="">-- No HOD / Remove Current --</option>
-                    {facultyUsers.map(f => <option key={f.id} value={f.id}>{f.fullName} ({f.email})</option>)}
+                    {selectedDept && !deptAssignments[selectedDept.id]
+                      ? <option disabled>Loading department faculty...</option>
+                      : facultyUsers
+                          .filter(f => selectedDept && (deptAssignments[selectedDept.id] || []).some(a => a.userId === f.id))
+                          .map(f => <option key={f.id} value={f.id}>{f.fullName} ({f.email})</option>)
+                    }
                   </select>
                   
                   {selectedDept && getHodInfo(selectedDept) && (

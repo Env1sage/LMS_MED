@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { courseService, LearningFlowStep, UpdateCourseData } from '../../services/course.service';
 import learningUnitService from '../../services/learning-unit.service';
@@ -13,6 +14,8 @@ const ACCENT = '#7C3AED';
 const FacultyEditCourse: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -107,7 +110,7 @@ const FacultyEditCourse: React.FC = () => {
       setSaving(true);
       const updateData: UpdateCourseData = { ...formData, learningFlowSteps: steps };
       await courseService.update(id!, updateData);
-      navigate('/faculty/courses');
+      navigate(isHod ? '/hod/courses' : '/faculty/courses');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update course');
     } finally {
@@ -157,7 +160,7 @@ const FacultyEditCourse: React.FC = () => {
         <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
           <h2 style={{ color: 'var(--bo-text-primary)' }}>Cannot Edit Published Course</h2>
           <p style={{ color: 'var(--bo-text-secondary)', marginBottom: 20 }}>Published courses cannot have their learning flow modified.</p>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Back to Courses</button>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')}>Back to Courses</button>
         </div>
       </FacultyLayout>
     );
@@ -166,7 +169,7 @@ const FacultyEditCourse: React.FC = () => {
   return (
     <FacultyLayout>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate('/faculty/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)', margin: 0 }}>Edit Course</h1>
           <p style={{ color: 'var(--bo-text-secondary)', fontSize: 14, margin: '4px 0 0' }}>Modify course details and learning flow</p>
@@ -192,8 +195,8 @@ const FacultyEditCourse: React.FC = () => {
               <select value={formData.academicYear} onChange={e => setFormData({ ...formData, academicYear: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, background: '#fff' }}>
                 <option value="YEAR_1">Year 1</option>
                 <option value="YEAR_2">Year 2</option>
-                <option value="YEAR_3_PART1">Year 3 (Part 1)</option>
-                <option value="YEAR_3_PART2">Year 3 (Part 2)</option>
+                <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                <option value="YEAR_3_PART2">Year 3 Part 2</option>
                 <option value="INTERNSHIP">Internship</option>
               </select>
             </div>
@@ -255,7 +258,7 @@ const FacultyEditCourse: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Cancel</button>
+          <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')}>Cancel</button>
           <button type="submit" className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} disabled={saving}>{saving ? 'Saving...' : 'Update Course'}</button>
         </div>
       </form>

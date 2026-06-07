@@ -19,7 +19,7 @@ const CreateStudent: React.FC = () => {
     email: '',
     yearOfAdmission: new Date().getFullYear(),
     expectedPassingYear: new Date().getFullYear() + 5,
-    currentAcademicYear: 'FIRST_YEAR',
+    currentAcademicYear: 'YEAR_1',
     temporaryPassword: '',
   });
 
@@ -97,7 +97,7 @@ const CreateStudent: React.FC = () => {
   };
 
   const downloadTemplate = () => {
-    const csv = 'fullName,email,yearOfAdmission,expectedPassingYear,currentAcademicYear\nJohn Doe,john@college.edu,2024,2029,FIRST_YEAR\nJane Smith,jane@college.edu,2024,2029,FIRST_YEAR';
+    const csv = 'fullName,email,yearOfAdmission,expectedPassingYear,currentAcademicYear\nJohn Doe,john@college.edu,2024,2029,YEAR_1\nJane Smith,jane@college.edu,2024,2029,YEAR_1';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -256,10 +256,10 @@ const CreateStudent: React.FC = () => {
                   onChange={handleChange}
                   required
                 >
-                  <option value="FIRST_YEAR">1st Year</option>
-                  <option value="SECOND_YEAR">2nd Year</option>
-                  <option value="YEAR_3_PART1">Year 3 (Part 1)</option>
-                  <option value="YEAR_3_PART2">Year 3 (Part 2)</option>
+                  <option value="YEAR_1">Year 1</option>
+                  <option value="YEAR_2">Year 2</option>
+                  <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                  <option value="YEAR_3_PART2">Year 3 Part 2</option>
                   <option value="INTERNSHIP">Internship</option>
                 </select>
               </div>

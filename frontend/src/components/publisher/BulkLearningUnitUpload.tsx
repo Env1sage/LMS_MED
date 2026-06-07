@@ -50,10 +50,10 @@ const BulkLearningUnitUpload: React.FC<BulkLearningUnitUploadProps> = ({ onSucce
   };
 
   const downloadTemplate = () => {
-    const csvContent = `type,title,description,subject,topic,subTopic,difficultyLevel,estimatedDuration,secureAccessUrl,deliveryType,watermarkEnabled,sessionExpiryMinutes,competencyCodes
-BOOK,Cardiovascular Anatomy,Comprehensive guide to heart structure and function covering all major components,Anatomy,Cardiovascular System,,INTERMEDIATE,45,https://cdn.example.com/book1.pdf,REDIRECT,true,30,"AN1.1,AN1.2"
-VIDEO,Heart Function Video,Educational video explaining how the heart pumps blood through the body,Physiology,Cardiac Function,,BEGINNER,30,https://cdn.example.com/video1.mp4,STREAM,true,60,PY2.1
-MCQ,Cardiovascular System Quiz,Assessment questions on cardiovascular anatomy and function,Anatomy,Cardiovascular System,,INTERMEDIATE,20,,EMBED,false,30,"AN1.1,AN1.2"`;
+    const csvContent = `type,title,description,subject,topic,subTopic,academicYear,difficultyLevel,estimatedDuration,secureAccessUrl,deliveryType,watermarkEnabled,sessionExpiryMinutes,competencyCodes
+BOOK,Cardiovascular Anatomy,Comprehensive guide to heart structure and function covering all major components,Anatomy,Cardiovascular System,,YEAR_2,K,45,https://cdn.example.com/book1.pdf,REDIRECT,true,30,"AN1.1,AN1.2"
+VIDEO,Heart Function Video,Educational video explaining how the heart pumps blood through the body,Physiology,Cardiac Function,,YEAR_1,KH,30,https://cdn.example.com/video1.mp4,STREAM,true,60,PY2.1
+MCQ,Cardiovascular System Quiz,Assessment questions on cardiovascular anatomy and function,Anatomy,Cardiovascular System,,YEAR_2,K,20,,EMBED,false,30,"AN1.1,AN1.2"`;
 
 
     const blob = new Blob([csvContent], { type: 'text/csv' });

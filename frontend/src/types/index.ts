@@ -401,6 +401,7 @@ export interface LearningUnit {
   edition?: string;
   coverImageUrl?: string;
   author?: string;
+  academicYear?: string;
   status: LearningUnitStatus;
   // Phase 3: Content lifecycle fields
   competencyMappingStatus?: CompetencyMappingStatus;

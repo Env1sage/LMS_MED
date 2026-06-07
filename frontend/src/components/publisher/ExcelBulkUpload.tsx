@@ -22,6 +22,7 @@ interface ExcelRow {
   subject: string;
   topic: string;
   subTopic: string;
+  academicYear: string;
   difficultyLevel: string;
   estimatedDuration: number;
   type: 'BOOK' | 'VIDEO' | 'EPUB';
@@ -82,16 +83,11 @@ function triggerDownload(columns: ColDef[], sheetName: string, instructionText: 
 
   ws[R(0, 0)] = { v: instructionText, t: 's', s: styleInstr };
   for (let c = 1; c < numCols; c++) ws[R(0, c)] = { v: '', t: 's', s: styleInstr };
-
-  // Clean header labels (dropdowns added via XML injection below)
-  columns.forEach((col, c) => {
-    ws[R(1, c)] = { v: col.header, t: 's', s: styleHeader };
-  });
-
+  columns.forEach((col, c) => { ws[R(1, c)] = { v: col.header, t: 's', s: styleHeader }; });
   columns.forEach((col, c) => { ws[R(2, c)] = { v: col.example1, t: 's', s: styleExample }; });
   columns.forEach((col, c) => { ws[R(3, c)] = { v: col.example2, t: 's', s: styleExample }; });
 
-  const tipText = '★ Delete the two EXAMPLE rows above and fill in your data. Columns marked * are required. Difficulty: K=Knows  KH=Knows How  S=Shows  SH=Shows How  P=Performs';
+  const tipText = '★ Delete the two EXAMPLE rows above and fill in your data starting from row 6. Columns marked * are required. See the "Lists" sheet tab at the bottom for all valid dropdown values.';
   ws[R(4, 0)] = { v: tipText, t: 's', s: styleTip };
   for (let c = 1; c < numCols; c++) ws[R(4, c)] = { v: '', t: 's', s: styleTip };
 
@@ -106,8 +102,25 @@ function triggerDownload(columns: ColDef[], sheetName: string, instructionText: 
 
   const dvCols = columns.map((c, i) => ({ ...c, idx: i })).filter(c => c.dropdown?.length);
 
+  // Build a "Lists" sheet — one column per dropdown, values start at row 2
+  const styleListHdr = { fill: { fgColor: { rgb: '1D4ED8' } }, font: { color: { rgb: 'FFFFFF' }, bold: true, sz: 11, name: 'Calibri' }, alignment: { horizontal: 'center' } };
+  const styleListVal = { fill: { fgColor: { rgb: 'EFF6FF' } }, font: { color: { rgb: '1E3A5F' }, sz: 11, name: 'Calibri' } };
+  const lws: any = {};
+  const LR = (row: number, col: number) => XLSXStyle.utils.encode_cell({ r: row, c: col });
+  dvCols.forEach((col, li) => {
+    lws[LR(0, li)] = { v: col.header.replace(' *', ''), t: 's', s: styleListHdr };
+    col.dropdown!.forEach((val, ri) => {
+      lws[LR(ri + 1, li)] = { v: val, t: 's', s: styleListVal };
+    });
+  });
+  const maxRows = dvCols.length ? Math.max(...dvCols.map(c => c.dropdown!.length)) : 0;
+  lws['!ref'] = XLSXStyle.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxRows, c: Math.max(dvCols.length - 1, 0) } });
+  lws['!cols'] = dvCols.map(() => ({ wch: 22 }));
+
   const wb = XLSXStyle.utils.book_new();
   XLSXStyle.utils.book_append_sheet(wb, ws, sheetName);
+  if (dvCols.length) XLSXStyle.utils.book_append_sheet(wb, lws, 'Lists');
+
   const rawBuf: ArrayBuffer = XLSXStyle.write(wb, { bookType: 'xlsx', type: 'array' });
 
   if (!dvCols.length) {
@@ -116,26 +129,26 @@ function triggerDownload(columns: ColDef[], sheetName: string, instructionText: 
     return;
   }
 
-  // Inject <dataValidations> XML into the xlsx zip (same technique as MCQ template)
+  // Inject <dataValidations> referencing the Lists sheet (reliable across all Excel/LibreOffice versions)
   const dvXml = [
     `<dataValidations count="${dvCols.length}">`,
-    ...dvCols.map(col => {
-      const colLetter = XLSXStyle.utils.encode_col(col.idx);
-      const formula = col.dropdown!.map(xmlEsc).join(',');
-      return `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="${colLetter}3:${colLetter}10001"><formula1>"${formula}"</formula1></dataValidation>`;
+    ...dvCols.map((col, li) => {
+      const mainColLetter = XLSXStyle.utils.encode_col(col.idx);
+      const listColLetter = XLSXStyle.utils.encode_col(li);
+      const numOpts = col.dropdown!.length;
+      return `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" promptTitle="${xmlEsc(col.header.replace(' *',''))}" prompt="Select a valid option from the dropdown" sqref="${mainColLetter}3:${mainColLetter}10001"><formula1>Lists!$${listColLetter}$2:$${listColLetter}$${numOpts + 1}</formula1></dataValidation>`;
     }),
     '</dataValidations>',
   ].join('');
 
   const unzipped = fflate.unzipSync(new Uint8Array(rawBuf));
-  const sheetKey = Object.keys(unzipped).find(k => /xl\/worksheets\/sheet\d+\.xml/.test(k));
+  // Inject into sheet1 (the data sheet, always the first worksheet)
+  const sheetKeys = Object.keys(unzipped).filter(k => /xl\/worksheets\/sheet\d+\.xml/.test(k)).sort();
+  const sheetKey = sheetKeys[0];
   if (sheetKey) {
     let xml = new TextDecoder().decode(unzipped[sheetKey]);
-    if (xml.includes('</mergeCells>')) {
-      xml = xml.replace('</mergeCells>', `</mergeCells>${dvXml}`);
-    } else {
-      xml = xml.replace('</sheetData>', `</sheetData>${dvXml}`);
-    }
+    const inject = xml.includes('</mergeCells>') ? '</mergeCells>' : '</sheetData>';
+    xml = xml.replace(inject, `${inject}${dvXml}`);
     unzipped[sheetKey] = new TextEncoder().encode(xml);
   }
 
@@ -152,6 +165,7 @@ const SUBJECTS = [
 const DIFF_OPTS = ['K','KH','S','SH','P'];
 const DELIVERY_OPTS = ['REDIRECT','EMBED','STREAM'];
 const BOOL_OPTS = ['false','true'];
+const ACAD_YEAR_OPTS = ['YEAR_1','YEAR_2','YEAR_3_PART1','YEAR_3_PART2','INTERNSHIP'];
 
 function downloadEbookTemplate() {
   const instr =
@@ -170,6 +184,7 @@ function downloadEbookTemplate() {
     { header: 'Subject *',            width: 140, dropdown: SUBJECTS, example1: 'Medicine', example2: 'Pathology' },
     { header: 'Topic',                width: 140, example1: 'General Medicine',             example2: 'General Pathology' },
     { header: 'Sub-Topic',            width: 140, example1: '',                             example2: 'Cell Injury' },
+    { header: 'Academic Year *',      width: 130, dropdown: ACAD_YEAR_OPTS, example1: 'YEAR_2', example2: 'YEAR_3_PART2' },
     { header: 'Difficulty *',         width: 90,  dropdown: DIFF_OPTS, example1: 'K',       example2: 'KH' },
     { header: 'Duration (min)',        width: 90,  example1: '60',                          example2: '45' },
     { header: 'Delivery Type',        width: 110, dropdown: DELIVERY_OPTS, example1: 'REDIRECT', example2: 'REDIRECT' },
@@ -198,6 +213,7 @@ function downloadEpubTemplate() {
     { header: 'Subject *',            width: 140, dropdown: SUBJECTS, example1: 'Anatomy',  example2: 'Physiology' },
     { header: 'Topic',                width: 140, example1: 'General Anatomy',              example2: 'Cardiovascular' },
     { header: 'Sub-Topic',            width: 140, example1: 'Upper Limb',                   example2: 'Cardiac Cycle' },
+    { header: 'Academic Year *',      width: 130, dropdown: ACAD_YEAR_OPTS, example1: 'YEAR_1', example2: 'YEAR_1' },
     { header: 'Difficulty *',         width: 90,  dropdown: DIFF_OPTS, example1: 'KH',      example2: 'S' },
     { header: 'Duration (min)',        width: 90,  example1: '90',                          example2: '60' },
     { header: 'Watermark',            width: 90,  dropdown: BOOL_OPTS, example1: 'true',    example2: 'true' },
@@ -224,6 +240,7 @@ function downloadVideoTemplate() {
     { header: 'Subject *',            width: 140, dropdown: SUBJECTS, example1: 'Anatomy',  example2: 'Physiology' },
     { header: 'Topic',                width: 140, example1: 'Upper Limb',                   example2: 'Cardiovascular System' },
     { header: 'Sub-Topic',            width: 140, example1: 'Brachial Plexus',              example2: 'Cardiac Cycle' },
+    { header: 'Academic Year *',      width: 130, dropdown: ACAD_YEAR_OPTS, example1: 'YEAR_1', example2: 'YEAR_2' },
     { header: 'Difficulty *',         width: 90,  dropdown: DIFF_OPTS, example1: 'S',       example2: 'KH' },
     { header: 'Duration (min)',        width: 90,  example1: '45',                          example2: '30' },
     { header: 'Video Format',         width: 90,  dropdown: ['mp4','webm','mov'], example1: 'mp4', example2: 'mp4' },
@@ -251,6 +268,7 @@ function downloadImageTemplate() {
     { header: 'Subject *',            width: 140, dropdown: SUBJECTS, example1: 'Anatomy',  example2: 'Pathology' },
     { header: 'Topic',                width: 140, example1: 'Upper Limb',                   example2: 'General Pathology' },
     { header: 'Sub-Topic',            width: 140, example1: 'Brachial Plexus',              example2: 'Cell Injury' },
+    { header: 'Academic Year *',      width: 130, dropdown: ACAD_YEAR_OPTS, example1: 'YEAR_1', example2: 'YEAR_3_PART2' },
     { header: 'Difficulty *',         width: 90,  dropdown: DIFF_OPTS, example1: 'KH',      example2: 'S' },
     { header: 'Image Format',         width: 90,  dropdown: ['jpg','png','webp','gif'], example1: 'jpg', example2: 'jpg' },
   ];
@@ -285,7 +303,20 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
     { value: 'P',  label: 'P  —  Performs'      },
   ];
 
-  useEffect(() => { topicsService.getSubjects().then(setSubjects).catch(() => {}); }, []);
+  useEffect(() => {
+    import('../../services/api.service').then(({ default: apiService }) => {
+      apiService.get('/competencies/subjects')
+        .then((res: any) => {
+          const data = res.data;
+          if (Array.isArray(data) && data.length > 0) {
+            setSubjects(data.map((s: any) => typeof s === 'object' ? s.subject : s));
+          } else {
+            topicsService.getSubjects().then(setSubjects).catch(() => {});
+          }
+        })
+        .catch(() => topicsService.getSubjects().then(setSubjects).catch(() => {}));
+    });
+  }, []);
 
   const generateId = () =>
     (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() :
@@ -351,6 +382,7 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
         const subjectIdx  = col(['subject']);
         const topicIdx    = col(['topic']);
         const subTopicIdx = col(['subtopic','subtop']);
+        const yearIdx     = col(['academicyear','academicyr','year']);
         const diffIdx     = col(['difficulty','level']);
         const durationIdx = col(['duration','min','minutes']);
         const formatIdx   = col(['videoformat','imageformat','fileformat','format','ext']);
@@ -404,12 +436,15 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
           const rowType   = guessType(rawFormat, fileUrl);
           const coverUrl  = get(coverIdx) || (isbn ? `/api/uploads/cover/${sanitiseIsbn(isbn)}` : '');
 
+          const rawYear = get(yearIdx).toUpperCase();
+          const validYears = ['YEAR_1','YEAR_2','YEAR_3_PART1','YEAR_3_PART2','INTERNSHIP'];
           const row: ExcelRow = {
             id: generateId(), isbn, title: get(titleIdx),
             author: get(authorIdx), description: get(descIdx), coverImageUrl: coverUrl,
             fileUrl,
             fileFormat: rawFormat || (rowType === 'VIDEO' ? 'mp4' : rowType === 'EPUB' ? 'epub' : 'pdf'),
             subject: get(subjectIdx), topic: get(topicIdx), subTopic: get(subTopicIdx),
+            academicYear: validYears.includes(rawYear) ? rawYear : '',
             difficultyLevel: validDiff.includes(rawDiff) ? rawDiff : 'K',
             estimatedDuration: durationIdx >= 0 ? (parseInt(c[durationIdx]) || 30) : 30,
             type: rowType,
@@ -564,6 +599,7 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
           type: backendType as any, title: row.title, description: desc,
           subject: row.subject, topic: row.topic || row.subject,
           subTopic: row.subTopic || undefined,
+          academicYear: row.academicYear || undefined,
           difficultyLevel: row.difficultyLevel as any,
           estimatedDuration: row.estimatedDuration,
           secureAccessUrl: toRel(row.fileUrl),
@@ -706,7 +742,7 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ background: '#F9FAFB', borderBottom: '2px solid var(--bo-border)' }}>
-                    {['#','ISBN / Code','Title / Author','Type','Subject / Topic','Diff','Auto-Generated URL','Status',''].map((h,i) => (
+                    {['#','ISBN / Code','Title / Author','Type','Subject / Topic','Year','Diff','Auto-Generated URL','Status',''].map((h,i) => (
                       <th key={i} style={{ padding: '10px 12px', textAlign: 'left' as const, fontWeight: 700, color: '#6B7280', fontSize: 11, textTransform: 'uppercase' as const, letterSpacing: '0.04em', whiteSpace: 'nowrap' as const }}>{h}</th>
                     ))}
                   </tr>
@@ -738,6 +774,11 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
                             {row.topic && <div style={{ fontSize: 11, color: '#9CA3AF' }}>{row.topic}</div>}
                           </td>
                           <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' as const }}>
+                            {row.academicYear
+                              ? <span style={{ padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#EDE9FE', color: '#6D28D9' }}>{row.academicYear.replace('YEAR_','Y').replace('_MINOR','-Min').replace('_MAJOR','-Maj')}</span>
+                              : <span style={{ fontSize: 11, color: '#EF4444' }}>Not set</span>}
+                          </td>
+                          <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' as const }}>
                             <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: '#F3F4F6', color: '#374151' }}>{row.difficultyLevel}</span>
                           </td>
                           <td style={{ padding: '10px 12px', maxWidth: 230 }}>
@@ -760,7 +801,7 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
                         </tr>
                         {isOpen && (
                           <tr>
-                            <td colSpan={9} style={{ padding: 0 }}>
+                            <td colSpan={10} style={{ padding: 0 }}>
                               <div style={{ padding: '16px 20px', background: '#F0F9FF', borderTop: '1px solid #BFDBFE', borderBottom: '1px solid #BFDBFE' }}>
                                 {!row.valid && (
                                   <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 7, marginBottom: 14 }}>
@@ -792,7 +833,7 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
                                     </select></div>
                                 </div>
                                 {/* Row 2 */}
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                                   <div><label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', display: 'block', marginBottom: 4 }}>Subject *</label>
                                     <select style={{ ...inp, cursor: 'pointer' }} value={row.subject} onChange={e => updateRow(row.id, 'subject', e.target.value)}>
                                       <option value="">Select subject…</option>
@@ -802,6 +843,15 @@ const ExcelBulkUpload: React.FC<ExcelBulkUploadProps> = ({ onSuccess }) => {
                                     <input style={inp} value={row.topic} onChange={e => updateRow(row.id, 'topic', e.target.value)} placeholder="e.g. Cardiovascular System" /></div>
                                   <div><label style={{ fontSize: 11, fontWeight: 700, color: '#6B7280', display: 'block', marginBottom: 4 }}>Sub-Topic</label>
                                     <input style={inp} value={row.subTopic} onChange={e => updateRow(row.id, 'subTopic', e.target.value)} placeholder="e.g. Cardiac Cycle" /></div>
+                                  <div><label style={{ fontSize: 11, fontWeight: 700, color: !row.academicYear ? '#EF4444' : '#6B7280', display: 'block', marginBottom: 4 }}>Academic Year *</label>
+                                    <select style={{ ...inp, cursor: 'pointer', borderColor: !row.academicYear ? '#EF4444' : undefined }} value={row.academicYear} onChange={e => updateRow(row.id, 'academicYear', e.target.value)}>
+                                      <option value="">-- Select --</option>
+                                      <option value="YEAR_1">Year 1</option>
+                                      <option value="YEAR_2">Year 2</option>
+                                      <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                                      <option value="YEAR_3_PART2">Year 3 Part 2</option>
+                                      <option value="INTERNSHIP">Internship</option>
+                                    </select></div>
                                 </div>
                                 {/* Row 3 */}
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>

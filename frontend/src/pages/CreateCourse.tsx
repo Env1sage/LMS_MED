@@ -269,10 +269,10 @@ const CreateCourse: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
               required
             >
-              <option value="YEAR_1">First Year</option>
-              <option value="YEAR_2">Second Year</option>
-              <option value="YEAR_3_PART1">Third Year (Part1)</option>
-              <option value="YEAR_3_PART2">Third Year (Part2)</option>
+              <option value="YEAR_1">Year 1</option>
+              <option value="YEAR_2">Year 2</option>
+              <option value="YEAR_3_PART1">Year 3 Part 1</option>
+              <option value="YEAR_3_PART2">Year 3 Part 2</option>
               <option value="INTERNSHIP">Internship</option>
             </select>
           </div>

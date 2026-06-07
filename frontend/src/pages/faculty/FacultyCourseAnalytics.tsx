@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { courseService } from '../../services/course.service';
 import { ArrowLeft, Search, Users, BarChart3 } from 'lucide-react';
@@ -30,6 +31,8 @@ interface AnalyticsData {
 const FacultyCourseAnalytics: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [course, setCourse] = useState<any>(null);
@@ -103,7 +106,7 @@ const FacultyCourseAnalytics: React.FC = () => {
       <FacultyLayout>
         <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
           <p style={{ color: '#DC2626', marginBottom: 16 }}>{error || 'No analytics available'}</p>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Back to Courses</button>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')}>Back to Courses</button>
         </div>
       </FacultyLayout>
     );
@@ -114,13 +117,13 @@ const FacultyCourseAnalytics: React.FC = () => {
   return (
     <FacultyLayout>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate(`/faculty/courses/${id}`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${id}`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text-primary)', margin: 0 }}>Course Analytics</h1>
           <p style={{ color: 'var(--bo-text-secondary)', fontSize: 14, margin: '4px 0 0' }}>{course?.title}</p>
         </div>
         <div style={{ marginLeft: 'auto' }}>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/faculty/courses/${id}/tracking`)}>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${id}/tracking`)}>
             <Users size={16} /> Detailed Tracking
           </button>
         </div>

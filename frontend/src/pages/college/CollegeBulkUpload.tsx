@@ -22,10 +22,12 @@ function buildFflateXlsx(
   const styleHeader = { fill: { fgColor: { rgb: '059669' } }, font: { color: { rgb: 'FFFFFF' }, sz: 11, bold: true, name: 'Calibri' }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true } };
   const styleExample = { fill: { fgColor: { rgb: 'F9FAFB' } }, font: { italic: true, color: { rgb: '9CA3AF' }, sz: 11, name: 'Calibri' }, alignment: { vertical: 'center', wrapText: true } };
   const styleTip = { fill: { fgColor: { rgb: 'ECFDF5' } }, font: { color: { rgb: '065F46' }, sz: 10, name: 'Calibri' }, alignment: { wrapText: true, vertical: 'top' } };
+  const styleListHdr = { fill: { fgColor: { rgb: '059669' } }, font: { color: { rgb: 'FFFFFF' }, bold: true, sz: 11, name: 'Calibri' }, alignment: { horizontal: 'center' } };
+  const styleListVal = { fill: { fgColor: { rgb: 'ECFDF5' } }, font: { color: { rgb: '065F46' }, sz: 11, name: 'Calibri' } };
   const numCols = cols.length;
   const ws: any = {};
   const R = (row: number, col: number) => XLSXStyle.utils.encode_cell({ r: row, c: col });
-  ws[R(0, 0)] = { v: tipText, t: 's', s: styleTip };
+  ws[R(0, 0)] = { v: tipText + ' See the "Lists" sheet tab for all valid dropdown values.', t: 's', s: styleTip };
   for (let c = 1; c < numCols; c++) ws[R(0, c)] = { v: '', t: 's', s: styleTip };
   cols.forEach((col, c) => { ws[R(1, c)] = { v: col.header, t: 's', s: styleHeader }; });
   cols.forEach((col, c) => { ws[R(2, c)] = { v: col.example1, t: 's', s: styleExample }; });
@@ -35,10 +37,30 @@ function buildFflateXlsx(
   ws['!rows'] = [{ hpt: 40 }, { hpt: 28 }, { hpt: 20 }, { hpt: 20 }];
   ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: numCols - 1 } }];
   ws['!views'] = [{ state: 'frozen', ySplit: 2, xSplit: 0, topLeftCell: 'A3', activeCell: 'A3' }];
+
+  const dvCols = cols.map((c, i) => ({ ...c, idx: i })).filter(c => c.dropdown && c.dropdown.length > 0);
+
+  // Build "Lists" sheet with all dropdown values
+  const lws: any = {};
+  const LR = (row: number, col: number) => XLSXStyle.utils.encode_cell({ r: row, c: col });
+  dvCols.forEach((col, li) => {
+    lws[LR(0, li)] = { v: col.header.replace(' *', ''), t: 's', s: styleListHdr };
+    col.dropdown!.forEach((val, ri) => {
+      lws[LR(ri + 1, li)] = { v: val, t: 's', s: styleListVal };
+    });
+  });
+  const maxRows = dvCols.length ? Math.max(...dvCols.map(c => c.dropdown!.length)) : 0;
+  if (dvCols.length) {
+    lws['!ref'] = XLSXStyle.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: maxRows, c: dvCols.length - 1 } });
+    lws['!cols'] = dvCols.map(() => ({ wch: 22 }));
+  }
+
   const wb = XLSXStyle.utils.book_new();
   XLSXStyle.utils.book_append_sheet(wb, ws, sheetName);
+  if (dvCols.length) XLSXStyle.utils.book_append_sheet(wb, lws, 'Lists');
+
   const rawBuf: ArrayBuffer = XLSXStyle.write(wb, { bookType: 'xlsx', type: 'array' });
-  const dvCols = cols.map((c, i) => ({ ...c, idx: i })).filter(c => c.dropdown && c.dropdown.length > 0);
+
   if (!dvCols.length) {
     const url = URL.createObjectURL(new Blob([new Uint8Array(rawBuf)], { type: XLSX_MIME }));
     const a = document.createElement('a'); a.href = url; a.download = filename;
@@ -46,13 +68,22 @@ function buildFflateXlsx(
     setTimeout(() => URL.revokeObjectURL(url), 2000);
     return;
   }
-  const dvXml = [`<dataValidations count="${dvCols.length}">`, ...dvCols.map(col => {
-    const colLetter = XLSXStyle.utils.encode_col(col.idx);
-    const formula = col.dropdown!.map(xmlEsc).join(',');
-    return `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="${colLetter}3:${colLetter}10001"><formula1>"${formula}"</formula1></dataValidation>`;
-  }), '</dataValidations>'].join('');
+
+  // Inject <dataValidations> referencing the Lists sheet (reliable across all Excel/LibreOffice versions)
+  const dvXml = [
+    `<dataValidations count="${dvCols.length}">`,
+    ...dvCols.map((col, li) => {
+      const colLetter = XLSXStyle.utils.encode_col(col.idx);
+      const listColLetter = XLSXStyle.utils.encode_col(li);
+      const numOpts = col.dropdown!.length;
+      return `<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" promptTitle="${xmlEsc(col.header.replace(' *',''))}" prompt="Select a valid option from the dropdown" sqref="${colLetter}3:${colLetter}10001"><formula1>Lists!$${listColLetter}$2:$${listColLetter}$${numOpts + 1}</formula1></dataValidation>`;
+    }),
+    '</dataValidations>',
+  ].join('');
+
   const unzipped = fflate.unzipSync(new Uint8Array(rawBuf));
-  const sheetKey = Object.keys(unzipped).find(k => /xl\/worksheets\/sheet\d+\.xml/.test(k));
+  const sheetKeys = Object.keys(unzipped).filter(k => /xl\/worksheets\/sheet\d+\.xml/.test(k)).sort();
+  const sheetKey = sheetKeys[0];
   if (sheetKey) {
     let xml = new TextDecoder().decode(unzipped[sheetKey]);
     xml = xml.includes('</mergeCells>') ? xml.replace('</mergeCells>', `</mergeCells>${dvXml}`) : xml.replace('</sheetData>', `</sheetData>${dvXml}`);
@@ -67,8 +98,7 @@ function buildFflateXlsx(
 
 const DEPT_CODES = ['ANAT','PHYS','BIOC','PATH','PHAR','MICR','GMED','GSUR','OBGY','PAED','ORTH','OPHT','ENT','DERM','PSYC','RADI','ANES'];
 const PERM_SETS = ['Full Access','Course Manager','Read Only'];
-// Only the 5 valid academic years used throughout the system
-const ACAD_YEARS = ['FIRST_YEAR','SECOND_YEAR','YEAR_3_PART1','YEAR_3_PART2','INTERNSHIP'];
+const ACAD_YEARS = ['YEAR_1','YEAR_2','YEAR_3_PART1','YEAR_3_PART2','INTERNSHIP'];
 
 function downloadFacultyTemplate() {
   buildFflateXlsx(
@@ -91,7 +121,7 @@ function downloadStudentTemplate() {
       { header: 'email *', width: 30, example1: 'rahul@college.edu', example2: 'priya@college.edu' },
       { header: 'yearOfAdmission *', width: 18, example1: '2024', example2: '2023' },
       { header: 'expectedPassingYear *', width: 20, example1: '2029', example2: '2028' },
-      { header: 'currentAcademicYear *', width: 24, dropdown: ACAD_YEARS, example1: 'FIRST_YEAR', example2: 'SECOND_YEAR' },
+      { header: 'currentAcademicYear *', width: 24, dropdown: ACAD_YEARS, example1: 'YEAR_1', example2: 'YEAR_2' },
     ],
     'Student Upload',
     'student_upload_template.xlsx',

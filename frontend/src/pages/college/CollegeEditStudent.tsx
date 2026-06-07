@@ -7,16 +7,11 @@ import '../../styles/bitflow-owner.css';
 import '../../styles/loading-screen.css';
 
 const ACADEMIC_YEARS = [
-  { value: 'YEAR_1', label: '1st Year' },
-  { value: 'YEAR_2', label: '2nd Year' },
-  { value: 'YEAR_3_PART1', label: 'Year 3 (Part 1)' },
-  { value: 'YEAR_3_PART2', label: 'Year 3 (Part 2)' },
+  { value: 'YEAR_1', label: 'Year 1' },
+  { value: 'YEAR_2', label: 'Year 2' },
+  { value: 'YEAR_3_PART1', label: 'Year 3 Part 1' },
+  { value: 'YEAR_3_PART2', label: 'Year 3 Part 2' },
   { value: 'INTERNSHIP', label: 'Internship' },
-  { value: 'FIRST_YEAR', label: '1st Year' },
-  { value: 'SECOND_YEAR', label: '2nd Year' },
-  { value: 'THIRD_YEAR', label: '3rd Year' },
-  { value: 'FOURTH_YEAR', label: '4th Year' },
-  { value: 'FIFTH_YEAR', label: '5th Year' },
 ];
 
 const CollegeEditStudent: React.FC = () => {

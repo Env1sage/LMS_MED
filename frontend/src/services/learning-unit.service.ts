@@ -11,6 +11,13 @@ import {
   DifficultyLevel,
 } from '../types';
 
+export interface PageCompetencyEntry {
+  competencyCode: string;
+  competencyDescription: string;
+  pageStart: number;
+  pageEnd: number;
+}
+
 export interface CreateLearningUnitDto {
   type: LearningUnitType;
   title: string;
@@ -37,6 +44,7 @@ export interface CreateLearningUnitDto {
   fileFormat?: string;
   edition?: string;
   coverImageUrl?: string;
+  academicYear?: string;
 }
 
 export interface UpdateLearningUnitDto extends Partial<CreateLearningUnitDto> {}
@@ -225,6 +233,18 @@ const learningUnitService = {
   // Deactivate content
   deactivateContent: async (id: string, reason?: string): Promise<LearningUnit> => {
     const response = await apiService.patch<LearningUnit>(`/learning-units/${id}/status`, { status: 'INACTIVE' });
+    return response.data;
+  },
+
+  getPageCompetencies: async (unitId: string, page?: number): Promise<PageCompetencyEntry[]> => {
+    const params: any = {};
+    if (page != null) params.page = page;
+    const response = await apiService.get(`/learning-units/${unitId}/page-competencies`, { params });
+    return response.data;
+  },
+
+  bulkUpsertPageCompetencies: async (unitId: string, entries: PageCompetencyEntry[]): Promise<{ inserted: number }> => {
+    const response = await apiService.post(`/learning-units/${unitId}/page-competencies`, { entries });
     return response.data;
   },
 };

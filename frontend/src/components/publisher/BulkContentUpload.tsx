@@ -22,6 +22,7 @@ interface ContentRow {
   description: string;
   subject: string;
   topic: string;
+  academicYear: string;
   difficultyLevel: string;
   estimatedDuration: number;
   file: File | null;
@@ -63,7 +64,20 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
   ];
 
   useEffect(() => {
-    topicsService.getSubjects().then(setSubjects).catch(() => {});
+    // Try competencies/subjects first (no role restriction, has all MCI subjects)
+    // Fall back to topics/subjects if that fails
+    import('../../services/api.service').then(({ default: apiService }) => {
+      apiService.get('/competencies/subjects')
+        .then(res => {
+          const data = res.data;
+          if (Array.isArray(data) && data.length > 0) {
+            setSubjects(data.map((s: any) => typeof s === 'object' ? s.subject : s));
+          } else {
+            return topicsService.getSubjects().then(setSubjects);
+          }
+        })
+        .catch(() => topicsService.getSubjects().then(setSubjects).catch(() => {}));
+    });
   }, []);
 
   function createEmptyRow(): ContentRow {
@@ -74,6 +88,7 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
       description: '',
       subject: '',
       topic: '',
+      academicYear: '',
       difficultyLevel: 'K',
       estimatedDuration: 30,
       file: null,
@@ -129,9 +144,9 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
     setResult(null);
 
     // Validate
-    const invalid = rows.filter(r => !r.title || !r.subject || !r.file);
+    const invalid = rows.filter(r => !r.title || !r.subject || !r.file || !r.academicYear);
     if (invalid.length > 0) {
-      setError(`${invalid.length} row(s) missing required fields (title, subject, or file)`);
+      setError(`${invalid.length} row(s) missing required fields (title, subject, academic year, or file)`);
       return;
     }
 
@@ -145,6 +160,7 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
         description: r.description || r.title,
         subject: r.subject,
         topic: r.topic,
+        academicYear: r.academicYear || undefined,
         difficultyLevel: r.difficultyLevel,
         estimatedDuration: r.estimatedDuration,
         tags: r.tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -167,9 +183,9 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
   };
 
   const downloadTemplate = () => {
-    const csv = `type,title,description,subject,topic,difficultyLevel,estimatedDuration,tags
-"BOOK","Harrison's Principles of Internal Medicine","Comprehensive medical textbook","Medicine","General Medicine","K","60","medicine,textbook"
-"VIDEO","Cardiac Examination Technique","Step by step cardiac exam","Medicine","Cardiovascular System","KH","15","cardiology,clinical-skills"`;
+    const csv = `type,title,description,subject,topic,academicYear,difficultyLevel,estimatedDuration,tags
+"BOOK","Harrison's Principles of Internal Medicine","Comprehensive medical textbook","Medicine","General Medicine","YEAR_2","K","60","medicine,textbook"
+"VIDEO","Cardiac Examination Technique","Step by step cardiac exam","Medicine","Cardiovascular System","YEAR_1","KH","15","cardiology,clinical-skills"`;
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -233,6 +249,7 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
         const descIdx = headers.indexOf('description');
         const subjectIdx = headers.indexOf('subject');
         const topicIdx = headers.indexOf('topic');
+        const yearIdx = headers.findIndex(h => h.includes('academic') || h.includes('year'));
         const diffIdx = headers.findIndex(h => h.includes('difficulty'));
         const durIdx = headers.findIndex(h => h.includes('duration') || h === 'min');
         const tagsIdx = headers.indexOf('tags');
@@ -256,6 +273,9 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
           const description = descIdx >= 0 ? cols[descIdx] || '' : '';
           const subject = subjectIdx >= 0 ? cols[subjectIdx] || '' : '';
           const topic = topicIdx >= 0 ? cols[topicIdx] || '' : '';
+          const validYears = ['YEAR_1', 'YEAR_2', 'YEAR_3_PART1', 'YEAR_3_PART2', 'INTERNSHIP'];
+          const rawYear = yearIdx >= 0 ? cols[yearIdx]?.toUpperCase().trim() || '' : '';
+          const academicYear = validYears.includes(rawYear) ? rawYear : '';
           const rawDiff = diffIdx >= 0 ? cols[diffIdx]?.toUpperCase() || '' : '';
           const difficultyLevel = validDiffLevels.includes(rawDiff) ? rawDiff : 'K';
           const duration = durIdx >= 0 ? parseInt(cols[durIdx]) || 30 : 30;
@@ -271,6 +291,7 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
             description,
             subject,
             topic,
+            academicYear,
             difficultyLevel,
             estimatedDuration: duration,
             file: null,
@@ -415,7 +436,7 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 100px', gap: 12, marginBottom: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr 100px', gap: 12, marginBottom: 12 }}>
             {/* Subject */}
             <div>
               <label style={labelStyle}>Subject *</label>
@@ -442,6 +463,25 @@ const BulkContentUpload: React.FC<BulkContentUploadProps> = ({ onSuccess }) => {
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--bo-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--bo-border)'; e.currentTarget.style.boxShadow = 'none'; }}
               />
+            </div>
+
+            {/* Academic Year */}
+            <div>
+              <label style={labelStyle}>Academic Year * <span style={{ color: '#EF4444', fontSize: 10 }}>Required</span></label>
+              <select
+                style={{ ...selectStyle, borderColor: !row.academicYear ? '#EF4444' : undefined }}
+                value={row.academicYear}
+                onChange={e => updateRow(row.id, 'academicYear', e.target.value)}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--bo-primary)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = row.academicYear ? 'var(--bo-border)' : '#EF4444'; e.currentTarget.style.boxShadow = 'none'; }}
+              >
+                <option value="">-- Select Year --</option>
+                <option value="YEAR_1">Year 1</option>
+                <option value="YEAR_2">Year 2</option>
+                <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                <option value="YEAR_3_PART2">Year 3 Part 2</option>
+                <option value="INTERNSHIP">Internship</option>
+              </select>
             </div>
 
             {/* Difficulty */}

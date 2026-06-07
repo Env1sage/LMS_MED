@@ -16,6 +16,7 @@ const ACCENT = '#7C3AED';
 const FacultyCreateCourse: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [loading, setLoading] = useState(false);
   const [resourcesLoading, setResourcesLoading] = useState(true);
   const [error, setError] = useState('');
@@ -250,7 +251,7 @@ const FacultyCreateCourse: React.FC = () => {
   return (
     <FacultyLayout>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate('/faculty/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>
+        <button onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}>
           <ArrowLeft size={18} />
         </button>
         <div>
@@ -284,8 +285,8 @@ const FacultyCreateCourse: React.FC = () => {
               <select value={formData.academicYear} onChange={e => setFormData({ ...formData, academicYear: e.target.value })} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--bo-border)', borderRadius: 8, fontSize: 14, outline: 'none', background: '#fff' }}>
                 <option value="YEAR_1">Year 1</option>
                 <option value="YEAR_2">Year 2</option>
-                <option value="YEAR_3_PART1">Year 3 (Part 1)</option>
-                <option value="YEAR_3_PART2">Year 3 (Part 2)</option>
+                <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                <option value="YEAR_3_PART2">Year 3 Part 2</option>
                 <option value="INTERNSHIP">Internship</option>
               </select>
             </div>
@@ -386,7 +387,7 @@ const FacultyCreateCourse: React.FC = () => {
 
         {/* Submit */}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-          <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Cancel</button>
+          <button type="button" className="bo-btn bo-btn-outline" onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')}>Cancel</button>
           <button type="submit" className="bo-btn bo-btn-primary" style={{ background: ACCENT, borderColor: ACCENT }} disabled={loading}>
             {loading ? 'Creating...' : 'Create Course'}
           </button>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import FacultyLayout from '../../components/faculty/FacultyLayout';
 import { facultyAnalyticsService, CourseAnalytics, StudentDetail, BatchSummary } from '../../services/faculty-analytics.service';
 import { ArrowLeft, Download, Search, Eye } from 'lucide-react';
@@ -12,6 +13,8 @@ const ACCENT = '#7C3AED';
 const FacultyStudentTracking: React.FC = () => {
   const navigate = useNavigate();
   const { courseId } = useParams<{ courseId: string }>();
+  const { user } = useAuth();
+  const isHod = user?.role === 'COLLEGE_HOD';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [analytics, setAnalytics] = useState<CourseAnalytics | null>(null);
@@ -121,7 +124,7 @@ const FacultyStudentTracking: React.FC = () => {
       <FacultyLayout>
         <div className="bo-card" style={{ padding: 40, textAlign: 'center' }}>
           <p style={{ color: '#DC2626', marginBottom: 16 }}>{error || 'No data'}</p>
-          <button className="bo-btn bo-btn-outline" onClick={() => navigate('/faculty/courses')}>Back</button>
+          <button className="bo-btn bo-btn-outline" onClick={() => navigate(isHod ? '/hod/courses' : '/faculty/courses')}>Back</button>
         </div>
       </FacultyLayout>
     );
@@ -138,7 +141,7 @@ const FacultyStudentTracking: React.FC = () => {
     <FacultyLayout>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button onClick={() => navigate(`/faculty/courses/${courseId}`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
+        <button onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${courseId}`)} style={{ padding: 8, border: '1px solid var(--bo-border)', borderRadius: 8, background: '#fff', cursor: 'pointer' }}><ArrowLeft size={18} /></button>
         <div style={{ flex: 1 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: 'var(--bo-text-primary)' }}>📊 {analytics.courseTitle}</h1>
           <p style={{ color: 'var(--bo-text-secondary)', fontSize: 14, margin: '4px 0 0' }}>Student Progress & Analytics</p>
@@ -276,7 +279,7 @@ const FacultyStudentTracking: React.FC = () => {
                       <td style={{ padding: '10px 12px' }}>{formatTime(s.totalTimeSpent)}</td>
                       <td style={{ padding: '10px 12px', color: 'var(--bo-text-secondary)' }}>{s.lastActivity ? formatDate(s.lastActivity) : 'Never'}</td>
                       <td style={{ padding: '10px 12px' }}>
-                        <button onClick={() => navigate(`/faculty/courses/${courseId}/students/${s.studentId}`)} title="View Details" style={{ padding: 6, border: '1px solid var(--bo-border)', borderRadius: 6, background: '#fff', cursor: 'pointer', color: ACCENT }}>
+                        <button onClick={() => navigate(`/${isHod ? 'hod' : 'faculty'}/courses/${courseId}/students/${s.studentId}`)} title="View Details" style={{ padding: 6, border: '1px solid var(--bo-border)', borderRadius: 6, background: '#fff', cursor: 'pointer', color: ACCENT }}>
                           <Eye size={14} />
                         </button>
                       </td>
@@ -339,7 +342,7 @@ const FacultyStudentTracking: React.FC = () => {
                 <div key={i} className="bo-card" style={{ padding: 20 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <h4 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{b.departmentName}</h4>
-                    <span style={{ fontSize: 12, color: 'var(--bo-text-muted)', padding: '3px 8px', background: 'var(--bo-bg)', borderRadius: 4 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3':'Year 3','YEAR_3_PART1':'Year 3 (Part 1)','YEAR_3_PART2':'Year 3 (Part 2)','YEAR_4':'Year 4','YEAR_5':'Year 5','FIRST_YEAR':'1st Year','SECOND_YEAR':'2nd Year','THIRD_YEAR':'3rd Year','FOURTH_YEAR':'4th Year','FIFTH_YEAR':'5th Year','INTERNSHIP':'Internship','PART_1':'Part 1','PART_2':'Part 2'} as Record<string,string>)[b.academicYear] || b.academicYear?.replace(/_/g, ' ')}</span>
+                    <span style={{ fontSize: 12, color: 'var(--bo-text-muted)', padding: '3px 8px', background: 'var(--bo-bg)', borderRadius: 4 }}>{({'YEAR_1':'Year 1','YEAR_2':'Year 2','YEAR_3_PART1':'Year 3 Part 1','YEAR_3_PART2':'Year 3 Part 2','INTERNSHIP':'Internship','FIRST_YEAR':'Year 1','SECOND_YEAR':'Year 2','YEAR_3_MINOR':'Year 3 Part 1','YEAR_3_MAJOR':'Year 3 Part 2','THIRD_YEAR':'Year 3 Part 1','FOURTH_YEAR':'Year 3 Part 2','FIFTH_YEAR':'Internship','PART_1':'Year 3 Part 1','PART_2':'Year 3 Part 2','YEAR_3':'Year 3 Part 1','YEAR_4':'Year 3 Part 2','YEAR_5':'Internship'} as Record<string,string>)[b.academicYear] || b.academicYear?.replace(/_/g, ' ')}</span>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, fontSize: 13, marginBottom: 12 }}>
                     <div><span style={{ color: 'var(--bo-text-muted)' }}>Total:</span> <strong>{b.totalStudents}</strong></div>

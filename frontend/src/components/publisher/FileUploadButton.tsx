@@ -117,10 +117,10 @@ const FileUploadButton: React.FC<FileUploadProps> = ({ onUploadComplete, fileTyp
       setError('Please enter a URL');
       return;
     }
-    try {
-      new URL(trimmed);
-    } catch {
-      setError('Please enter a valid URL (e.g. https://...)');
+    const isAbsolute = /^https?:\/\//i.test(trimmed);
+    const isRelative = trimmed.startsWith('/');
+    if (!isAbsolute && !isRelative) {
+      setError('Please enter a valid URL or path (e.g. https://... or /uploads/...)');
       return;
     }
     setError('');

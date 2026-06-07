@@ -34,6 +34,9 @@ import HodNotifications from './pages/hod/HodNotifications';
 import HodProfile from './pages/hod/HodProfile';
 import HodMyCourses from './pages/hod/HodMyCourses';
 import HodOnlineMeetings from './pages/hod/HodOnlineMeetings';
+import HodAssignedTasks from './pages/hod/HodAssignedTasks';
+import HodPendingApprovals from './pages/hod/HodPendingApprovals';
+import HodAssignCourse from './pages/hod/HodAssignCourse';
 import FacultyDashboard from './pages/faculty/FacultyDashboard';
 import FacultyMyCourses from './pages/faculty/FacultyMyCourses';
 import FacultyCreateCourse from './pages/faculty/FacultyCreateCourse';
@@ -52,6 +55,8 @@ import FacultyMcqTests from './pages/faculty/FacultyMcqTests';
 import FacultyGuestLectures from './pages/faculty/FacultyGuestLectures';
 import FacultyProfile from './pages/faculty/FacultyProfile';
 import FacultyContentViewer from './pages/faculty/FacultyContentViewer';
+import FacultyTasks from './pages/faculty/FacultyTasks';
+import FacultyCreateLearningUnit from './pages/faculty/FacultyCreateLearningUnit';
 import CollegeStudents from './pages/college/CollegeStudents';
 import CollegeCreateStudent from './pages/college/CollegeCreateStudent';
 import CollegeEditStudent from './pages/college/CollegeEditStudent';
@@ -67,6 +72,7 @@ import TeacherPerformance from './pages/college/TeacherPerformance';
 import StudentPerformance from './pages/college/StudentPerformance';
 import CourseAnalysis from './pages/college/CourseAnalysis';
 import TeacherContent from './pages/college/TeacherContent';
+import MakerCheckerLogs from './pages/college/MakerCheckerLogs';
 // Old faculty page imports removed — now using pages/faculty/*
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentCourses from './pages/student/StudentCourses';
@@ -372,13 +378,21 @@ const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="/college-admin/profile" 
+          <Route
+            path="/college-admin/profile"
             element={
               <ProtectedRoute requiredRole={[UserRole.COLLEGE_ADMIN, UserRole.COLLEGE_DEAN]}>
                 <CollegeProfilePage />
               </ProtectedRoute>
-            } 
+            }
+          />
+          <Route
+            path="/college-admin/maker-checker-logs"
+            element={
+              <ProtectedRoute requiredRole={UserRole.COLLEGE_DEAN}>
+                <MakerCheckerLogs />
+              </ProtectedRoute>
+            }
           />
           {/* Faculty Portal Routes */}
           <Route path="/faculty" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyDashboard /></ProtectedRoute>} />
@@ -386,7 +400,7 @@ const App: React.FC = () => {
           <Route path="/faculty/create-course" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyCreateCourse /></ProtectedRoute>} />
           <Route path="/faculty/edit-course/:id" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyEditCourse /></ProtectedRoute>} />
           <Route path="/faculty/courses/:id" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyCourseDetails /></ProtectedRoute>} />
-          <Route path="/faculty/assign-course/:id" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyAssignCourse /></ProtectedRoute>} />
+          <Route path="/faculty/assign-course/:id" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyAssignCourse /></ProtectedRoute>} />
           <Route path="/faculty/courses/:id/analytics" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyCourseAnalytics /></ProtectedRoute>} />
           <Route path="/faculty/courses/:courseId/tracking" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyStudentTracking /></ProtectedRoute>} />
           <Route path="/faculty/courses/:courseId/students/:studentId" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyStudentProgress /></ProtectedRoute>} />
@@ -398,7 +412,10 @@ const App: React.FC = () => {
           <Route path="/faculty/mcq-tests" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyMcqTests /></ProtectedRoute>} />
           <Route path="/faculty/guest-lectures" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyGuestLectures /></ProtectedRoute>} />
           <Route path="/faculty/profile" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyProfile /></ProtectedRoute>} />
-          <Route path="/faculty/content/:id/view" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyContentViewer /></ProtectedRoute>} />
+          <Route path="/faculty/content/:id/view" element={<ProtectedRoute requiredRole={[UserRole.FACULTY, UserRole.COLLEGE_HOD]}><FacultyContentViewer /></ProtectedRoute>} />
+          <Route path="/hod/content/:id/view" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyContentViewer /></ProtectedRoute>} />
+          <Route path="/faculty/tasks" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyTasks /></ProtectedRoute>} />
+          <Route path="/faculty/create-learning-unit" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyCreateLearningUnit /></ProtectedRoute>} />
           <Route path="/view-content/:id" element={<ProtectedRoute requiredRole={UserRole.FACULTY}><FacultyContentViewer /></ProtectedRoute>} />
           <Route 
             path="/student" 
@@ -564,6 +581,8 @@ const App: React.FC = () => {
           <Route path="/hod" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodDashboard /></ProtectedRoute>} />
           <Route path="/hod/students" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodStudents /></ProtectedRoute>} />
           <Route path="/hod/faculty" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodFaculty /></ProtectedRoute>} />
+          <Route path="/hod/assigned-tasks" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodAssignedTasks /></ProtectedRoute>} />
+          <Route path="/hod/pending-approvals" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodPendingApprovals /></ProtectedRoute>} />
           <Route path="/hod/analytics" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodAnalytics /></ProtectedRoute>} />
           <Route path="/hod/teacher-performance" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodTeacherPerformance /></ProtectedRoute>} />
           <Route path="/hod/student-performance" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodStudentPerformance /></ProtectedRoute>} />
@@ -574,8 +593,10 @@ const App: React.FC = () => {
           <Route path="/hod/create-course" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyCreateCourse /></ProtectedRoute>} />
           <Route path="/hod/edit-course/:id" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyEditCourse /></ProtectedRoute>} />
           <Route path="/hod/courses/:id" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyCourseDetails /></ProtectedRoute>} />
-          <Route path="/hod/assign-course/:id" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyAssignCourse /></ProtectedRoute>} />
+          <Route path="/hod/assign-course/:id" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodAssignCourse /></ProtectedRoute>} />
           <Route path="/hod/courses/:id/analytics" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyCourseAnalytics /></ProtectedRoute>} />
+          <Route path="/hod/courses/:courseId/tracking" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyStudentTracking /></ProtectedRoute>} />
+          <Route path="/hod/courses/:courseId/students/:studentId" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultyStudentProgress /></ProtectedRoute>} />
           <Route path="/hod/online-meetings" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><HodOnlineMeetings /></ProtectedRoute>} />
           <Route path="/hod/self-paced" element={<ProtectedRoute requiredRole={UserRole.COLLEGE_HOD}><FacultySelfPaced /></ProtectedRoute>} />
           {/* Dean Portal — redirect to the shared College Admin portal */}

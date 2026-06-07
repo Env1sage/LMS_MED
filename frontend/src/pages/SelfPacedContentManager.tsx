@@ -309,10 +309,10 @@ const SelfPacedContentManager: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
                   >
                     <option value="">All Years</option>
-                    <option value="FIRST_YEAR">1st Year</option>
-                    <option value="SECOND_YEAR">2nd Year</option>
-                    <option value="YEAR_3_PART1">Year 3 (Part 1)</option>
-                    <option value="YEAR_3_PART2">Year 3 (Part 2)</option>
+                    <option value="YEAR_1">Year 1</option>
+                    <option value="YEAR_2">Year 2</option>
+                    <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                    <option value="YEAR_3_PART2">Year 3 Part 2</option>
                     <option value="INTERNSHIP">Internship</option>
                   </select>
                 </div>

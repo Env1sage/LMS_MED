@@ -10,8 +10,14 @@ import '../../styles/bitflow-owner.css';
 import '../../styles/loading-screen.css';
 
 const YEAR_LABELS: Record<string, string> = {
-  FIRST_YEAR: '1st Year', SECOND_YEAR: '2nd Year', YEAR_3_PART1: 'Year 3 Part 1',
-  YEAR_3_PART2: 'Year 3 Part 2', INTERNSHIP: 'Internship',
+  YEAR_1: 'Year 1', YEAR_2: 'Year 2',
+  YEAR_3_PART1: 'Year 3 Part 1', YEAR_3_PART2: 'Year 3 Part 2',
+  INTERNSHIP: 'Internship',
+  FIRST_YEAR: 'Year 1', SECOND_YEAR: 'Year 2',
+  YEAR_3_MINOR: 'Year 3 Part 1', YEAR_3_MAJOR: 'Year 3 Part 2',
+  THIRD_YEAR: 'Year 3 Part 1', FOURTH_YEAR: 'Year 3 Part 2', FIFTH_YEAR: 'Internship',
+  PART_1: 'Year 3 Part 1', PART_2: 'Year 3 Part 2',
+  YEAR_3: 'Year 3 Part 1', YEAR_4: 'Year 3 Part 2', YEAR_5: 'Internship',
 };
 
 interface StudentPerf {

@@ -50,6 +50,7 @@ model colleges {
   subscriptionStartDate DateTime?
   subscriptionEndDate   DateTime?
   maxStudents           Int?
+  maxTeachers           Int?
   licenseType           String?                @default("STANDARD")
   audit_logs           audit_logs[]
   college_packages     college_packages[]
@@ -434,6 +435,7 @@ model learning_units {
   deactivationReason        String?
   downloadAllowed           Boolean                     @default(false)
   viewOnly                  Boolean                     @default(true)
+  academicYear              AcademicYear?
   thumbnailUrl              String?
   tags                      String[]
   createdAt                 DateTime                    @default(now())
@@ -452,6 +454,7 @@ model learning_units {
   viewCount                 Int                         @default(0)
   bookmarks                 bookmarks[]
   epub_chapters             epub_chapters[]
+  learning_unit_page_competencies learning_unit_page_competencies[]
   flashcards                flashcards[]
   highlights                highlights[]
   learning_flow_steps       learning_flow_steps[]
@@ -468,8 +471,23 @@ model learning_units {
   @@index([subject])
   @@index([type])
   @@index([topicId])
+  @@index([academicYear])
   @@index([fileFormat])
   @@index([epubStatus])
+}
+
+model learning_unit_page_competencies {
+  id                    String         @id @default(uuid())
+  learningUnitId        String
+  competencyCode        String
+  competencyDescription String         @default("")
+  pageStart             Int
+  pageEnd               Int
+  createdAt             DateTime       @default(now())
+  learning_units        learning_units @relation(fields: [learningUnitId], references: [id], onDelete: Cascade)
+
+  @@index([learningUnitId])
+  @@index([learningUnitId, pageStart, pageEnd])
 }
 
 model epub_chapters {
@@ -1194,6 +1212,8 @@ enum AcademicYear {
   YEAR_2
   YEAR_3_MINOR
   YEAR_3_MAJOR
+  YEAR_3_PART1
+  YEAR_3_PART2
   INTERNSHIP
   FIRST_YEAR
   SECOND_YEAR
@@ -1325,6 +1345,7 @@ enum CompetencyStatus {
 
 enum CourseStatus {
   DRAFT
+  PENDING_REVIEW
   PUBLISHED
   ARCHIVED
 }

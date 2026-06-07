@@ -40,6 +40,7 @@ const EditLearningUnit: React.FC = () => {
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>();
   const [subTopic, setSubTopic] = useState('');
   const [difficultyLevel, setDifficultyLevel] = useState<DifficultyLevel>(DifficultyLevel.K);
+  const [academicYear, setAcademicYear] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState(30);
   const [secureAccessUrl, setSecureAccessUrl] = useState('');
   const [deliveryType, setDeliveryType] = useState<DeliveryType>(DeliveryType.EMBED);
@@ -69,6 +70,7 @@ const EditLearningUnit: React.FC = () => {
       setTopic(unit.topic);
       setSubTopic(unit.subTopic || '');
       setDifficultyLevel(unit.difficultyLevel);
+      setAcademicYear((unit as any).academicYear || '');
       setEstimatedDuration(unit.estimatedDuration);
       setSecureAccessUrl(unit.secureAccessUrl);
       setDeliveryType(unit.deliveryType);
@@ -116,6 +118,7 @@ const EditLearningUnit: React.FC = () => {
         topic,
         subTopic: subTopic || undefined,
         difficultyLevel,
+        academicYear: academicYear || undefined,
         estimatedDuration,
         competencyIds: selectedCompetencyIds,
         deliveryType,
@@ -243,7 +246,19 @@ const EditLearningUnit: React.FC = () => {
                 <textarea style={{ ...inputStyle, minHeight: 100, resize: 'vertical' }} value={description}
                   onChange={e => setDescription(e.target.value)} required minLength={20} />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Academic Year *</label>
+                  <select style={{ ...inputStyle, borderColor: !academicYear ? '#EF4444' : undefined }} value={academicYear}
+                    onChange={e => setAcademicYear(e.target.value)}>
+                    <option value="">-- Select Year --</option>
+                    <option value="YEAR_1">Year 1</option>
+                    <option value="YEAR_2">Year 2</option>
+                    <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                    <option value="YEAR_3_PART2">Year 3 Part 2</option>
+                    <option value="INTERNSHIP">Internship</option>
+                  </select>
+                </div>
                 <div>
                   <label style={labelStyle}>Difficulty Level</label>
                   <select style={inputStyle} value={difficultyLevel}

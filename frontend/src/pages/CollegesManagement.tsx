@@ -64,15 +64,17 @@ const CollegesManagement: React.FC = () => {
 
   const [form, setForm] = useState({
     name: '', code: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '',
-    maxStudents: '500', licenseType: 'STANDARD',
+    maxStudents: '500', maxTeachers: '0', licenseType: 'STANDARD',
     subscriptionStartDate: '', subscriptionEndDate: '',
+    // IT Admin account
     adminEmail: '', adminName: '', adminPassword: '',
-    ownerName: '', ownerPassword: ''
+    // Dean account (contactEmail field in API)
+    deanEmail: '', deanName: '', deanPassword: '',
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
   const [showAdminPassword, setShowAdminPassword] = useState(false);
-  const [showOwnerPassword, setShowOwnerPassword] = useState(false);
+  const [showDeanPassword, setShowDeanPassword] = useState(false);
 
   useEffect(() => { fetchColleges(); fetchAssignments(); fetchPublishersAndPackages(); }, []);
 
@@ -171,7 +173,7 @@ const CollegesManagement: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingCollege(null);
-    setForm({ name: '', code: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '', maxStudents: '500', licenseType: 'STANDARD', subscriptionStartDate: '', subscriptionEndDate: '', adminEmail: '', adminName: '', adminPassword: '', ownerName: '', ownerPassword: '' });
+    setForm({ name: '', code: '', contactEmail: '', contactPhone: '', address: '', city: '', state: '', taluka: '', pincode: '', logoUrl: '', maxStudents: '500', maxTeachers: '0', licenseType: 'STANDARD', subscriptionStartDate: '', subscriptionEndDate: '', adminEmail: '', adminName: '', adminPassword: '', deanEmail: '', deanName: '', deanPassword: '' });
     setLogoFile(null);
     setLogoPreview('');
     setError('');
@@ -179,23 +181,36 @@ const CollegesManagement: React.FC = () => {
     setShowModal(true);
   };
 
-  const openEditModal = (col: College) => {
+  const openEditModal = async (col: College) => {
     setEditingCollege(col);
-    setForm({
-      name: col.name, code: col.code || '', contactEmail: col.contactEmail, contactPhone: col.contactPhone || '',
-      address: col.address || '', city: col.city || '', state: col.state || '', taluka: col.taluka || '', pincode: col.pincode || '', logoUrl: col.logoUrl || '',
-      maxStudents: col.maxStudents?.toString() || '',
-      licenseType: col.licenseType || 'STANDARD',
-      subscriptionStartDate: col.subscriptionStartDate ? col.subscriptionStartDate.split('T')[0] : '',
-      subscriptionEndDate: col.subscriptionEndDate ? col.subscriptionEndDate.split('T')[0] : '',
-      adminEmail: '', adminName: '', adminPassword: '',
-      ownerName: '', ownerPassword: ''
-    });
     setLogoFile(null);
     setLogoPreview(col.logoUrl || '');
     setError('');
     setFieldErrors({});
+    // Set basic fields immediately so modal opens fast
+    setForm({
+      name: col.name, code: col.code || '', contactEmail: col.contactEmail, contactPhone: col.contactPhone || '',
+      address: col.address || '', city: col.city || '', state: col.state || '', taluka: col.taluka || '', pincode: col.pincode || '', logoUrl: col.logoUrl || '',
+      maxStudents: col.maxStudents?.toString() || '',
+      maxTeachers: '0',
+      licenseType: col.licenseType || 'STANDARD',
+      subscriptionStartDate: col.subscriptionStartDate ? col.subscriptionStartDate.split('T')[0] : '',
+      subscriptionEndDate: col.subscriptionEndDate ? col.subscriptionEndDate.split('T')[0] : '',
+      adminEmail: '', adminName: '', adminPassword: '',
+      deanEmail: '', deanName: '', deanPassword: '',
+    });
     setShowModal(true);
+    // Fetch existing Dean and IT Admin user data to pre-fill
+    try {
+      const details = await apiService.get(`/bitflow-owner/colleges/${col.id}`) as any;
+      setForm(prev => ({
+        ...prev,
+        deanEmail: details.deanEmail || '',
+        deanName: details.deanName || '',
+        adminEmail: details.adminEmail || '',
+        adminName: details.adminName || '',
+      }));
+    } catch (_) {}
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,8 +252,14 @@ const CollegesManagement: React.FC = () => {
     if (!form.name) errs.name = 'College name is required';
     if (!form.contactEmail) errs.contactEmail = 'Contact email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail)) errs.contactEmail = 'Invalid email address';
+    if (!form.contactPhone) errs.contactPhone = 'Contact phone is required';
+    else if (!/^[+\d\s\-()]{7,20}$/.test(form.contactPhone)) errs.contactPhone = 'Enter a valid phone number';
     if (!editingCollege && !form.code) errs.code = 'College code is required';
     else if (!editingCollege && !/^[A-Z0-9_]{2,20}$/.test(form.code)) errs.code = 'Code must be 2-20 uppercase letters, numbers, or underscores';
+    if (!form.subscriptionStartDate) errs.subscriptionStartDate = 'Contract start date is required';
+    if (!form.subscriptionEndDate) errs.subscriptionEndDate = 'Contract end date is required';
+    if (form.subscriptionStartDate && form.subscriptionEndDate && form.subscriptionEndDate <= form.subscriptionStartDate)
+      errs.subscriptionEndDate = 'End date must be after start date';
     if (!editingCollege && form.adminEmail && form.adminEmail === form.contactEmail) errs.adminEmail = 'Admin email must be different from the owner (contact) email';
     if (!editingCollege && form.adminEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.adminEmail)) errs.adminEmail = 'Invalid admin email address';
     if (Object.keys(errs).length > 0) {
@@ -256,7 +277,7 @@ const CollegesManagement: React.FC = () => {
         contactPhone: form.contactPhone || undefined, address: form.address || undefined,
         city: form.city || undefined, state: form.state || undefined, taluka: form.taluka || undefined,
         pincode: form.pincode || undefined, logoUrl: logoUrl || undefined,
-        maxStudents: form.maxStudents ? parseInt(form.maxStudents) : undefined,
+        maxStudents: ((parseInt(form.maxStudents) || 0) + (parseInt(form.maxTeachers) || 0)) || undefined,
         licenseType: form.licenseType,
         subscriptionStartDate: form.subscriptionStartDate || undefined,
         subscriptionEndDate: form.subscriptionEndDate || undefined,
@@ -265,19 +286,25 @@ const CollegesManagement: React.FC = () => {
         if (form.adminName) payload.adminName = form.adminName;
         if (form.adminEmail) payload.adminEmail = form.adminEmail;
         if (form.adminPassword) payload.adminPassword = form.adminPassword;
+        if (form.deanName) payload.deanName = form.deanName;
+        if (form.deanEmail) payload.deanEmail = form.deanEmail;
+        if (form.deanPassword) payload.deanPassword = form.deanPassword;
         await apiService.put(`/bitflow-owner/colleges/${editingCollege.id}`, payload);
         setSuccessMsg('College updated successfully');
       } else {
         payload.code = form.code;
-        payload.adminEmail = form.adminEmail || undefined;  // undefined = auto-generate
+        // Dean account (contactEmail in API = dean login)
+        payload.contactEmail = form.deanEmail;
+        payload.ownerName = form.deanName || form.name + ' Dean';
+        payload.ownerPassword = form.deanPassword || undefined;
+        // IT Admin account
+        payload.adminEmail = form.adminEmail || undefined;
         payload.adminName = form.adminName || form.name + ' Admin';
         payload.adminPassword = form.adminPassword || undefined;
-        payload.ownerName = form.ownerName || form.name + ' Owner';
-        payload.ownerPassword = form.ownerPassword || undefined;
         const createRes = await apiService.post('/bitflow-owner/colleges', payload);
-        const ownerEmail = createRes.data?.createdAccounts?.owner?.email || form.contactEmail;
-        const adminEmail = createRes.data?.createdAccounts?.admin?.email || payload.adminEmail;
-        setSuccessMsg(`College created! Owner login: ${ownerEmail} · Admin login: ${adminEmail}`);
+        const deanLogin = createRes.data?.createdAccounts?.owner?.email || form.deanEmail;
+        const adminLogin = createRes.data?.createdAccounts?.admin?.email || payload.adminEmail;
+        setSuccessMsg(`College created! Dean login: ${deanLogin} · IT Admin login: ${adminLogin}`);
       }
       setShowModal(false);
       fetchColleges();
@@ -514,7 +541,7 @@ const CollegesManagement: React.FC = () => {
                   <tr>
                     <th>College</th>
                     <th>Contact</th>
-                    <th>Students</th>
+                    <th>Accounts</th>
                     <th>License</th>
                     <th>Status</th>
                     <th>Subscription End</th>
@@ -542,23 +569,12 @@ const CollegesManagement: React.FC = () => {
                         {col.contactPhone && <div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>{col.contactPhone}</div>}
                       </td>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 14 }}>
-                          <Users size={14} style={{ color: 'var(--bo-accent)' }} />
-                          {(() => {
-                            const used = getStudentCount(col);
-                            const max = col.maxStudents;
-                            if (!max) return <span>{used} accounts</span>;
-                            const remaining = max - used;
-                            const pct = used / max;
-                            const color = pct >= 1 ? '#EF4444' : pct >= 0.8 ? '#F59E0B' : '#10B981';
-                            return (
-                              <div>
-                                <div style={{ fontWeight: 600, color }}>{used} / {max}</div>
-                                <div style={{ fontSize: 11, color }}>{remaining > 0 ? `${remaining} left` : 'Full'}</div>
-                              </div>
-                            );
-                          })()}
-                        </div>
+                        {(() => {
+                          const used = getStudentCount(col);
+                          const max = col.maxStudents;
+                          const color = max ? (used / max >= 1 ? '#EF4444' : used / max >= 0.8 ? '#F59E0B' : '#10B981') : 'var(--bo-text-secondary)';
+                          return <span style={{ fontWeight: 600, color, fontSize: 13 }}>{used}{max ? ` / ${max}` : ''}</span>;
+                        })()}
                       </td>
                       <td>
                         <span className="bo-badge bo-badge-info">{col.licenseType || 'STANDARD'}</span>
@@ -649,8 +665,15 @@ const CollegesManagement: React.FC = () => {
                       {fieldErrors.contactEmail && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.contactEmail}</div>}
                     </div>
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Contact Phone</label>
-                      <input className="bo-form-input" value={form.contactPhone} onChange={e => setForm({ ...form, contactPhone: e.target.value })} placeholder="+91 XXXXX XXXXX" />
+                      <label className="bo-form-label">Contact Phone *</label>
+                      <input
+                        className="bo-form-input"
+                        style={fieldErrors.contactPhone ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}}
+                        value={form.contactPhone}
+                        onChange={e => { setForm({ ...form, contactPhone: e.target.value }); if (fieldErrors.contactPhone) setFieldErrors(prev => { const n = {...prev}; delete n.contactPhone; return n; }); }}
+                        placeholder="+91 XXXXX XXXXX"
+                      />
+                      {fieldErrors.contactPhone && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.contactPhone}</div>}
                     </div>
                   </div>
                   <div className="bo-form-group">
@@ -696,9 +719,19 @@ const CollegesManagement: React.FC = () => {
                   </div>
                   <div className="bo-form-row">
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Max Accounts</label>
-                      <input className="bo-form-input" type="number" min="1" value={form.maxStudents} onChange={e => setForm({ ...form, maxStudents: e.target.value })} placeholder="500" />
+                      <label className="bo-form-label">Max Students</label>
+                      <input className="bo-form-input" type="number" min="0" value={form.maxStudents} onChange={e => setForm({ ...form, maxStudents: e.target.value })} placeholder="500" />
                     </div>
+                    <div className="bo-form-group">
+                      <label className="bo-form-label">Max Teachers (Faculty)</label>
+                      <input className="bo-form-input" type="number" min="0" value={form.maxTeachers} onChange={e => setForm({ ...form, maxTeachers: e.target.value })} placeholder="0" />
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--bo-text-muted)', marginTop: -8, marginBottom: 4, padding: '6px 10px', background: '#F8FAFC', borderRadius: 6, border: '1px solid #E5E7EB' }}>
+                    Total accounts = {(parseInt(form.maxStudents) || 0) + (parseInt(form.maxTeachers) || 0)}
+                    <span style={{ marginLeft: 8, color: '#94A3B8', fontSize: 11 }}>({form.maxStudents || 0} students + {form.maxTeachers || 0} teachers)</span>
+                  </div>
+                  <div className="bo-form-row">
                     <div className="bo-form-group">
                       <label className="bo-form-label">License Type</label>
                       <select className="bo-form-select" value={form.licenseType} onChange={e => setForm({ ...form, licenseType: e.target.value })}>
@@ -711,38 +744,78 @@ const CollegesManagement: React.FC = () => {
                   </div>
                   <div className="bo-form-row">
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Subscription Start</label>
-                      <input className="bo-form-input" type="date" value={form.subscriptionStartDate} onChange={e => setForm({ ...form, subscriptionStartDate: e.target.value })} />
+                      <label className="bo-form-label">Contract Start Date *</label>
+                      <input
+                        className="bo-form-input"
+                        style={fieldErrors.subscriptionStartDate ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}}
+                        type="date"
+                        value={form.subscriptionStartDate}
+                        onChange={e => { setForm({ ...form, subscriptionStartDate: e.target.value }); if (fieldErrors.subscriptionStartDate) setFieldErrors(prev => { const n = {...prev}; delete n.subscriptionStartDate; return n; }); }}
+                      />
+                      {fieldErrors.subscriptionStartDate && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.subscriptionStartDate}</div>}
                     </div>
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Subscription End</label>
-                      <input className="bo-form-input" type="date" value={form.subscriptionEndDate} onChange={e => setForm({ ...form, subscriptionEndDate: e.target.value })} />
+                      <label className="bo-form-label">Contract End Date *</label>
+                      <input
+                        className="bo-form-input"
+                        style={fieldErrors.subscriptionEndDate ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}}
+                        type="date"
+                        value={form.subscriptionEndDate}
+                        onChange={e => { setForm({ ...form, subscriptionEndDate: e.target.value }); if (fieldErrors.subscriptionEndDate) setFieldErrors(prev => { const n = {...prev}; delete n.subscriptionEndDate; return n; }); }}
+                      />
+                      {fieldErrors.subscriptionEndDate && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.subscriptionEndDate}</div>}
                     </div>
                   </div>
                   {editingCollege && (
                     <>
-                      {/* ── Edit Admin Account ── */}
-                      <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #EEF2FF 0%, #F0FDF4 100%)', borderRadius: 10, marginBottom: 12, border: '1px solid #C7D2FE', marginTop: 4 }}>
+                      {/* ── Edit Dean Account ── */}
+                      <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%)', borderRadius: 10, marginBottom: 12, border: '1px solid #FDE68A', marginTop: 4 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 18 }}>🔐</span>
-                          <span style={{ fontWeight: 700, fontSize: 14, color: '#3730A3' }}>Admin Account</span>
-                          <span style={{ fontSize: 11, background: '#6366F1', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Optional Update</span>
+                          <span style={{ fontSize: 18 }}>🎓</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: '#92400E' }}>Dean Account</span>
+                          <span style={{ fontSize: 11, background: '#F59E0B', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Optional Update</span>
                         </div>
-                        <div style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.5 }}>Leave fields blank to keep the current admin credentials unchanged.</div>
+                        <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5 }}>Leave fields blank to keep the current Dean credentials unchanged.</div>
                       </div>
                       <div className="bo-form-row">
                         <div className="bo-form-group">
-                          <label className="bo-form-label">Admin Name</label>
+                          <label className="bo-form-label">Dean Name</label>
+                          <input className="bo-form-input" value={form.deanName} onChange={e => setForm({ ...form, deanName: e.target.value })} placeholder="Leave blank to keep current" />
+                        </div>
+                        <div className="bo-form-group">
+                          <label className="bo-form-label">Dean Login Email</label>
+                          <input className="bo-form-input" type="email" value={form.deanEmail} onChange={e => setForm({ ...form, deanEmail: e.target.value })} placeholder="Leave blank to keep current" />
+                        </div>
+                      </div>
+                      <div className="bo-form-group">
+                        <label className="bo-form-label">New Dean Password <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(leave blank = no change)</span></label>
+                        <div style={{ position: 'relative' }}>
+                          <input className="bo-form-input" type={showDeanPassword ? 'text' : 'password'} value={form.deanPassword} onChange={e => setForm({ ...form, deanPassword: e.target.value })} placeholder="Leave blank to keep current" style={{ paddingRight: 36 }} />
+                          <button type="button" onClick={() => setShowDeanPassword(v => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}>{showDeanPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                        </div>
+                      </div>
+                      {/* ── Edit Admin Account ── */}
+                      <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #EEF2FF 0%, #F0FDF4 100%)', borderRadius: 10, marginBottom: 12, border: '1px solid #C7D2FE', marginTop: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                          <span style={{ fontSize: 18 }}>🔐</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: '#3730A3' }}>IT Admin Account</span>
+                          <span style={{ fontSize: 11, background: '#6366F1', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Optional Update</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.5 }}>Leave fields blank to keep the current IT Admin credentials unchanged.</div>
+                      </div>
+                      <div className="bo-form-row">
+                        <div className="bo-form-group">
+                          <label className="bo-form-label">IT Admin Name</label>
                           <input className="bo-form-input" value={form.adminName} onChange={e => setForm({ ...form, adminName: e.target.value })} placeholder="Leave blank to keep current" />
                         </div>
                         <div className="bo-form-group">
-                          <label className="bo-form-label">Admin Login Email</label>
+                          <label className="bo-form-label">IT Admin Login Email</label>
                           <input className="bo-form-input" type="email" value={form.adminEmail} onChange={e => { setForm({ ...form, adminEmail: e.target.value }); if (fieldErrors.adminEmail) setFieldErrors(prev => { const n = {...prev}; delete n.adminEmail; return n; }); }} placeholder="Leave blank to keep current" style={fieldErrors.adminEmail ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}} />
                           {fieldErrors.adminEmail && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.adminEmail}</div>}
                         </div>
                       </div>
                       <div className="bo-form-group">
-                        <label className="bo-form-label">New Admin Password <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(leave blank = no change)</span></label>
+                        <label className="bo-form-label">New IT Admin Password <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(leave blank = no change)</span></label>
                         <div style={{ position: 'relative' }}>
                           <input className="bo-form-input" type={showAdminPassword ? 'text' : 'password'} value={form.adminPassword} onChange={e => setForm({ ...form, adminPassword: e.target.value })} placeholder="Leave blank to keep current" style={{ paddingRight: 36 }} />
                           <button type="button" onClick={() => setShowAdminPassword(v => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}>{showAdminPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
@@ -752,55 +825,59 @@ const CollegesManagement: React.FC = () => {
                   )}
                   {!editingCollege && (
                     <>
-                      {/* ── College Owner Account ── */}
+                      {/* ── College Dean Account ── */}
                       <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%)', borderRadius: 10, marginBottom: 12, border: '1px solid #FDE68A' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <span style={{ fontSize: 18 }}>🏛️</span>
-                          <span style={{ fontWeight: 700, fontSize: 14, color: '#92400E' }}>College Owner Account</span>
-                          <span style={{ fontSize: 11, background: '#F59E0B', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Auto-Created</span>
+                          <span style={{ fontSize: 18 }}>🎓</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: '#92400E' }}>College Dean Account</span>
+                          <span style={{ fontSize: 11, background: '#F59E0B', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Login Access</span>
                         </div>
                         <div style={{ fontSize: 12, color: '#78350F', lineHeight: 1.5 }}>
-                          Login email: <strong>{form.contactEmail || 'Contact email above'}</strong>. The owner has full college portal access under their own credentials.
+                          Dean gets full college portal access. Enter the Dean's email — this becomes their login.
                         </div>
                       </div>
                       <div className="bo-form-row">
                         <div className="bo-form-group">
-                          <label className="bo-form-label">Owner Name</label>
-                          <input className="bo-form-input" value={form.ownerName} onChange={e => setForm({ ...form, ownerName: e.target.value })} placeholder={form.name ? form.name + ' Owner' : 'Owner Name'} />
+                          <label className="bo-form-label">Dean Name</label>
+                          <input className="bo-form-input" value={form.deanName} onChange={e => setForm({ ...form, deanName: e.target.value })} placeholder={form.name ? 'Dean - ' + form.name : 'Dean Name'} />
                         </div>
                         <div className="bo-form-group">
-                          <label className="bo-form-label">Owner Password</label>
-                          <div style={{ position: 'relative' }}>
-                            <input className="bo-form-input" type={showOwnerPassword ? 'text' : 'password'} value={form.ownerPassword} onChange={e => setForm({ ...form, ownerPassword: e.target.value })} placeholder="Leave blank to auto-generate" style={{ paddingRight: 36 }} />
-                            <button type="button" onClick={() => setShowOwnerPassword(v => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}>{showOwnerPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                          </div>
+                          <label className="bo-form-label">Dean Email <span style={{ fontSize: 11, color: '#DC2626' }}>*</span></label>
+                          <input className="bo-form-input" type="email" required value={form.deanEmail} onChange={e => setForm({ ...form, deanEmail: e.target.value })} placeholder="dean@college.edu" />
+                        </div>
+                      </div>
+                      <div className="bo-form-group">
+                        <label className="bo-form-label">Dean Password <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(leave blank to auto-generate)</span></label>
+                        <div style={{ position: 'relative' }}>
+                          <input className="bo-form-input" type={showDeanPassword ? 'text' : 'password'} value={form.deanPassword} onChange={e => setForm({ ...form, deanPassword: e.target.value })} placeholder="Leave blank to auto-generate" style={{ paddingRight: 36 }} />
+                          <button type="button" onClick={() => setShowDeanPassword(v => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}>{showDeanPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                         </div>
                       </div>
 
-                      {/* ── College Admin Account ── */}
+                      {/* ── IT Admin Account ── */}
                       <div style={{ padding: '14px 16px', background: 'linear-gradient(135deg, #EEF2FF 0%, #F0FDF4 100%)', borderRadius: 10, marginBottom: 12, border: '1px solid #C7D2FE', marginTop: 4 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                           <span style={{ fontSize: 18 }}>🔐</span>
-                          <span style={{ fontWeight: 700, fontSize: 14, color: '#3730A3' }}>College Admin Account</span>
-                          <span style={{ fontSize: 11, background: '#6366F1', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Auto-Created</span>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: '#3730A3' }}>IT Admin Account</span>
+                          <span style={{ fontSize: 11, background: '#6366F1', color: '#fff', borderRadius: 4, padding: '1px 7px', marginLeft: 4 }}>Login Access</span>
                         </div>
                         <div style={{ fontSize: 12, color: '#4B5563', lineHeight: 1.5 }}>
-                          A separate admin account with the same portal access. <strong>Must use a different email from the owner.</strong> If left blank, an email like <code>admin@{'{collegeCode}'}.edu.in</code> is auto-generated.
+                          IT Admin manages users and college settings. Must use a different email from Dean. If left blank, auto-generated as <code>admin@{'{collegeCode}'}.edu.in</code>.
                         </div>
                       </div>
                       <div className="bo-form-row">
                         <div className="bo-form-group">
-                          <label className="bo-form-label">Admin Name</label>
+                          <label className="bo-form-label">IT Admin Name</label>
                           <input className="bo-form-input" value={form.adminName} onChange={e => setForm({ ...form, adminName: e.target.value })} placeholder={form.name ? form.name + ' Admin' : 'Admin Name'} />
                         </div>
                         <div className="bo-form-group">
-                          <label className="bo-form-label">Admin Login Email <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(optional — auto-generated if blank)</span></label>
+                          <label className="bo-form-label">IT Admin Email <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(optional)</span></label>
                           <input className="bo-form-input" type="email" value={form.adminEmail} onChange={e => { setForm({ ...form, adminEmail: e.target.value }); if (fieldErrors.adminEmail) setFieldErrors(prev => { const n = {...prev}; delete n.adminEmail; return n; }); }} placeholder={form.code ? `admin@${form.code.toLowerCase()}.edu.in` : 'Leave blank to auto-generate'} style={fieldErrors.adminEmail ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}} />
                           {fieldErrors.adminEmail && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.adminEmail}</div>}
                         </div>
                       </div>
                       <div className="bo-form-group">
-                        <label className="bo-form-label">Admin Password</label>
+                        <label className="bo-form-label">IT Admin Password <span style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>(leave blank to auto-generate)</span></label>
                         <div style={{ position: 'relative' }}>
                           <input className="bo-form-input" type={showAdminPassword ? 'text' : 'password'} value={form.adminPassword} onChange={e => setForm({ ...form, adminPassword: e.target.value })} placeholder="Leave blank to auto-generate" style={{ paddingRight: 36 }} />
                           <button type="button" onClick={() => setShowAdminPassword(v => !v)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}>{showAdminPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button>
@@ -840,15 +917,17 @@ const CollegesManagement: React.FC = () => {
                     <div><label className="bo-form-label">License</label><div><span className="bo-badge bo-badge-info">{viewCollege.licenseType || 'STANDARD'}</span></div></div>
                   </div>
                   <div className="bo-form-row">
-                    <div><label className="bo-form-label">Accounts</label><div style={{ fontSize: 14 }}>{(() => {
-                      const used = getStudentCount(viewCollege);
-                      const max = viewCollege.maxStudents;
-                      if (!max) return `${used} accounts (no limit set)`;
-                      const remaining = max - used;
-                      const pct = used / max;
-                      const color = pct >= 1 ? '#EF4444' : pct >= 0.8 ? '#F59E0B' : '#10B981';
-                      return <span style={{ color }}>{used} used / {max} max &nbsp;·&nbsp; <strong>{remaining > 0 ? `${remaining} remaining` : 'At limit'}</strong></span>;
-                    })()}</div></div>
+                    <div>
+                      <label className="bo-form-label">Account Limits</label>
+                      <div style={{ fontSize: 14 }}>
+                        {(() => {
+                          const used = getStudentCount(viewCollege);
+                          const max = viewCollege.maxStudents;
+                          const color = max ? (used / max >= 1 ? '#EF4444' : used / max >= 0.8 ? '#F59E0B' : '#10B981') : 'var(--bo-text-secondary)';
+                          return <span>Used: <strong style={{ color }}>{used}{max ? ` / ${max} total` : ' (no limit)'}</strong></span>;
+                        })()}
+                      </div>
+                    </div>
                     <div><label className="bo-form-label">Created</label><div style={{ fontSize: 14 }}>{formatDate(viewCollege.createdAt)}</div></div>
                   </div>
                   {viewCollege.address && <div><label className="bo-form-label">Address</label><div style={{ fontSize: 14 }}>{viewCollege.address}</div></div>}

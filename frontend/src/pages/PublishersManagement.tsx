@@ -22,6 +22,7 @@ interface Publisher {
   description?: string;
   logoUrl?: string;
   status: string;
+  isContractExpired?: boolean;
   contractStartDate?: string;
   contractExpiryDate?: string;
   contractEndDate?: string;
@@ -139,6 +140,12 @@ const PublishersManagement: React.FC = () => {
     else if (!/^[A-Z0-9_]{2,20}$/.test(form.code)) errs.code = 'Code must be 2-20 uppercase letters, numbers, or underscores';
     if (!form.contactEmail) errs.contactEmail = 'Contact email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail)) errs.contactEmail = 'Invalid email address';
+    if (!form.contactPhone) errs.contactPhone = 'Contact phone is required';
+    else if (!/^[+\d\s\-()]{7,20}$/.test(form.contactPhone)) errs.contactPhone = 'Enter a valid phone number';
+    if (!form.contractStartDate) errs.contractStartDate = 'Contract start date is required';
+    if (!form.contractExpiryDate) errs.contractExpiryDate = 'Contract end date is required';
+    if (form.contractStartDate && form.contractExpiryDate && form.contractExpiryDate <= form.contractStartDate)
+      errs.contractExpiryDate = 'End date must be after start date';
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
       setError('Please fix the highlighted fields below.');
@@ -351,13 +358,22 @@ const PublishersManagement: React.FC = () => {
                         {pub.contactPhone && <div style={{ fontSize: 12, color: 'var(--bo-text-muted)' }}>{pub.contactPhone}</div>}
                       </td>
                       <td>
-                        <span className={`bo-badge ${pub.status === 'ACTIVE' ? 'bo-badge-success' : pub.status === 'SUSPENDED' ? 'bo-badge-danger' : 'bo-badge-warning'}`}>
-                          {pub.status}
-                        </span>
+                        {pub.isContractExpired && pub.status === 'ACTIVE' ? (
+                          <span className="bo-badge bo-badge-danger">CONTRACT EXPIRED</span>
+                        ) : (
+                          <span className={`bo-badge ${pub.status === 'ACTIVE' ? 'bo-badge-success' : pub.status === 'SUSPENDED' ? 'bo-badge-danger' : 'bo-badge-warning'}`}>
+                            {pub.status}
+                          </span>
+                        )}
                       </td>
                       <td style={{ fontSize: 13, color: 'var(--bo-text-secondary)' }}>
                         {pub.contractStartDate ? <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{formatDate(pub.contractStartDate)}</div> : null}
-                        {(pub.contractEndDate || pub.contractExpiryDate) ? formatDate((pub.contractEndDate || pub.contractExpiryDate)!) : '—'}
+                        {(pub.contractEndDate || pub.contractExpiryDate) ? (
+                          <span style={{ color: pub.isContractExpired ? '#EF4444' : undefined, fontWeight: pub.isContractExpired ? 600 : undefined }}>
+                            {formatDate((pub.contractEndDate || pub.contractExpiryDate)!)}
+                            {pub.isContractExpired && ' ⚠️'}
+                          </span>
+                        ) : '—'}
                       </td>
                       <td style={{ fontSize: 13, color: 'var(--bo-text-secondary)' }}>
                         {formatDate(pub.createdAt)}
@@ -438,8 +454,15 @@ const PublishersManagement: React.FC = () => {
                       {fieldErrors.contactEmail && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.contactEmail}</div>}
                     </div>
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Contact Phone</label>
-                      <input className="bo-form-input" value={form.contactPhone} onChange={(e) => setForm({ ...form, contactPhone: e.target.value })} placeholder="+91 XXXXX XXXXX" />
+                      <label className="bo-form-label">Contact Phone *</label>
+                      <input
+                        className="bo-form-input"
+                        style={fieldErrors.contactPhone ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}}
+                        value={form.contactPhone}
+                        onChange={(e) => { setForm({ ...form, contactPhone: e.target.value }); if (fieldErrors.contactPhone) setFieldErrors(prev => { const n = {...prev}; delete n.contactPhone; return n; }); }}
+                        placeholder="+91 XXXXX XXXXX"
+                      />
+                      {fieldErrors.contactPhone && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.contactPhone}</div>}
                     </div>
                   </div>
                   <div className="bo-form-group">
@@ -448,12 +471,26 @@ const PublishersManagement: React.FC = () => {
                   </div>
                   <div className="bo-form-row">
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Contract Start Date</label>
-                      <input className="bo-form-input" type="date" value={form.contractStartDate} onChange={(e) => setForm({ ...form, contractStartDate: e.target.value })} />
+                      <label className="bo-form-label">Contract Start Date *</label>
+                      <input
+                        className="bo-form-input"
+                        style={fieldErrors.contractStartDate ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}}
+                        type="date"
+                        value={form.contractStartDate}
+                        onChange={(e) => { setForm({ ...form, contractStartDate: e.target.value }); if (fieldErrors.contractStartDate) setFieldErrors(prev => { const n = {...prev}; delete n.contractStartDate; return n; }); }}
+                      />
+                      {fieldErrors.contractStartDate && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.contractStartDate}</div>}
                     </div>
                     <div className="bo-form-group">
-                      <label className="bo-form-label">Contract End Date</label>
-                      <input className="bo-form-input" type="date" value={form.contractExpiryDate} onChange={(e) => setForm({ ...form, contractExpiryDate: e.target.value })} />
+                      <label className="bo-form-label">Contract End Date *</label>
+                      <input
+                        className="bo-form-input"
+                        style={fieldErrors.contractExpiryDate ? { borderColor: 'var(--bo-danger)', background: '#FEF2F2' } : {}}
+                        type="date"
+                        value={form.contractExpiryDate}
+                        onChange={(e) => { setForm({ ...form, contractExpiryDate: e.target.value }); if (fieldErrors.contractExpiryDate) setFieldErrors(prev => { const n = {...prev}; delete n.contractExpiryDate; return n; }); }}
+                      />
+                      {fieldErrors.contractExpiryDate && <div style={{ fontSize: 11, color: 'var(--bo-danger)', marginTop: 3 }}>{fieldErrors.contractExpiryDate}</div>}
                     </div>
                   </div>
                   <div className="bo-form-group">
@@ -571,7 +608,13 @@ const PublishersManagement: React.FC = () => {
                     <div><label className="bo-form-label">Phone</label><div style={{ fontSize: 14 }}>{viewPublisher.contactPhone || '—'}</div></div>
                   </div>
                   <div className="bo-form-row">
-                    <div><label className="bo-form-label">Status</label><div><span className={`bo-badge ${viewPublisher.status === 'ACTIVE' ? 'bo-badge-success' : 'bo-badge-warning'}`}>{viewPublisher.status}</span></div></div>
+                    <div><label className="bo-form-label">Status</label><div>
+                      {viewPublisher.isContractExpired && viewPublisher.status === 'ACTIVE' ? (
+                        <span className="bo-badge bo-badge-danger">CONTRACT EXPIRED</span>
+                      ) : (
+                        <span className={`bo-badge ${viewPublisher.status === 'ACTIVE' ? 'bo-badge-success' : 'bo-badge-warning'}`}>{viewPublisher.status}</span>
+                      )}
+                    </div></div>
                     <div><label className="bo-form-label">Created</label><div style={{ fontSize: 14 }}>{formatDate(viewPublisher.createdAt)}</div></div>
                   </div>
                   {viewPublisher.website && <div><label className="bo-form-label">Website</label><div style={{ fontSize: 14 }}>{viewPublisher.website}</div></div>}

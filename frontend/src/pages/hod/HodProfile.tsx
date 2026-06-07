@@ -105,10 +105,6 @@ const HodProfile: React.FC = () => {
                 {profile?.lastLoginAt ? formatDateTime(profile.lastLoginAt) : 'N/A'}
               </div>
             </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--bo-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>Member Since</div>
-              <div style={{ fontSize: 13 }}>{profile?.createdAt ? formatDate(profile.createdAt) : '—'}</div>
-            </div>
           </div>
         </div>
 

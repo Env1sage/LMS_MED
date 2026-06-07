@@ -4,9 +4,10 @@ import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard, BookOpen, PlusCircle, Users, BarChart3,
   Bell, FileText, Settings, LogOut, GraduationCap, ClipboardList,
-  ChevronRight,
+  ChevronRight, CheckSquare, Layers,
 } from 'lucide-react';
 import governanceService from '../../services/governance.service';
+import HodLayout from '../hod/HodLayout';
 import '../../styles/bitflow-owner.css';
 
 interface FacultyLayoutProps {
@@ -19,29 +20,40 @@ const PAGE_TITLES: Record<string, string> = {
   '/faculty/create-course': 'Create Course',
   '/faculty/assignments': 'Assignments',
   '/faculty/mcq-tests': 'MCQs & Tests',
-  '/faculty/guest-lectures': 'Guest Lectures',
+  '/faculty/guest-lectures': 'Online Lectures',
   '/faculty/students': 'My Students',
   '/faculty/analytics': 'Analytics',
   '/faculty/notifications': 'Notifications',
   '/faculty/profile': 'My Profile',
   '/faculty/self-paced': 'Self-Paced Resources',
+  '/faculty/tasks': 'Tasks Assigned',
 };
 
 const FacultyLayout: React.FC<FacultyLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   useEffect(() => {
     const loadUnreadCount = async () => {
       try {
         const res = await governanceService.getUnreadNotificationCount();
         setUnreadCount(res?.count || 0);
-      } catch { /* silent — badge just won't show if offline */ }
+      } catch { /* silent */ }
+    };
+    const loadTaskCount = async () => {
+      try {
+        const tasks = await governanceService.getMyTasks();
+        const pending = (Array.isArray(tasks) ? tasks : []).filter((t: any) => t.status === 'PENDING' || t.status === 'IN_PROGRESS').length;
+        setPendingTaskCount(pending);
+      } catch { /* silent */ }
     };
     loadUnreadCount();
-    const iv = setInterval(loadUnreadCount, 60000);
+    loadTaskCount();
+    const iv = setInterval(() => { loadUnreadCount(); loadTaskCount(); }, 60000);
     return () => clearInterval(iv);
   }, []);
 
@@ -51,9 +63,11 @@ const FacultyLayout: React.FC<FacultyLayoutProps> = ({ children }) => {
     { path: '/faculty/create-course', label: 'Create Course', icon: <PlusCircle size={18} /> },
     { path: '/faculty/assignments', label: 'Assignments', icon: <ClipboardList size={18} /> },
     { path: '/faculty/mcq-tests', label: 'MCQs & Tests', icon: <FileText size={18} /> },
-    { path: '/faculty/guest-lectures', label: 'Guest Lectures', icon: <Users size={18} /> },
+    { path: '/faculty/guest-lectures', label: 'Online Lectures', icon: <Users size={18} /> },
     { path: '/faculty/students', label: 'My Students', icon: <GraduationCap size={18} /> },
     { path: '/faculty/analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
+    { path: '/faculty/self-paced', label: 'Self-Paced Resources', icon: <Layers size={18} /> },
+    { path: '/faculty/tasks', label: 'Tasks Assigned', icon: <CheckSquare size={18} />, badge: pendingTaskCount },
     { path: '/faculty/notifications', label: 'Notifications', icon: <Bell size={18} />, badge: unreadCount },
     { path: '/faculty/profile', label: 'My Profile', icon: <Settings size={18} /> },
   ];
@@ -76,6 +90,9 @@ const FacultyLayout: React.FC<FacultyLayoutProps> = ({ children }) => {
     if (location.pathname.startsWith('/faculty/edit-course/')) return 'Edit Course';
     return 'Faculty Portal';
   })();
+
+  // HOD uses their own layout — never render the Faculty sidebar for HOD
+  if (user?.role === 'COLLEGE_HOD') return <HodLayout>{children}</HodLayout>;
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bo-bg)' }}>

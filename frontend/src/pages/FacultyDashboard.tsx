@@ -148,13 +148,12 @@ const FacultyDashboard: React.FC = () => {
   };
 
   const formatAcademicYear = (year: string) => {
-    const yearMap: any = {
-      FIRST_YEAR: '1st Year',
-      SECOND_YEAR: '2nd Year',
-      THIRD_YEAR: '3rd Year',
-      FOURTH_YEAR: '4th Year',
-      FIFTH_YEAR: '5th Year',
+    const yearMap: Record<string, string> = {
+      YEAR_1: 'Year 1', YEAR_2: 'Year 2',
+      YEAR_3_PART1: 'Year 3 Part 1', YEAR_3_PART2: 'Year 3 Part 2',
       INTERNSHIP: 'Internship',
+      FIRST_YEAR: 'Year 1', SECOND_YEAR: 'Year 2',
+      YEAR_3_MINOR: 'Year 3 Part 1', YEAR_3_MAJOR: 'Year 3 Part 2',
     };
     return yearMap[year] || year;
   };
@@ -324,11 +323,10 @@ const FacultyDashboard: React.FC = () => {
                   onChange={(e) => setFilters({ ...filters, academicYear: e.target.value })}
                 >
                   <option value="">All Years</option>
-                  <option value="FIRST_YEAR">1st Year</option>
-                  <option value="SECOND_YEAR">2nd Year</option>
-                  <option value="THIRD_YEAR">3rd Year</option>
-                  <option value="FOURTH_YEAR">4th Year</option>
-                  <option value="FIFTH_YEAR">5th Year</option>
+                  <option value="YEAR_1">Year 1</option>
+                  <option value="YEAR_2">Year 2</option>
+                  <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                  <option value="YEAR_3_PART2">Year 3 Part 2</option>
                   <option value="INTERNSHIP">Internship</option>
                 </select>
                 <input
@@ -536,8 +534,9 @@ const FacultyDashboard: React.FC = () => {
                           <option value="all">All Years</option>
                           <option value="YEAR_1">Year 1</option>
                           <option value="YEAR_2">Year 2</option>
-                          <option value="YEAR_3">Year 3</option>
-                          <option value="YEAR_4">Year 4</option>
+                          <option value="YEAR_3_PART1">Year 3 Part 1</option>
+                          <option value="YEAR_3_PART2">Year 3 Part 2</option>
+                          <option value="INTERNSHIP">Internship</option>
                         </select>
                       </div>
                       

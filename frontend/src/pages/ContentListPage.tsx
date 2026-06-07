@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PublisherLayout from '../components/publisher/PublisherLayout';
 import learningUnitService from '../services/learning-unit.service';
+import type { PageCompetencyEntry } from '../services/learning-unit.service';
 import competencyService from '../services/competency.service';
 import CompetencySearch from '../components/common/CompetencySearch';
+import { parseMciCompetencyPdf } from '../utils/competencyPdfParser';
 import { LearningUnit, LearningUnitType, LearningUnitStatus, DifficultyLevel, Competency } from '../types';
 import {
   Search, Filter, BookOpen, Video, FileText, PlusCircle,
   ChevronLeft, ChevronRight, Eye, Edit2, Trash2, ToggleLeft, ToggleRight,
-  Download, Upload, ImageIcon, Tags, X, Save
+  Download, Upload, ImageIcon, Tags, X, Save, BookMarked, CheckCircle, AlertCircle,
 } from 'lucide-react';
 import '../styles/bitflow-owner.css';
 import '../styles/loading-screen.css';
@@ -29,11 +31,20 @@ const ContentListPage: React.FC = () => {
   const [filterDifficulty, setFilterDifficulty] = useState<string>('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Competency mapping modal state
+  // Competency mapping modal state (book-level)
   const [competencyModalUnit, setCompetencyModalUnit] = useState<LearningUnit | null>(null);
   const [allCompetencies, setAllCompetencies] = useState<Competency[]>([]);
   const [competencyModalIds, setCompetencyModalIds] = useState<string[]>([]);
   const [competencySaving, setCompetencySaving] = useState(false);
+
+  // Page-wise competency mapping modal state
+  const [pageCompUnit, setPageCompUnit] = useState<LearningUnit | null>(null);
+  const [pageCompParsed, setPageCompParsed] = useState<PageCompetencyEntry[]>([]);
+  const [pageCompParsing, setPageCompParsing] = useState(false);
+  const [pageCompSaving, setPageCompSaving] = useState(false);
+  const [pageCompError, setPageCompError] = useState('');
+  const [pageCompSuccess, setPageCompSuccess] = useState('');
+  const pageCompFileRef = useRef<HTMLInputElement>(null);
 
   const loadContent = useCallback(async () => {
     try {
@@ -62,7 +73,7 @@ const ContentListPage: React.FC = () => {
 
   // Load all competencies once for the mapping modal
   useEffect(() => {
-    competencyService.getAll({ limit: 2000 }).then(res => {
+    competencyService.getAll({ limit: 5000 }).then(res => {
       const data = (res as any)?.data || (res as any)?.competencies || [];
       setAllCompetencies(Array.isArray(data) ? data : []);
     }).catch(() => {});
@@ -85,6 +96,47 @@ const ContentListPage: React.FC = () => {
       alert(err?.response?.data?.message || 'Failed to save competency mapping');
     } finally {
       setCompetencySaving(false);
+    }
+  };
+
+  const openPageCompModal = (unit: LearningUnit, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPageCompUnit(unit);
+    setPageCompParsed([]);
+    setPageCompError('');
+    setPageCompSuccess('');
+  };
+
+  const handlePageCompFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPageCompParsing(true);
+    setPageCompError('');
+    setPageCompParsed([]);
+    try {
+      const entries = await parseMciCompetencyPdf(file);
+      if (entries.length === 0) setPageCompError('No competency rows detected. Check the PDF format.');
+      else setPageCompParsed(entries);
+    } catch (err: any) {
+      setPageCompError('Failed to parse PDF: ' + (err?.message || 'unknown error'));
+    } finally {
+      setPageCompParsing(false);
+      e.target.value = '';
+    }
+  };
+
+  const savePageCompetencies = async () => {
+    if (!pageCompUnit || pageCompParsed.length === 0) return;
+    setPageCompSaving(true);
+    setPageCompError('');
+    try {
+      const res = await learningUnitService.bulkUpsertPageCompetencies(pageCompUnit.id, pageCompParsed);
+      setPageCompSuccess(`${res.inserted} page-competency mappings saved successfully.`);
+      setPageCompParsed([]);
+    } catch (err: any) {
+      setPageCompError(err?.response?.data?.message || 'Failed to save mappings.');
+    } finally {
+      setPageCompSaving(false);
     }
   };
 
@@ -245,6 +297,7 @@ const ContentListPage: React.FC = () => {
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Title</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Type</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Subject / Topic</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Year</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Level</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Status</th>
                   <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', fontSize: 11, textTransform: 'uppercase' }}>Competencies</th>
@@ -284,6 +337,15 @@ const ContentListPage: React.FC = () => {
                       <div style={{ fontSize: 11, color: 'var(--bo-text-muted)' }}>{unit.topic}</div>
                     </td>
                     <td style={{ padding: '12px 14px' }}>
+                      {(unit as any).academicYear ? (
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: '#EDE9FE', color: '#6D28D9' }}>
+                          {(unit as any).academicYear.replace('YEAR_', 'Y').replace('_MINOR', '-Min').replace('_MAJOR', '-Maj')}
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 11, color: '#F59E0B' }}>Not set</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 14px' }}>
                       <span style={{ fontSize: 12 }}>{unit.difficultyLevel} - {diffLabel[unit.difficultyLevel] || unit.difficultyLevel}</span>
                     </td>
                     <td style={{ padding: '12px 14px' }}>{statusBadge(unit.status)}</td>
@@ -302,10 +364,16 @@ const ContentListPage: React.FC = () => {
                           onClick={() => navigate(`/publisher-admin/edit/${unit.id}`)}>
                           <Edit2 size={14} />
                         </button>
-                        <button title="Map Competencies" className="bo-btn bo-btn-outline" style={{ padding: '4px 8px', fontSize: 12, color: '#6366F1' }}
+                        <button title="Map Competencies (book-level)" className="bo-btn bo-btn-outline" style={{ padding: '4px 8px', fontSize: 12, color: '#6366F1' }}
                           onClick={(e) => openCompetencyModal(unit, e)}>
                           <Tags size={14} />
                         </button>
+                        {(unit.type === 'BOOK' || (unit as any).fileFormat === 'pdf') && (
+                          <button title="Map Page Competencies (MCI PDF)" className="bo-btn bo-btn-outline" style={{ padding: '4px 8px', fontSize: 12, color: '#0891B2' }}
+                            onClick={(e) => openPageCompModal(unit, e)}>
+                            <BookMarked size={14} />
+                          </button>
+                        )}
                         <button title={unit.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                           className="bo-btn bo-btn-outline" style={{ padding: '4px 8px', fontSize: 12 }}
                           disabled={actionLoading === unit.id}
@@ -413,6 +481,122 @@ const ContentListPage: React.FC = () => {
                 disabled={competencySaving} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Save size={14} />
                 {competencySaving ? 'Saving…' : 'Save Mapping'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Page-wise Competency Mapping Modal */}
+      {pageCompUnit && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 1001,
+          background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }} onClick={() => setPageCompUnit(null)}>
+          <div style={{
+            background: '#fff', borderRadius: 12, width: '100%', maxWidth: 760,
+            maxHeight: '90vh', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }} onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid var(--bo-border)' }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0891B2' }}>Map Page-wise Competencies</h3>
+                <p style={{ fontSize: 12, color: 'var(--bo-text-muted)', margin: '2px 0 0' }}>{pageCompUnit.title}</p>
+              </div>
+              <button onClick={() => setPageCompUnit(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--bo-text-muted)', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+              {/* Instructions */}
+              <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#0369A1' }}>
+                Upload the MCI syllabus PDF for this book. The system will extract the competency-to-page mapping table
+                (Pages No. | Competency Code | Description) and store it per page. Students will see relevant
+                competencies while reading.
+              </div>
+
+              {/* File Picker */}
+              <input ref={pageCompFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={handlePageCompFile} />
+              <button
+                onClick={() => pageCompFileRef.current?.click()}
+                disabled={pageCompParsing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
+                  borderRadius: 8, border: '2px dashed #0891B2', background: '#F0F9FF',
+                  color: '#0891B2', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  marginBottom: 16, opacity: pageCompParsing ? 0.6 : 1,
+                }}>
+                <Upload size={16} />
+                {pageCompParsing ? 'Parsing PDF…' : 'Choose MCI Syllabus PDF'}
+              </button>
+
+              {pageCompError && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', fontSize: 13, marginBottom: 12 }}>
+                  <AlertCircle size={15} /> {pageCompError}
+                </div>
+              )}
+
+              {pageCompSuccess && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, color: '#16A34A', fontSize: 13, marginBottom: 12 }}>
+                  <CheckCircle size={15} /> {pageCompSuccess}
+                </div>
+              )}
+
+              {/* Preview Table */}
+              {pageCompParsed.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--bo-text)', marginBottom: 8 }}>
+                    {pageCompParsed.length} entries detected — preview (first 20):
+                  </div>
+                  <div style={{ border: '1px solid var(--bo-border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: '#F8FAFC', borderBottom: '1px solid var(--bo-border)' }}>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', width: 90 }}>Pages</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)', width: 90 }}>Code</th>
+                          <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--bo-text-muted)' }}>Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pageCompParsed.slice(0, 20).map((e, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid var(--bo-border)' }}>
+                            <td style={{ padding: '7px 12px', color: '#374151' }}>
+                              {e.pageStart === e.pageEnd ? e.pageStart : `${e.pageStart}–${e.pageEnd}`}
+                            </td>
+                            <td style={{ padding: '7px 12px', fontWeight: 600, color: '#0891B2' }}>{e.competencyCode}</td>
+                            <td style={{ padding: '7px 12px', color: '#374151' }}>{e.competencyDescription || '—'}</td>
+                          </tr>
+                        ))}
+                        {pageCompParsed.length > 20 && (
+                          <tr>
+                            <td colSpan={3} style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--bo-text-muted)', fontSize: 12 }}>
+                              … and {pageCompParsed.length - 20} more entries
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '12px 20px', borderTop: '1px solid var(--bo-border)' }}>
+              <button className="bo-btn bo-btn-outline" onClick={() => setPageCompUnit(null)} disabled={pageCompSaving}>
+                Close
+              </button>
+              <button className="bo-btn bo-btn-primary"
+                style={{ background: '#0891B2', borderColor: '#0891B2' }}
+                onClick={savePageCompetencies}
+                disabled={pageCompParsed.length === 0 || pageCompSaving}>
+                <Save size={14} />
+                {pageCompSaving ? 'Saving…' : `Save ${pageCompParsed.length > 0 ? `${pageCompParsed.length} ` : ''}Mappings`}
               </button>
             </div>
           </div>

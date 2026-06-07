@@ -24,7 +24,7 @@ interface GuestLecture {
   meetingLink: string | null;
   capacity: number;
   registrationCount: number;
-  status: 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED';
+  status: 'UPCOMING' | 'ONGOING' | 'COMPLETED' | 'CANCELLED' | 'PENDING_REVIEW';
   department: string | null;
   creator?: { id: string; fullName: string; email: string };
   _count?: { registrations: number };
@@ -44,7 +44,10 @@ const typeLabels: Record<string, string> = {
   GUEST_LECTURE: 'Guest Lecture', WORKSHOP: 'Workshop', SEMINAR: 'Seminar', WEBINAR: 'Webinar',
 };
 const statusColors: Record<string, string> = {
-  UPCOMING: '#3B82F6', ONGOING: '#10B981', COMPLETED: '#6B7280', CANCELLED: '#EF4444',
+  UPCOMING: '#3B82F6', ONGOING: '#10B981', COMPLETED: '#6B7280', CANCELLED: '#EF4444', PENDING_REVIEW: '#1E40AF',
+};
+const statusLabels: Record<string, string> = {
+  UPCOMING: 'Upcoming', ONGOING: 'Ongoing', COMPLETED: 'Completed', CANCELLED: 'Cancelled', PENDING_REVIEW: '⏳ Pending HOD Approval',
 };
 
 const FacultyGuestLectures: React.FC = () => {
@@ -170,8 +173,8 @@ const FacultyGuestLectures: React.FC = () => {
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text)' }}>Guest Lectures</h1>
-            <p style={{ color: 'var(--bo-text-muted)', fontSize: 14 }}>Create and manage guest lectures, workshops & seminars</p>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text)' }}>Online Lectures</h1>
+            <p style={{ color: 'var(--bo-text-muted)', fontSize: 14 }}>Create and manage online lectures, workshops & seminars</p>
           </div>
           <button onClick={openCreate} style={{
             display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
@@ -237,7 +240,7 @@ const FacultyGuestLectures: React.FC = () => {
                         <span style={{
                           fontSize: 11, fontWeight: 600, padding: '2px 10px', borderRadius: 20,
                           background: `${statusColors[l.status]}15`, color: statusColors[l.status],
-                        }}>{l.status}</span>
+                        }}>{statusLabels[l.status] || l.status}</span>
                         <span style={{
                           fontSize: 11, fontWeight: 500, padding: '2px 10px', borderRadius: 20,
                           background: '#F3F4F6', color: '#6B7280',

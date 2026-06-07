@@ -38,12 +38,14 @@ interface SavedResult {
 }
 
 const YEAR_LABELS: Record<string, string> = {
-  YEAR_1: 'Year 1', FIRST_YEAR: 'Year 1',
-  YEAR_2: 'Year 2', SECOND_YEAR: 'Year 2',
-  YEAR_3_MINOR: 'Year 3 (Part 1)', THIRD_YEAR: 'Year 3', PART_1: 'Year 3 (Part 1)',
-  YEAR_3_MAJOR: 'Year 3 (Part 2)', FOURTH_YEAR: 'Year 4', PART_2: 'Year 3 (Part 2)',
-  FIFTH_YEAR: 'Year 5',
+  YEAR_1: 'Year 1', YEAR_2: 'Year 2',
+  YEAR_3_PART1: 'Year 3 Part 1', YEAR_3_PART2: 'Year 3 Part 2',
   INTERNSHIP: 'Internship',
+  FIRST_YEAR: 'Year 1', SECOND_YEAR: 'Year 2',
+  YEAR_3_MINOR: 'Year 3 Part 1', YEAR_3_MAJOR: 'Year 3 Part 2',
+  THIRD_YEAR: 'Year 3 Part 1', FOURTH_YEAR: 'Year 3 Part 2', FIFTH_YEAR: 'Internship',
+  PART_1: 'Year 3 Part 1', PART_2: 'Year 3 Part 2',
+  YEAR_3: 'Year 3 Part 1', YEAR_4: 'Year 3 Part 2', YEAR_5: 'Internship',
 };
 
 type ActiveSection = 'ALL' | 'BOOKS' | 'VIDEOS' | 'MCQS' | 'RESULTS';
@@ -54,8 +56,6 @@ const StudentLibrary: React.FC = () => {
   const [items, setItems] = useState<PackageItem[]>([]);
   const [savedResults, setSavedResults] = useState<SavedResult[]>([]);
   const [activeSection, setActiveSection] = useState<ActiveSection>('ALL');
-  const [yearFilter, setYearFilter] = useState<string>('');
-  const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [currentStudentYear, setCurrentStudentYear] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -73,13 +73,6 @@ const StudentLibrary: React.FC = () => {
         const data = pkgRes.value.data;
         setItems(data.items || []);
         setCurrentStudentYear(data.currentYear || '');
-        // Build unique years from actual data
-        const yearsSet = new Set((data.items as PackageItem[])
-          .map((i: PackageItem) => i.academicYear)
-          .filter(Boolean));
-        const years: string[] = [];
-        yearsSet.forEach(y => { if (y) years.push(y); });
-        setAvailableYears(years);
       }
 
       if (resultsRes.status === 'fulfilled') {
@@ -138,7 +131,6 @@ const StudentLibrary: React.FC = () => {
     if (activeSection === 'BOOKS' && !isBookType(item.type)) return false;
     if (activeSection === 'VIDEOS' && !isVideoType(item.type)) return false;
     if (activeSection === 'MCQS' && !isMcqType(item.type)) return false;
-    if (yearFilter && item.academicYear !== yearFilter) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       if (!item.title.toLowerCase().includes(q) &&
@@ -249,19 +241,6 @@ const StudentLibrary: React.FC = () => {
                 style={{ paddingLeft: 36, width: '100%', height: 38, fontSize: 13, borderRadius: 10 }}
               />
             </div>
-            {availableYears.length > 0 && (
-              <select
-                value={yearFilter}
-                onChange={(e) => setYearFilter(e.target.value)}
-                className="bo-input"
-                style={{ padding: '7px 10px', fontSize: 13, minWidth: 140, borderRadius: 10, height: 38 }}
-              >
-                <option value="">All Years</option>
-                {availableYears.map(y => (
-                  <option key={y} value={y}>{YEAR_LABELS[y] || y}</option>
-                ))}
-              </select>
-            )}
           </div>
         )}
 

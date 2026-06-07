@@ -237,8 +237,8 @@ const StudentGuestLectures: React.FC = () => {
         </button>
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text)' }}>Guest Lectures</h1>
-          <p style={{ color: 'var(--bo-text-muted)', fontSize: 14 }}>Browse and register for guest lectures, workshops & seminars</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--bo-text)' }}>Online Lectures</h1>
+          <p style={{ color: 'var(--bo-text-muted)', fontSize: 14 }}>Browse and register for online lectures, workshops & seminars</p>
         </div>
 
         {/* Stats */}
@@ -293,7 +293,7 @@ const StudentGuestLectures: React.FC = () => {
               border: '1px solid var(--bo-border)', color: 'var(--bo-text-muted)',
             }}>
               <Calendar size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-              <p>No guest lectures available right now.</p>
+              <p>No online lectures available right now.</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: 14 }}>
