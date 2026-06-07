@@ -36,7 +36,7 @@ jobs:
         run: npm run build
         env:
           REACT_APP_API_URL: http://${{ secrets.EC2_HOST }}/api
-          CI: false
+          CI: ''
 
       # ── Package build ──────────────────────────────────────
       - name: Package build
