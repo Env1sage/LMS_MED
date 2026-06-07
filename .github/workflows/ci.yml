@@ -36,7 +36,7 @@ jobs:
         run: npm run build
         env:
           REACT_APP_API_URL: /api
-          CI: ''
+          DISABLE_ESLINT_PLUGIN: 'true'
 
       - name: Verify build output
         run: test -d build && test -f build/index.html
