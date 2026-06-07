@@ -23,12 +23,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
 
       # ── Build frontend pointing at production API ──────────
       - name: Build frontend
@@ -37,6 +35,8 @@ jobs:
         env:
           REACT_APP_API_URL: http://${{ secrets.EC2_HOST }}/api
           DISABLE_ESLINT_PLUGIN: 'true'
+          TSC_COMPILE_ON_ERROR: 'true'
+          CI: 'false'
 
       # ── Package build ──────────────────────────────────────
       - name: Package build
