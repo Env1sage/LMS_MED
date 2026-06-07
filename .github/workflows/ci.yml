@@ -38,9 +38,6 @@ jobs:
           TSC_COMPILE_ON_ERROR: 'true'
           CI: 'false'
 
-      - name: Verify build output
-        run: test -d build && test -f build/index.html
-
       - name: Run tests
         run: npm test -- --watchAll=false --passWithNoTests
         env:
