@@ -266,11 +266,14 @@ MEDICAL_LMS/
 | Role | Email | Password | Portal URL |
 |------|-------|----------|-----------|
 | Bitflow Owner | `owner@bitflow.com` | `Bitflow@2026` | `/owner` |
-| Publisher Admin | `admin@bitflow.com` | `Admin@2026` | `/publisher` |
-| College Admin | (college-specific) | — | `/college` |
-| HOD | (college-specific) | — | `/hod` |
-| Faculty | (college-specific) | — | `/faculty` |
-| Student | (college-specific) | — | `/student` |
+| Publisher Admin | `ameyahivarkar@gmail.com` | `Admin@2026` | `/publisher` |
+| College Admin | `manthan.bitflownova@gmail.com` | `College@2026` | `/college` |
+| College Dean | `manthanpawale0509@gmail.com` | `Dean@2026` | `/college` or `/hod` |
+| HOD | `amit.sharma15@college.edu` | `Hod@2026` | `/hod` |
+| Student | `rahul@college.edu` | `Student@2026` | `/student` |
+| Student | `priya@college.edu` | `Student@2026` | `/student` |
+
+> **If passwords stop working:** The "resend credentials" button generates a new random password. If SMTP ever breaks again, passwords get changed silently. Reset directly via DB script — see Section 16.
 
 **Login API:**
 ```
@@ -329,33 +332,19 @@ All actions are logged in `maker_checker_logs` table.
 
 ---
 
-## 12. Pending Work (as of handoff)
+## 12. Completed Features
 
-### Page-wise Competency Mapping (IN PROGRESS)
+### Page-wise Competency Mapping ✅ DONE
 
-Plan file: `MEDICAL_LMS/.claude/plans/dreamy-discovering-cray.md` (if present)
+Maps MCI syllabus competency codes to page ranges in book PDFs. Students see competencies in a sidebar while reading.
 
-The goal: map MCI syllabus competency codes (format: `BI1.1`, `AN2.3`) to specific page ranges within each book PDF. Students see relevant competencies in the reader as they read.
-
-**What's done:**
-- DB migration script written at `/tmp/patch_page_competencies.js` (not yet run on EC2)
-
-**What remains:**
-1. Run DB migration on EC2 to create `learning_unit_page_competencies` table
-2. Patch backend compiled JS to add 2 new endpoints:
-   - `GET /learning-units/:id/page-competencies?page=N`
-   - `POST /learning-units/:id/page-competencies` (bulk upsert)
-3. Create `frontend/src/utils/competencyPdfParser.ts` — parses MCI syllabus PDF using pdfjs-dist
-4. Add 2 methods to `frontend/src/services/learning-unit.service.ts`
-5. Add "Map Competencies" button + modal to `frontend/src/pages/ContentListPage.tsx`
-6. Add competency sidebar to `frontend/src/components/student/EpubReaderAnnotated.tsx`
-
-**MCI PDF format** (structured table):
-- Column 1: Page range (e.g., `1-6`, `98-101`, or single `42`)
-- Column 2: Competency code (e.g., `BI1.1`)
-- Column 3: Competency description text
-
-**Parser approach:** Use `pdfjs-dist` (already imported in `EpubReaderAnnotated.tsx`) — extract text content per page, detect rows by competency code regex `/^([A-Z]{2,4}\d+\.\d+)/`.
+**All completed:**
+- DB table `learning_unit_page_competencies` created on EC2
+- Backend endpoints patched: `GET /learning-units/:id/page-competencies` and `POST /learning-units/:id/page-competencies`
+- `frontend/src/utils/competencyPdfParser.ts` — parses MCI syllabus PDF client-side
+- `frontend/src/services/learning-unit.service.ts` — has `getPageCompetencies` and `bulkUpsertPageCompetencies`
+- `frontend/src/pages/ContentListPage.tsx` — "Map Competencies" button + upload modal per book
+- `frontend/src/components/student/EpubReaderAnnotated.tsx` — competency sidebar with "This Page" and "All" tabs
 
 ---
 
@@ -386,16 +375,23 @@ docker exec -it bitflow-postgres psql -U bitflow_user -d bitflow_lms
 
 ## 14. CI/CD Notes
 
-The `DEPLOYMENT.md` describes a GitHub Actions pipeline — **this is aspirational, not active.** The actual CI/CD is the manual hot-inject pattern described in Section 7.
+GitHub Actions CI/CD is **fully active**. See `.github/workflows/ci.yml` and `.github/workflows/deploy.yml`.
+
+- **CI** (`ci.yml`): runs on every push — builds frontend, runs tests
+- **CD** (`deploy.yml`): runs on push to `main` — hot-injects frontend into EC2 nginx container
+
+**Required GitHub Secrets** (already configured on `Env1sage/LMS_MED`):
+```
+EC2_HOST=13.234.225.94
+EC2_USER=ubuntu
+EC2_SSH_KEY=<contents of LMS_mumbai.pem>
+```
+
+**CD uses hot-inject only** — it never runs `docker compose build`. Backend is untouched by CD.
 
 The `deploy-to-aws.sh` script in the repo:
 - References the **wrong IP** (`52.66.165.194` — old server)
-- Does a full Docker rebuild — **do not use on the current server** (disk constraint)
-
-If you want to set up real GitHub Actions CI/CD:
-1. Push secrets to GitHub: `EC2_HOST=13.234.225.94`, `EC2_USER=ubuntu`, `EC2_SSH_KEY=<contents of LMS_mumbai.pem>`
-2. The workflow would run the hot-inject steps from Section 7 on push to `main`
-3. See `.github/workflows/` if it exists, or create based on `DEPLOYMENT.md`
+- Does a full Docker rebuild — **do not use** (disk constraint + source drift)
 
 ---
 
@@ -411,3 +407,120 @@ If you want to set up real GitHub Actions CI/CD:
 | `Cannot find module 'pg'` in patch scripts | Run with `-e NODE_PATH=/app/node_modules` flag |
 | NestJS `TypeError at Reflect.defineMetadata` | Prototype method assignments must come BEFORE `__decorate` calls |
 | `REACT_APP_API_URL` not set | Build will point to wrong API — always set explicitly |
+| `docker compose up --force-recreate backend` | **WIPES all in-container patches** — must re-run Section 16 scripts after |
+| Prisma error `Value X not found in enum Y` | Prisma client enum drift — re-run the enum patch scripts from Section 16 |
+| Login fails after "resend credentials" clicked | The resend flow resets the password — reset via DB script in Section 16 |
+
+---
+
+## 16. EC2 Patches Applied — Must Re-run After `--force-recreate`
+
+> **WARNING:** Running `docker compose up --force-recreate backend` recreates the container from the image, wiping all runtime patches below. If you ever need to force-recreate the backend (e.g. to update env vars), you MUST re-run all patch scripts afterward.
+
+### 16.1 SMTP Configuration
+Already persisted in `/opt/bitflow-lms/.env` on EC2 — survives recreate automatically:
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=ameyahivarkar@gmail.com
+SMTP_PASS=unikvcqeyhdqgkwh
+SMTP_FROM=Bitflow Medical LMS <ameyahivarkar@gmail.com>
+```
+
+### 16.2 Prisma Client Enum Patch ⚠️ MUST RE-RUN after force-recreate
+
+The Prisma client compiled into the image is missing `PENDING_REVIEW` (CourseStatus) and `YEAR_3_PART1/PART2` (AcademicYear). Without this patch, the Faculty Dashboard and Course pages throw "unexpected database error".
+
+```javascript
+// /tmp/patch_prisma_enums_full.js
+const fs = require('fs');
+
+// Patch index.js exports
+const indexPath = '/app/node_modules/.prisma/client/index.js';
+let src = fs.readFileSync(indexPath, 'utf8');
+
+// Fix inlineSchema (used by WASM query engine)
+src = src.replace(
+  'enum CourseStatus {\\n  DRAFT\\n  PUBLISHED\\n  ARCHIVED\\n}',
+  'enum CourseStatus {\\n  DRAFT\\n  PUBLISHED\\n  ARCHIVED\\n  PENDING_REVIEW\\n}'
+);
+src = src.replace(
+  '  PART_1\\n  PART_2\\n}\\n\\nenum',
+  '  PART_1\\n  PART_2\\n  YEAR_3_PART1\\n  YEAR_3_PART2\\n}\\n\\nenum'
+);
+fs.writeFileSync(indexPath, src);
+
+// Patch schema.prisma
+const schemaPath = '/app/node_modules/.prisma/client/schema.prisma';
+let schema = fs.readFileSync(schemaPath, 'utf8');
+if (!schema.includes('PENDING_REVIEW')) {
+  schema = schema.replace(
+    'enum CourseStatus {\n  DRAFT\n  PUBLISHED\n  ARCHIVED\n}',
+    'enum CourseStatus {\n  DRAFT\n  PUBLISHED\n  ARCHIVED\n  PENDING_REVIEW\n}'
+  );
+}
+if (!schema.includes('YEAR_3_PART1')) {
+  schema = schema.replace('  PART_1\n  PART_2\n}', '  PART_1\n  PART_2\n  YEAR_3_PART1\n  YEAR_3_PART2\n}');
+}
+fs.writeFileSync(schemaPath, schema);
+console.log('Prisma enum patch done');
+```
+
+Run with:
+```bash
+scp -i LMS_mumbai.pem /tmp/patch_prisma_enums_full.js ubuntu@13.234.225.94:/tmp/
+ssh -i LMS_mumbai.pem ubuntu@13.234.225.94 \
+  "docker cp /tmp/patch_prisma_enums_full.js bitflow-backend:/tmp/ && \
+   docker exec -u root -e NODE_PATH=/app/node_modules bitflow-backend node /tmp/patch_prisma_enums_full.js && \
+   docker restart bitflow-backend"
+```
+
+### 16.3 Resend Credentials Fix ⚠️ MUST RE-RUN after force-recreate
+
+The original code resets the password BEFORE sending email. If email fails, user is locked out. Patched to send email first, only reset password on success.
+
+File patched: `/app/dist/src/bitflow-owner/bitflow-owner.service.js`
+Functions: `resendPublisherCredentials` and `resendCollegeCredentials`
+
+The patch scripts are at `/tmp/patch_resend_creds.js` locally. Re-apply the same way as other patches.
+
+### 16.4 Reset Admin Passwords
+
+If passwords get scrambled, reset them directly:
+
+```javascript
+// /tmp/reset_all_passwords.js
+const bcrypt = require('bcrypt');
+const { Client } = require('pg');
+async function main() {
+  const client = new Client({ connectionString: 'postgresql://bitflow_user:Bitfl0wSecure2026@postgres:5432/bitflow_lms' });
+  await client.connect();
+  const accounts = [
+    { email: 'owner@bitflow.com',            password: 'Bitflow@2026' },
+    { email: 'ameyahivarkar@gmail.com',       password: 'Admin@2026'  },
+    { email: 'manthan.bitflownova@gmail.com', password: 'College@2026'},
+    { email: 'manthanpawale0509@gmail.com',   password: 'Dean@2026'   },
+    { email: 'amit.sharma15@college.edu',     password: 'Hod@2026'    },
+    { email: 'rahul@college.edu',             password: 'Student@2026'},
+    { email: 'priya@college.edu',             password: 'Student@2026'},
+  ];
+  for (const acc of accounts) {
+    const hash = await bcrypt.hash(acc.password, 12);
+    await client.query(
+      `UPDATE users SET "passwordHash"=$1, "failedLoginAttempts"=0, "lockedUntil"=NULL WHERE email=$2`,
+      [hash, acc.email]
+    );
+    console.log('Reset:', acc.email, '->', acc.password);
+  }
+  await client.end();
+}
+main().catch(console.error);
+```
+
+Run with:
+```bash
+scp -i LMS_mumbai.pem /tmp/reset_all_passwords.js ubuntu@13.234.225.94:/tmp/
+ssh -i LMS_mumbai.pem ubuntu@13.234.225.94 \
+  "docker cp /tmp/reset_all_passwords.js bitflow-backend:/tmp/ && \
+   docker exec -e NODE_PATH=/app/node_modules bitflow-backend node /tmp/reset_all_passwords.js"
+```
